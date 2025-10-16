@@ -1,0 +1,53 @@
+graph TB
+    subgraph "Client Layer"
+        User[User/Browser]
+    end
+
+    subgraph "Frontend Layer"
+        React[React Frontend<br/>Port 3000<br/>Order Placement UI]
+    end
+
+    subgraph "API Layer"
+        API[API Gateway<br/>Port 3001<br/>Express Server]
+    end
+
+    subgraph "AWS Services - Localstack"
+        SQS[SQS Queue<br/>order-processing-queue<br/>Async Message Queue]
+        DLQ[Dead Letter Queue<br/>order-processing-dlq]
+    end
+
+    subgraph "Processing Layer"
+        Processor[Order Processor<br/>Background Service<br/>Node.js Microservice]
+    end
+
+    subgraph "Data Layer"
+        MariaDB[(MariaDB<br/>Port 3306<br/>orders_db)]
+    end
+
+    subgraph "Infrastructure"
+        Terraform[Terraform<br/>IaC Configuration]
+        Docker[Docker Compose<br/>Localstack + MariaDB]
+    end
+
+    User -->|Places Order| React
+    React -->|HTTP POST /api/orders| API
+    API -->|Sends Message| SQS
+    SQS -.->|Failed Messages| DLQ
+    Processor -->|Long Polls| SQS
+    Processor -->|Deletes Message| SQS
+    Processor -->|INSERT Order| MariaDB
+
+    Terraform -.->|Provisions| SQS
+    Terraform -.->|Provisions| DLQ
+    Docker -.->|Runs| SQS
+    Docker -.->|Runs| MariaDB
+
+    style User fill:#e1f5ff
+    style React fill:#61dafb
+    style API fill:#68a063
+    style SQS fill:#ff9900
+    style DLQ fill:#ff9900
+    style Processor fill:#68a063
+    style MariaDB fill:#003545
+    style Terraform fill:#7b42bc
+    style Docker fill:#2496ed
