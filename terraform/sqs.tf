@@ -7,8 +7,11 @@ resource "aws_sqs_queue" "order_processing_queue" {
   visibility_timeout_seconds = 30
 
   tags = {
+    Name        = "order-processing-queue"
     Environment = "localstack"
     Application = "echobase"
+    ManagedBy   = "terraform"
+    Purpose     = "Main queue for order processing"
   }
 }
 
@@ -16,8 +19,11 @@ resource "aws_sqs_queue" "order_processing_dlq" {
   name = "order-processing-dlq"
 
   tags = {
+    Name        = "order-processing-dlq"
     Environment = "localstack"
     Application = "echobase"
+    ManagedBy   = "terraform"
+    Purpose     = "Dead letter queue for failed order messages"
   }
 }
 

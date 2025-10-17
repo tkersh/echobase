@@ -253,7 +253,7 @@ CREATE TABLE orders (
 
 5. Verify the order in the database:
 ```bash
-docker exec -it echobase-mariadb-1 mysql -u orderuser -porderpass orders_db -e "SELECT * FROM orders;"
+docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db -e "SELECT * FROM orders;"
 ```
 
 ## Monitoring
@@ -267,17 +267,40 @@ aws --endpoint-url=http://localhost:4566 sqs receive-message --queue-url http://
 ### View Database Orders
 
 ```bash
-docker exec -it echobase-mariadb-1 mysql -u orderuser -porderpass orders_db -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
+docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
 ```
 
-### View Logs
+### View Application Logs
 
 ```bash
-# Docker logs
+# View all Docker container logs
 docker-compose logs -f
+
+# View specific service logs
+docker-compose logs -f api-gateway
+docker-compose logs -f order-processor
+docker-compose logs -f frontend
+
+# View Localstack logs (includes SQS operations)
+docker-compose logs -f localstack
+
+# View MariaDB logs
+docker-compose logs -f mariadb
 
 # Service logs (when running manually)
 # Check the terminal where each service is running
+```
+
+### View Localstack Activity
+
+Localstack logs all AWS API operations in DEBUG mode. You can monitor SQS activity:
+
+```bash
+# Watch Localstack logs for SQS operations
+docker-compose logs -f localstack | grep -i sqs
+
+# Filter for specific operations
+docker-compose logs -f localstack | grep "SendMessage\|ReceiveMessage\|DeleteMessage"
 ```
 
 ## Troubleshooting
@@ -298,7 +321,7 @@ docker-compose ps mariadb
 
 Connect to database:
 ```bash
-docker exec -it echobase-mariadb-1 mysql -u orderuser -porderpass orders_db
+docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db
 ```
 
 ### SQS Queue Not Found
