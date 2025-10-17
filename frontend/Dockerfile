@@ -9,6 +9,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm ci
 
+# Run security audit
+RUN npm audit --audit-level=high
+
 # Copy application code
 COPY . .
 
