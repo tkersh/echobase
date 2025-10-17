@@ -7,15 +7,19 @@ services:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=sqs,rds
+      - SERVICES=sqs
       - DEBUG=1
-      - DATA_DIR=/tmp/localstack/data
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
-      - "./localstack-data:/tmp/localstack"
+      - "localstack-data:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - echobase-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mariadb:
     image: mariadb:latest
@@ -31,9 +35,75 @@ services:
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - echobase-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SQS_ENDPOINT=http://localstack:4566
+      - SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
+    depends_on:
+      localstack:
+        condition: service_healthy
+    networks:
+      - echobase-network
+    restart: unless-stopped
+
+  order-processor:
+    build:
+      context: ./backend/order-processor
+      dockerfile: Dockerfile
+    environment:
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=test
+      - AWS_SECRET_ACCESS_KEY=test
+      - SQS_ENDPOINT=http://localstack:4566
+      - SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_USER=orderuser
+      - DB_PASSWORD=orderpass
+      - DB_NAME=orders_db
+      - POLL_INTERVAL=5000
+      - MAX_MESSAGES=10
+    depends_on:
+      localstack:
+        condition: service_healthy
+      mariadb:
+        condition: service_healthy
+    networks:
+      - echobase-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    depends_on:
+      - api-gateway
+    networks:
+      - echobase-network
+    restart: unless-stopped
 
 volumes:
   mariadb-data:
+  localstack-data:
 
 networks:
   echobase-network:

@@ -261,7 +261,7 @@ docker exec -it echobase-mariadb-1 mysql -u orderuser -porderpass orders_db -e "
 ### View SQS Queue
 
 ```bash
-aws --endpoint-url=http://localhost:4566 sqs receive-message --queue-url http://localhost:4566/000000000000/order-processing-queue
+aws --endpoint-url=http://localhost:4566 sqs receive-message --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
 ```
 
 ### View Database Orders

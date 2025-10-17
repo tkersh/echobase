@@ -1,11 +1,12 @@
 ## TODO Items
-- Build a multi-tier app allowing users to place orders
-- This will be run on Localstack locally to simulate AWS.
-- Build the appropriate scaffolding in Terraform to setup the Localstack version
-- Components:
-  - Frontend/Gateway: React, Places orders into Processing queue
-  - Processing Queue: SQS
-  - Backend Service: Background microservice that reads the queue and inserts records into the data store
-  - Data Store: Persistent MariaDB Database. 
-- Generate mermaid markup for the component diagram
-- Create a jpeg of the component diagram from the mermaid source
+- [x] Build a multi-tier app allowing users to place orders
+- [x] This will be run on Localstack locally to simulate AWS.
+- [x] Build the appropriate scaffolding in Terraform to setup the Localstack version
+- [x] Components:
+  - [x] Frontend/Gateway: React, Places orders into Processing queue
+  - [x] Processing Queue: SQS
+  - [x] Backend Service: Background microservice that reads the queue and inserts records into the data store
+  - [x] Data Store: Persistent MariaDB Database.
+- [x] Generate mermaid markup for the component diagram
+- [x] Create a jpeg of the component diagram from the mermaid source
+- [x] Create Dockerfiles as appropriate
