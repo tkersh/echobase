@@ -35,6 +35,87 @@ Internet/External Network
 
 ---
 
+## Key Findings
+
+### Trust Boundaries Identified (5)
+
+1. **External Network ↔ Docker Network** (🔴 CRITICAL)
+   - No authentication or authorization
+   - Permissive CORS allowing all origins
+   - No HTTPS/TLS encryption
+   - No rate limiting or request throttling
+
+2. **Frontend ↔ API Gateway** (🟡 MEDIUM)
+   - No encryption within Docker network
+   - Minimal input validation
+   - No business logic validation
+
+3. **API Gateway ↔ SQS Queue** (🟠 HIGH)
+   - Hardcoded AWS credentials in environment variables
+   - No message encryption
+   - Credentials visible in Docker logs
+
+4. **Order Processor ↔ SQS Queue** (🟠 HIGH)
+   - Same credential exposure issues
+   - No Dead Letter Queue monitoring
+   - Potential for poison message attacks
+
+5. **Order Processor ↔ MariaDB** (🔴 CRITICAL)
+   - Hardcoded database credentials
+   - No encryption at rest
+   - Database port exposed to localhost
+   - No audit logging
+
+### Attack Surfaces Documented
+
+- **Frontend (React/Nginx)** - Security Score: 🟡 5/10
+  - XSS vulnerabilities, clickjacking potential, DoS exposure
+
+- **API Gateway (Express.js)** - Security Score: 🔴 3/10
+  - Unauthenticated access, CORS misconfiguration, no rate limiting, insufficient input validation
+
+- **SQS Queue (Localstack)** - Security Score: 🔴 2/10
+  - Credential theft risk, message interception, tampering potential, queue flooding
+
+- **Order Processor** - Security Score: 🟡 4/10
+  - Poison message attacks, resource exhaustion, credential exposure
+
+- **MariaDB Database** - Security Score: 🟡 5/10
+  - Credential-based attacks, data exfiltration risk, no audit trail
+
+### Critical Security Gaps (15)
+
+**Critical (Production Blockers):**
+1. No authentication/authorization system
+2. No HTTPS/TLS encryption
+3. Hardcoded credentials in environment variables
+4. Permissive CORS configuration
+5. No rate limiting or throttling
+
+**High Priority:**
+6. No input sanitization
+7. No request size limits
+8. No message encryption
+9. Database encryption at rest disabled
+10. No audit logging
+
+**Medium Priority:**
+11. No Dead Letter Queue monitoring
+12. Weak database credentials
+13. No API versioning
+14. Insufficient business logic validation
+15. Port exposure to localhost
+
+### Overall Security Assessment
+
+**Status:** ⚠️ **NOT PRODUCTION READY**
+
+This system demonstrates good architectural patterns (queue-based async processing, separation of concerns, parameterized SQL queries) but requires significant security hardening before production deployment. Multiple critical vulnerabilities must be addressed, particularly around authentication, encryption, and credential management.
+
+**Recommended Action:** Implement Phase 1 security enhancements (authentication, HTTPS, secrets management, CORS restrictions, rate limiting) before considering production deployment.
+
+---
+
 ## Trust Boundaries
 
 ### 1. External Network ↔ Docker Network (PRIMARY BOUNDARY)
