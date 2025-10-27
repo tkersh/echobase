@@ -17,11 +17,14 @@ if ! command -v terraform &> /dev/null; then
   echo "Visit: https://developer.hashicorp.com/terraform/downloads"
 fi
 
-# Create .env files from examples
-echo "Creating .env files from examples..."
-cp backend/api-gateway/.env.example backend/api-gateway/.env
-cp backend/order-processor/.env.example backend/order-processor/.env
-cp frontend/.env.example frontend/.env
+# Check if root .env file exists (created by generate-credentials.sh)
+echo "Checking root .env file..."
+if [ ! -f .env ]; then
+  echo ""
+  echo "WARNING: Root .env file not found!"
+  echo "It's recommended to run ./generate-credentials.sh first to generate secure credentials."
+  echo "Otherwise, Docker Compose will use default/empty values."
+fi
 
 # Start Docker containers
 echo ""

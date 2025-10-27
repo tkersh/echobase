@@ -5,46 +5,41 @@ echo "Starting Echobase Application"
 echo "=========================================="
 echo ""
 
-# Check if Docker containers are running
-if ! docker-compose ps | grep -q "Up"; then
-  echo "Docker containers are not running. Starting them now..."
-  docker-compose up -d
-  sleep 10
-fi
-
-echo "Starting services..."
-echo ""
-
 # Function to cleanup on exit
 cleanup() {
   echo ""
   echo "Shutting down services..."
-  kill $API_PID $PROCESSOR_PID $FRONTEND_PID 2>/dev/null
+  docker-compose stop
   exit 0
 }
 
 trap cleanup SIGINT SIGTERM
 
-# Start API Gateway
-echo "Starting API Gateway on port 3001..."
-cd backend/api-gateway
-node server.js &
-API_PID=$!
-cd ../..
+# Check if .env file exists
+if [ ! -f .env ]; then
+  echo "ERROR: Root .env file not found!"
+  echo "Please run ./generate-credentials.sh first to create secure credentials."
+  exit 1
+fi
 
-# Start Order Processor
-echo "Starting Order Processor..."
-cd backend/order-processor
-node processor.js &
-PROCESSOR_PID=$!
-cd ../..
+# Load environment variables from .env file
+echo "Loading environment variables from .env..."
+set -a
+source .env
+set +a
 
-# Start Frontend
-echo "Starting React Frontend on port 3000..."
-cd frontend
-BROWSER=none npm start &
-FRONTEND_PID=$!
-cd ..
+# Start all services with docker-compose
+echo "Starting all services with Docker Compose..."
+docker-compose up -d
+
+echo ""
+echo "Waiting for services to be healthy..."
+sleep 5
+
+# Check service health
+echo ""
+echo "Service Status:"
+docker-compose ps
 
 echo ""
 echo "=========================================="
@@ -54,12 +49,18 @@ echo ""
 echo "Services running:"
 echo "  - Frontend:        http://localhost:3000"
 echo "  - API Gateway:     http://localhost:3001"
-echo "  - Order Processor: Running in background"
+echo "  - Order Processor: Running in Docker"
 echo "  - Localstack:      http://localhost:4566"
 echo "  - MariaDB:         localhost:3306"
+echo ""
+echo "To view logs:"
+echo "  - All services:    docker-compose logs -f"
+echo "  - API Gateway:     docker-compose logs -f api-gateway"
+echo "  - Order Processor: docker-compose logs -f order-processor"
+echo "  - Frontend:        docker-compose logs -f frontend"
 echo ""
 echo "Press Ctrl+C to stop all services"
 echo ""
 
-# Wait for all background processes
-wait
+# Follow logs from all services
+docker-compose logs -f

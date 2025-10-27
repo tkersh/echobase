@@ -69,25 +69,30 @@ Run the setup script to install dependencies and configure the environment:
 ```
 
 This script will:
-- Create `.env` files from examples (if needed)
-- Start Docker containers (Localstack and MariaDB)
+- Check for root `.env` file (warns if missing)
+- Start Docker containers (all services)
 - Initialize Terraform and provision SQS queues
-- Install Node.js dependencies for all services
+- Install Node.js dependencies for building Docker images
 
-### 2. Start the Application
+### 3. Start the Application
 
 ```bash
 ./start.sh
 ```
 
-This will start all services:
+This will:
+- Start all services in Docker containers
+- Display service status
+- Follow logs from all containers (Ctrl+C to stop)
+
+Services will be available at:
 - React Frontend: http://localhost:3000
 - API Gateway: http://localhost:3001
-- Order Processor: Background service
+- Order Processor: Running in Docker
 - Localstack: http://localhost:4566
 - MariaDB: localhost:3306
 
-### 3. Access the Application
+### 4. Access the Application
 
 Open your browser and navigate to:
 ```
@@ -96,7 +101,7 @@ http://localhost:3000
 
 ## Manual Setup
 
-If you prefer to set up manually:
+If you prefer to set up manually instead of using the scripts:
 
 ### 1. Generate Secure Credentials
 
@@ -108,66 +113,56 @@ If you prefer to set up manually:
 
 This creates a root `.env` file with strong random passwords. Docker Compose will automatically use these credentials.
 
-### 2. Start Infrastructure
+### 2. Install Node.js Dependencies
 
-```bash
-docker-compose up -d
-```
-
-### 3. Provision SQS Queue with Terraform
-
-```bash
-cd terraform
-terraform init
-terraform apply
-cd ..
-```
-
-### 4. Configure Environment Variables (Optional)
-
-The root `.env` file created by `generate-credentials.sh` contains all necessary credentials for Docker Compose.
-
-**For local development outside Docker**, create `.env` files in each service directory based on the `.env.example` templates:
-
-- `backend/api-gateway/.env.example`
-- `backend/order-processor/.env.example`
-- `frontend/.env.example`
-
-**Note:** When running with Docker Compose, individual service `.env` files are not needed.
-
-### 4. Install Dependencies
+Install dependencies for building Docker images:
 
 ```bash
 # API Gateway
 cd backend/api-gateway
 npm install
+cd ../..
 
 # Order Processor
-cd ../order-processor
+cd backend/order-processor
 npm install
+cd ../..
 
 # Frontend
-cd ../../frontend
+cd frontend
 npm install
+cd ..
 ```
 
-### 5. Start Services
-
-In separate terminals:
+### 3. Start Docker Infrastructure
 
 ```bash
-# Terminal 1 - API Gateway
-cd backend/api-gateway
-node server.js
-
-# Terminal 2 - Order Processor
-cd backend/order-processor
-node processor.js
-
-# Terminal 3 - Frontend
-cd frontend
-npm start
+docker-compose up -d
 ```
+
+This starts all services: Localstack, MariaDB, API Gateway, Order Processor, and Frontend.
+
+### 4. Provision SQS Queue with Terraform
+
+```bash
+cd terraform
+terraform init
+terraform apply -auto-approve
+cd ..
+```
+
+### 5. View Logs
+
+```bash
+# View all services
+docker-compose logs -f
+
+# Or view specific services
+docker-compose logs -f api-gateway
+docker-compose logs -f order-processor
+```
+
+All services run in Docker containers using the root `.env` file for credentials.
 
 ## Project Structure
 
@@ -252,10 +247,16 @@ CREATE TABLE orders (
 
 5. Verify the order in the database:
 ```bash
-docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db -e "SELECT * FROM orders;"
+# First, load environment variables from .env
+source .env
+
+# Then query the database using environment variables
+docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders;"
 ```
 
 ## Monitoring
+
+**Note:** For database commands, load environment variables first with `source .env` to use your secure credentials.
 
 ### View SQS Queue
 
@@ -266,7 +267,11 @@ aws --endpoint-url=http://localhost:4566 sqs receive-message --queue-url http://
 ### View Database Orders
 
 ```bash
-docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
+# Load environment variables first
+source .env
+
+# Query database with environment variables
+docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### View Application Logs
@@ -285,9 +290,6 @@ docker-compose logs -f localstack
 
 # View MariaDB logs
 docker-compose logs -f mariadb
-
-# Service logs (when running manually)
-# Check the terminal where each service is running
 ```
 
 ### View Localstack Activity
@@ -320,7 +322,11 @@ docker-compose ps mariadb
 
 Connect to database:
 ```bash
-docker exec -it echobase-mariadb-1 mariadb -u orderuser -porderpass orders_db
+# Load environment variables first
+source .env
+
+# Connect with environment variables
+docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE
 ```
 
 ### SQS Queue Not Found
