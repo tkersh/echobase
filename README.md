@@ -349,20 +349,22 @@ If ports 3000, 3001, 3306, or 4566 are already in use, you can:
 Stop all services and remove containers:
 
 ```bash
-# Stop scripts
-Ctrl+C (if using start.sh)
+# Stop scripts (if using start.sh)
+Ctrl+C
 
-# Stop Docker containers
+# Destroy Terraform resources FIRST (requires Localstack to be running)
+cd terraform
+terraform destroy -auto-approve
+cd ..
+
+# Then stop Docker containers
 docker-compose down
 
-# Remove volumes (WARNING: This deletes all data)
+# OR remove volumes as well (WARNING: This deletes all data)
 docker-compose down -v
-
-# Destroy Terraform resources
-cd terraform
-terraform destroy
-cd ..
 ```
+
+**Note:** It's important to run `terraform destroy` BEFORE `docker-compose down` because Terraform needs to connect to Localstack (running in Docker) to properly clean up the SQS resources.
 
 ## Development
 
