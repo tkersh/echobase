@@ -46,7 +46,21 @@ A cloud-native, asynchronous order processing application built with React, Node
 
 ## Quick Start
 
-### 1. Setup
+### 1. Generate Secure Credentials
+
+**IMPORTANT:** Before starting the application, generate secure credentials:
+
+```bash
+./generate-credentials.sh
+```
+
+This script will:
+- Generate strong random passwords for the database
+- Create a `.env` file with all necessary credentials
+- Set restrictive file permissions (600)
+- Display a credential summary
+
+### 2. Setup
 
 Run the setup script to install dependencies and configure the environment:
 
@@ -55,7 +69,7 @@ Run the setup script to install dependencies and configure the environment:
 ```
 
 This script will:
-- Create `.env` files from examples
+- Create `.env` files from examples (if needed)
 - Start Docker containers (Localstack and MariaDB)
 - Initialize Terraform and provision SQS queues
 - Install Node.js dependencies for all services
@@ -84,13 +98,23 @@ http://localhost:3000
 
 If you prefer to set up manually:
 
-### 1. Start Infrastructure
+### 1. Generate Secure Credentials
+
+**IMPORTANT:** First, generate secure credentials:
+
+```bash
+./generate-credentials.sh
+```
+
+This creates a root `.env` file with strong random passwords. Docker Compose will automatically use these credentials.
+
+### 2. Start Infrastructure
 
 ```bash
 docker-compose up -d
 ```
 
-### 2. Provision SQS Queue with Terraform
+### 3. Provision SQS Queue with Terraform
 
 ```bash
 cd terraform
@@ -99,42 +123,17 @@ terraform apply
 cd ..
 ```
 
-### 3. Configure Environment Variables
+### 4. Configure Environment Variables (Optional)
 
-Create `.env` files in each service directory:
+The root `.env` file created by `generate-credentials.sh` contains all necessary credentials for Docker Compose.
 
-**backend/api-gateway/.env**
-```bash
-PORT=3001
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-SQS_ENDPOINT=http://localhost:4566
-SQS_QUEUE_URL=http://localhost:4566/000000000000/order-processing-queue
-```
+**For local development outside Docker**, create `.env` files in each service directory based on the `.env.example` templates:
 
-**backend/order-processor/.env**
-```bash
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=test
-AWS_SECRET_ACCESS_KEY=test
-SQS_ENDPOINT=http://localhost:4566
-SQS_QUEUE_URL=http://localhost:4566/000000000000/order-processing-queue
+- `backend/api-gateway/.env.example`
+- `backend/order-processor/.env.example`
+- `frontend/.env.example`
 
-DB_HOST=localhost
-DB_PORT=3306
-DB_USER=orderuser
-DB_PASSWORD=orderpass
-DB_NAME=orders_db
-
-POLL_INTERVAL=5000
-MAX_MESSAGES=10
-```
-
-**frontend/.env**
-```bash
-REACT_APP_API_URL=http://localhost:3001
-```
+**Note:** When running with Docker Compose, individual service `.env` files are not needed.
 
 ### 4. Install Dependencies
 
@@ -383,18 +382,60 @@ To modify the database schema:
    docker-compose up -d mariadb
    ```
 
+## Security
+
+### Current Security Status
+
+✅ **Implemented:**
+- Strong random password generation for database
+- Environment variable-based credential management
+- `.env` file with restrictive permissions (600)
+- Parameterized SQL queries (SQL injection protection)
+- Automated credential generation script
+- `.env` files excluded from version control
+
+⚠️ **Development Environment Only:**
+- This setup is secure for **local development**
+- **NOT production ready** - multiple security enhancements required
+
+### Security Documentation
+
+For comprehensive security information:
+
+- **`SECURITY.md`** - Complete security guide with credential setup, best practices, and production checklist
+- **`TrustBoundaries.md`** - Detailed trust boundary and attack surface analysis
+
+### Quick Security Checklist
+
+Before deploying to production, review `SECURITY.md` and ensure:
+
+- [ ] Replace hardcoded AWS credentials with IAM roles
+- [ ] Implement AWS Secrets Manager or similar
+- [ ] Enable HTTPS/TLS for all endpoints
+- [ ] Implement authentication and authorization
+- [ ] Configure CORS for specific origins only
+- [ ] Enable database encryption at rest
+- [ ] Implement rate limiting and input validation
+- [ ] Set up monitoring and audit logging
+- [ ] Review compliance requirements (GDPR, PCI DSS, etc.)
+
+**See `SECURITY.md` for the complete production deployment checklist.**
+
 ## Production Deployment
+
+**IMPORTANT:** Review `SECURITY.md` and `TrustBoundaries.md` before production deployment.
 
 For production deployment:
 
-1. Replace Localstack with actual AWS services
-2. Update environment variables with production values
-3. Use proper AWS credentials
-4. Enable HTTPS/TLS
-5. Implement proper authentication and authorization
-6. Add monitoring and alerting
-7. Configure auto-scaling for processors
-8. Set up proper backup strategies for the database
+1. **Security** - Implement all critical security requirements (see `SECURITY.md`)
+2. **AWS Services** - Replace Localstack with actual AWS services
+3. **Credentials** - Use AWS Secrets Manager and IAM roles
+4. **Encryption** - Enable HTTPS/TLS, database encryption, SQS encryption
+5. **Authentication** - Implement proper authentication and authorization
+6. **Monitoring** - Add CloudWatch monitoring and alerting
+7. **Scaling** - Configure auto-scaling for processors
+8. **Backup** - Set up automated backup strategies for the database
+9. **Compliance** - Review and implement compliance requirements
 
 ## License
 

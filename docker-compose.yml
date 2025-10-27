@@ -24,17 +24,17 @@ services:
     ports:
       - "3306:3306"
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpass
-      - MYSQL_DATABASE=orders_db
-      - MYSQL_USER=orderuser
-      - MYSQL_PASSWORD=orderpass
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - mariadb-data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - echobase-network
     healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-prootpass"]
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -46,12 +46,12 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - PORT=3001
-      - AWS_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - SQS_ENDPOINT=http://localstack:4566
-      - SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
+      - PORT=${PORT:-3001}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SQS_ENDPOINT=${SQS_ENDPOINT}
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
     depends_on:
       localstack:
         condition: service_healthy
@@ -64,18 +64,18 @@ services:
       context: ./backend/order-processor
       dockerfile: Dockerfile
     environment:
-      - AWS_REGION=us-east-1
-      - AWS_ACCESS_KEY_ID=test
-      - AWS_SECRET_ACCESS_KEY=test
-      - SQS_ENDPOINT=http://localstack:4566
-      - SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
-      - DB_HOST=mariadb
-      - DB_PORT=3306
-      - DB_USER=orderuser
-      - DB_PASSWORD=orderpass
-      - DB_NAME=orders_db
-      - POLL_INTERVAL=5000
-      - MAX_MESSAGES=10
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - SQS_ENDPOINT=${SQS_ENDPOINT}
+      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - POLL_INTERVAL=${POLL_INTERVAL:-5000}
+      - MAX_MESSAGES=${MAX_MESSAGES:-10}
     depends_on:
       localstack:
         condition: service_healthy
@@ -92,7 +92,7 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://localhost:3001
+      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3001}
     depends_on:
       - api-gateway
     networks:
