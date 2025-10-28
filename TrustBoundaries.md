@@ -71,8 +71,9 @@ Internet/External Network
 - **Frontend (React/Nginx)** - Security Score: 🟡 5/10
   - XSS vulnerabilities, clickjacking potential, DoS exposure
 
-- **API Gateway (Express.js)** - Security Score: 🔴 3/10
-  - Unauthenticated access, CORS misconfiguration, no rate limiting, insufficient input validation
+- **API Gateway (Express.js)** - Security Score: 🟡 7/10 ⬆️ (was 🔴 3/10)
+  - **IMPROVED:** CORS restrictions, rate limiting, input validation, sanitization
+  - **Remaining:** Unauthenticated access, no HTTPS
 
 - **SQS Queue (Localstack)** - Security Score: 🔴 2/10
   - Credential theft risk, message interception, tampering potential, queue flooding
@@ -83,28 +84,30 @@ Internet/External Network
 - **MariaDB Database** - Security Score: 🟡 5/10
   - Credential-based attacks, data exfiltration risk, no audit trail
 
-### Critical Security Gaps (15)
+### Critical Security Gaps
 
 **Critical (Production Blockers):**
 1. No authentication/authorization system
 2. No HTTPS/TLS encryption
 3. Hardcoded credentials in environment variables
-4. Permissive CORS configuration
-5. No rate limiting or throttling
+4. ~~Permissive CORS configuration~~ ✅ **FIXED** (2025-10-27)
+5. ~~No rate limiting or throttling~~ ✅ **FIXED** (2025-10-27)
 
 **High Priority:**
-6. No input sanitization
-7. No request size limits
+6. ~~No input sanitization~~ ✅ **FIXED** (2025-10-27)
+7. ~~No request size limits~~ ✅ **FIXED** (2025-10-27)
 8. No message encryption
 9. Database encryption at rest disabled
-10. No audit logging
+10. No audit logging (basic logging added)
 
 **Medium Priority:**
 11. No Dead Letter Queue monitoring
-12. Weak database credentials
+12. ~~Weak database credentials~~ ✅ **IMPROVED** (strong random passwords)
 13. No API versioning
-14. Insufficient business logic validation
+14. ~~Insufficient business logic validation~~ ✅ **FIXED** (2025-10-27)
 15. Port exposure to localhost
+
+**Progress:** 6 of 15 gaps addressed (40%)
 
 ### Overall Security Assessment
 
@@ -305,39 +308,61 @@ This system demonstrates good architectural patterns (queue-based async processi
 - `POST /api/orders` - Order submission endpoint
 - `GET /api/orders` - Order info endpoint (testing)
 
+**Security Improvements Implemented (2025-10-27):**
+✅ **Helmet Security Headers** - Protection against XSS, clickjacking, MIME sniffing
+✅ **CORS Restrictions** - Limited to specific origin (`http://localhost:3000`)
+✅ **Rate Limiting** - 100 requests per 15 minutes per IP
+✅ **Request Size Limits** - 1MB maximum payload size
+✅ **Input Validation** - Comprehensive validation with express-validator
+✅ **Input Sanitization** - HTML escaping, trimming, type conversion
+✅ **Business Logic Validation** - Order total value limits
+✅ **Error Handling** - Generic errors, no information disclosure
+
 **Attack Vectors:**
-1. **Unauthenticated Access**
+1. **Unauthenticated Access** ⚠️ **Still Present**
    - No API keys, tokens, or authentication required
    - Any client can submit orders
    - *Risk:* Unauthorized order creation, data pollution
+   - *Recommendation:* Implement JWT-based authentication
 
-2. **Cross-Origin Resource Sharing (CORS) Misconfiguration**
-   - `app.use(cors())` allows ALL origins
-   - *Risk:* Cross-site data theft, CSRF attacks
+2. **Cross-Origin Resource Sharing (CORS)** ✅ **FIXED**
+   - Was: `app.use(cors())` allows ALL origins
+   - Now: Restricted to `process.env.CORS_ORIGIN` (default: `http://localhost:3000`)
+   - *Impact:* Prevents unauthorized cross-origin requests
 
-3. **Denial of Service (DoS)**
-   - No rate limiting or throttling
-   - No request size limits
-   - *Risk:* Resource exhaustion, queue flooding
+3. **Denial of Service (DoS)** ✅ **MITIGATED**
+   - Was: No rate limiting or throttling
+   - Now: Rate limited to 100 requests per 15 minutes per IP
+   - Request size limited to 1MB
+   - *Impact:* Significantly reduces DoS attack surface
 
-4. **Input Validation Bypass**
-   - Only checks for required fields
-   - No validation for:
-     - String length limits
-     - Negative quantities or prices
-     - Special characters or malicious input
-     - Numeric range validation
-   - *Risk:* Data integrity issues, potential injection attacks
+4. **Input Validation Bypass** ✅ **FIXED**
+   - Was: Only checks for required fields
+   - Now: Comprehensive validation for:
+     - ✅ String length limits (1-255 characters)
+     - ✅ Character pattern validation (alphanumeric + safe characters)
+     - ✅ Numeric range validation (quantity: 1-10,000, price: 0.01-1,000,000)
+     - ✅ Business logic validation (order total < $1M)
+   - *Impact:* Prevents injection attacks and data integrity issues
 
-5. **Information Disclosure**
-   - Error messages may leak system information
-   - `/health` endpoint reveals service status
+5. **Information Disclosure** ✅ **FIXED**
+   - Was: Error messages may leak system information
+   - Now: Generic error messages, no stack traces exposed
+   - *Impact:* Reduces information leakage
 
-6. **Mass Assignment**
-   - Accepts any additional fields in JSON payload
-   - *Risk:* Unintended data storage or queue pollution
+6. **Mass Assignment** ⚠️ **Partially Mitigated**
+   - Validation only processes specified fields
+   - Extra fields in payload are ignored
+   - *Impact:* Reduced risk of unintended data storage
 
-**Current Security Score:** 🔴 **3/10**
+**Security Score:** 🟡 **7/10** (was 🔴 **3/10**)
+
+**Remaining Gaps:**
+- ❌ No authentication/authorization
+- ❌ No HTTPS/TLS (development environment)
+- ⚠️ Basic audit logging only
+
+**See `SECURITY-IMPROVEMENTS.md` for detailed implementation guide.**
 
 ---
 
