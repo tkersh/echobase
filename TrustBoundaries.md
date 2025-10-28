@@ -41,14 +41,14 @@ Internet/External Network
 
 1. **External Network ↔ Docker Network** (🔴 CRITICAL)
    - No authentication or authorization
-   - Permissive CORS allowing all origins
+   - ~~Permissive CORS allowing all origins~~ ✅ **FIXED**
    - No HTTPS/TLS encryption
-   - No rate limiting or request throttling
+   - ~~No rate limiting or request throttling~~ ✅ **FIXED**
 
 2. **Frontend ↔ API Gateway** (🟡 MEDIUM)
    - No encryption within Docker network
-   - Minimal input validation
-   - No business logic validation
+   - ~~Minimal input validation~~ ✅ **FIXED**
+   - ~~No business logic validation~~ ✅ **FIXED**
 
 3. **API Gateway ↔ SQS Queue** (🟠 HIGH)
    - Hardcoded AWS credentials in environment variables
@@ -102,7 +102,7 @@ Internet/External Network
 
 **Medium Priority:**
 11. No Dead Letter Queue monitoring
-12. ~~Weak database credentials~~ ✅ **IMPROVED** (strong random passwords)
+12. ~~Weak database credentials~~ ✅ **FIXED** (2025-10-27)
 13. No API versioning
 14. ~~Insufficient business logic validation~~ ✅ **FIXED** (2025-10-27)
 15. Port exposure to localhost
@@ -136,19 +136,19 @@ This system demonstrates good architectural patterns (queue-based async processi
 **Vulnerabilities:**
 - ❌ **No Authentication:** Anyone with network access can submit orders
 - ❌ **No Authorization:** No role-based access control
-- ❌ **Permissive CORS:** `app.use(cors())` allows requests from ANY origin
+- ✅ **~~Permissive CORS:~~** ~~`app.use(cors())` allows requests from ANY origin~~ **FIXED** - Now restricted to specific origin
 - ❌ **No HTTPS/TLS:** All traffic in plaintext (HTTP only)
-- ❌ **No Rate Limiting:** Vulnerable to denial-of-service attacks
-- ❌ **No Request Size Limits:** Can accept unlimited payload sizes
+- ✅ **~~No Rate Limiting:~~** ~~Vulnerable to denial-of-service attacks~~ **FIXED** - 100 req/15min per IP
+- ✅ **~~No Request Size Limits:~~** ~~Can accept unlimited payload sizes~~ **FIXED** - 1MB limit
 - ❌ **No API Keys/Tokens:** No client identity verification
 
 **Attack Vectors:**
 - Unauthorized order submission from any source
-- Cross-Site Request Forgery (CSRF) attacks
-- Denial of Service (DoS) through unlimited requests
+- ~~Cross-Site Request Forgery (CSRF) attacks~~ ✅ **MITIGATED** (CORS restrictions)
+- ~~Denial of Service (DoS) through unlimited requests~~ ✅ **MITIGATED** (rate limiting)
 - Man-in-the-middle attacks (no encryption)
-- Large payload attacks to exhaust resources
-- Cross-origin data exfiltration
+- ~~Large payload attacks to exhaust resources~~ ✅ **MITIGATED** (size limits)
+- ~~Cross-origin data exfiltration~~ ✅ **MITIGATED** (CORS restrictions)
 
 **Risk Level:** 🔴 **CRITICAL**
 
@@ -168,14 +168,14 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 **Vulnerabilities:**
 - ⚠️ **No TLS/Encryption:** HTTP communication within Docker network
-- ⚠️ **No Input Sanitization:** String values not validated for length or content
-- ⚠️ **No Business Logic Validation:** Negative quantities/prices allowed
+- ✅ **~~No Input Sanitization:~~** ~~String values not validated for length or content~~ **FIXED** - Full validation & sanitization
+- ✅ **~~No Business Logic Validation:~~** ~~Negative quantities/prices allowed~~ **FIXED** - Range validation & business rules
 - ⚠️ **Hardcoded Endpoints:** API URL in environment variables (not secret)
 
 **Attack Vectors:**
 - Network sniffing within Docker network (if compromised)
-- Injection of malicious data (e.g., extremely long strings)
-- Business logic bypass (negative values, special characters)
+- ~~Injection of malicious data (e.g., extremely long strings)~~ ✅ **MITIGATED** (input validation & sanitization)
+- ~~Business logic bypass (negative values, special characters)~~ ✅ **MITIGATED** (validation rules)
 
 **Risk Level:** 🟡 **MEDIUM**
 
@@ -481,29 +481,29 @@ This system demonstrates good architectural patterns (queue-based async processi
    - Components: API Gateway, Order Processor
    - Recommendation: Use AWS Secrets Manager, Vault, or managed identities
 
-4. **Permissive CORS Configuration**
-   - Impact: Any website can access API
-   - Components: API Gateway
-   - Recommendation: Restrict to specific origins
+4. ~~**Permissive CORS Configuration**~~ ✅ **FIXED**
+   - ~~Impact: Any website can access API~~
+   - ~~Components: API Gateway~~
+   - ~~Recommendation: Restrict to specific origins~~
 
-5. **No Rate Limiting or Throttling**
-   - Impact: DoS vulnerability
-   - Components: API Gateway, Frontend
-   - Recommendation: Implement rate limiting middleware
+5. ~~**No Rate Limiting or Throttling**~~ ✅ **FIXED**
+   - ~~Impact: DoS vulnerability~~
+   - ~~Components: API Gateway, Frontend~~
+   - ~~Recommendation: Implement rate limiting middleware~~
 
 ---
 
 ### High Priority Gaps
 
-6. **No Input Sanitization**
-   - Impact: Data integrity issues, potential injection
-   - Components: API Gateway
-   - Recommendation: Validate string lengths, patterns, ranges
+6. ~~**No Input Sanitization**~~ ✅ **FIXED**
+   - ~~Impact: Data integrity issues, potential injection~~
+   - ~~Components: API Gateway~~
+   - ~~Recommendation: Validate string lengths, patterns, ranges~~
 
-7. **No Request Size Limits**
-   - Impact: Resource exhaustion
-   - Components: API Gateway
-   - Recommendation: Add payload size limits (e.g., 1MB max)
+7. ~~**No Request Size Limits**~~ ✅ **FIXED**
+   - ~~Impact: Resource exhaustion~~
+   - ~~Components: API Gateway~~
+   - ~~Recommendation: Add payload size limits (e.g., 1MB max)~~
 
 8. **No Message Encryption**
    - Impact: Queue data readable in transit
@@ -529,20 +529,20 @@ This system demonstrates good architectural patterns (queue-based async processi
     - Components: SQS, Order Processor
     - Recommendation: Add DLQ alarms and automated reprocessing
 
-12. **Weak Database Credentials**
-    - Impact: Easy brute force
-    - Components: MariaDB
-    - Recommendation: Use strong, randomly generated passwords
+12. ~~**Weak Database Credentials**~~ ✅ **FIXED**
+    - ~~Impact: Easy brute force~~
+    - ~~Components: MariaDB~~
+    - ~~Recommendation: Use strong, randomly generated passwords~~
 
 13. **No API Versioning**
     - Impact: Breaking changes affect all clients
     - Components: API Gateway
     - Recommendation: Implement `/v1/` prefix
 
-14. **Insufficient Business Logic Validation**
-    - Impact: Invalid data in database
-    - Components: API Gateway, Order Processor
-    - Recommendation: Add min/max constraints, enum validation
+14. ~~**Insufficient Business Logic Validation**~~ ✅ **FIXED**
+    - ~~Impact: Invalid data in database~~
+    - ~~Components: API Gateway, Order Processor~~
+    - ~~Recommendation: Add min/max constraints, enum validation~~
 
 15. **Port Exposure to Localhost**
     - Impact: Services accessible if host compromised
@@ -716,12 +716,12 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 ### Attack Scenarios
 
-**Scenario 1: Unauthorized Order Submission**
+**Scenario 1: Unauthorized Order Submission** ⚠️ **PARTIALLY MITIGATED**
 1. Attacker discovers API endpoint (port scan or documentation)
-2. Submits thousands of fraudulent orders (no rate limiting)
-3. Queue and database overflow
-4. Legitimate orders cannot be processed
-**Impact:** DoS, data pollution, business disruption
+2. ~~Submits thousands of fraudulent orders (no rate limiting)~~ **MITIGATED** - Rate limited to 100 req/15min
+3. ~~Queue and database overflow~~ **MITIGATED** - Rate limiting prevents overflow
+4. Legitimate orders cannot be processed (authentication still needed)
+**Impact:** ~~DoS~~ **MITIGATED**, data pollution (still possible), business disruption (reduced)
 
 **Scenario 2: Credential Theft & Database Breach**
 1. Attacker gains access to Docker host (unrelated vulnerability)
@@ -736,12 +736,12 @@ This system demonstrates good architectural patterns (queue-based async processi
 3. Modifies orders before they reach API (no integrity checks)
 **Impact:** Data theft, order fraud
 
-**Scenario 4: Cross-Site Request Forgery (CSRF)**
+**Scenario 4: Cross-Site Request Forgery (CSRF)** ✅ **MITIGATED**
 1. Attacker creates malicious website
 2. User visits while authenticated (hypothetically)
-3. Malicious site submits orders to API (CORS allows all origins)
-4. Orders created without user consent
-**Impact:** Fraudulent orders, user account compromise
+3. ~~Malicious site submits orders to API (CORS allows all origins)~~ **MITIGATED** - CORS restricted to localhost:3000
+4. ~~Orders created without user consent~~ **PREVENTED** - CORS blocks cross-origin requests
+**Impact:** ~~Fraudulent orders~~ **MITIGATED**, ~~user account compromise~~ **MITIGATED**
 
 ---
 
@@ -785,8 +785,12 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-10-24
+**Document Version:** 1.1
+**Last Updated:** 2025-10-28
 **Next Review:** Before production deployment
 
 **Security Status:** ⚠️ **NOT PRODUCTION READY** - Multiple critical vulnerabilities identified
+
+**Recent Updates:**
+- **2025-10-27:** Implemented API Gateway security hardening (CORS, rate limiting, input validation, sanitization, business logic validation, error handling)
+- **2025-10-28:** Updated document to reflect all fixed vulnerabilities
