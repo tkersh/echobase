@@ -39,8 +39,8 @@ Internet/External Network
 
 ### Trust Boundaries Identified (5)
 
-1. **External Network ↔ Docker Network** (🔴 CRITICAL)
-   - No authentication or authorization
+1. **External Network ↔ Docker Network** (🟡 MEDIUM)
+   - ~~No authentication or authorization~~ ✅ **FIXED** (JWT + API Key auth)
    - ~~Permissive CORS allowing all origins~~ ✅ **FIXED**
    - No HTTPS/TLS encryption
    - ~~No rate limiting or request throttling~~ ✅ **FIXED**
@@ -71,9 +71,9 @@ Internet/External Network
 - **Frontend (React/Nginx)** - Security Score: 🟡 5/10
   - XSS vulnerabilities, clickjacking potential, DoS exposure
 
-- **API Gateway (Express.js)** - Security Score: 🟡 7/10 ⬆️ (was 🔴 3/10)
-  - **IMPROVED:** CORS restrictions, rate limiting, input validation, sanitization
-  - **Remaining:** Unauthenticated access, no HTTPS
+- **API Gateway (Express.js)** - Security Score: 🟢 8/10 ⬆️ (was 🔴 3/10)
+  - **IMPLEMENTED:** Authentication (JWT + API Key), CORS restrictions, rate limiting, input validation, sanitization
+  - **Remaining:** No HTTPS (acceptable for local development)
 
 - **SQS Queue (Localstack)** - Security Score: 🔴 2/10
   - Credential theft risk, message interception, tampering potential, queue flooding
@@ -87,7 +87,7 @@ Internet/External Network
 ### Critical Security Gaps
 
 **Critical (Production Blockers):**
-1. No authentication/authorization system
+1. ~~No authentication/authorization system~~ ✅ **FIXED** (2025-10-28) - JWT + API Key authentication
 2. No HTTPS/TLS encryption
 3. Hardcoded credentials in environment variables
 4. ~~Permissive CORS configuration~~ ✅ **FIXED** (2025-10-27)
@@ -107,7 +107,7 @@ Internet/External Network
 14. ~~Insufficient business logic validation~~ ✅ **FIXED** (2025-10-27)
 15. Port exposure to localhost
 
-**Progress:** 6 of 15 gaps addressed (40%)
+**Progress:** 7 of 15 gaps addressed (47%)
 
 ### Overall Security Assessment
 
@@ -115,7 +115,7 @@ Internet/External Network
 
 This system demonstrates good architectural patterns (queue-based async processing, separation of concerns, parameterized SQL queries) but requires significant security hardening before production deployment. Multiple critical vulnerabilities must be addressed, particularly around authentication, encryption, and credential management.
 
-**Recommended Action:** Implement Phase 1 security enhancements (authentication, HTTPS, secrets management, CORS restrictions, rate limiting) before considering production deployment.
+**Recommended Action:** Implement remaining Phase 1 security enhancements (HTTPS, secrets management) before considering production deployment. Authentication, CORS restrictions, and rate limiting have been successfully implemented.
 
 ---
 
@@ -134,23 +134,23 @@ This system demonstrates good architectural patterns (queue-based async processi
 - Basic security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection)
 
 **Vulnerabilities:**
-- ❌ **No Authentication:** Anyone with network access can submit orders
-- ❌ **No Authorization:** No role-based access control
+- ✅ **~~No Authentication:~~** ~~Anyone with network access can submit orders~~ **FIXED** - JWT + API Key authentication
+- ℹ️ **No RBAC:** No role-based access control (low priority - basic auth sufficient)
 - ✅ **~~Permissive CORS:~~** ~~`app.use(cors())` allows requests from ANY origin~~ **FIXED** - Now restricted to specific origin
 - ❌ **No HTTPS/TLS:** All traffic in plaintext (HTTP only)
 - ✅ **~~No Rate Limiting:~~** ~~Vulnerable to denial-of-service attacks~~ **FIXED** - 100 req/15min per IP
 - ✅ **~~No Request Size Limits:~~** ~~Can accept unlimited payload sizes~~ **FIXED** - 1MB limit
-- ❌ **No API Keys/Tokens:** No client identity verification
+- ✅ **~~No API Keys/Tokens:~~** ~~No client identity verification~~ **FIXED** - API Key + JWT authentication
 
 **Attack Vectors:**
-- Unauthorized order submission from any source
-- ~~Cross-Site Request Forgery (CSRF) attacks~~ ✅ **MITIGATED** (CORS restrictions)
+- ~~Unauthorized order submission from any source~~ ✅ **MITIGATED** (authentication required)
+- ~~Cross-Site Request Forgery (CSRF) attacks~~ ✅ **MITIGATED** (CORS restrictions + authentication)
 - ~~Denial of Service (DoS) through unlimited requests~~ ✅ **MITIGATED** (rate limiting)
 - Man-in-the-middle attacks (no encryption)
 - ~~Large payload attacks to exhaust resources~~ ✅ **MITIGATED** (size limits)
 - ~~Cross-origin data exfiltration~~ ✅ **MITIGATED** (CORS restrictions)
 
-**Risk Level:** 🔴 **CRITICAL**
+**Risk Level:** 🟡 **MEDIUM** (was 🔴 **CRITICAL**)
 
 ---
 
@@ -304,26 +304,30 @@ This system demonstrates good architectural patterns (queue-based async processi
 ### B. API Gateway (Express.js)
 
 **Entry Points:**
-- `GET /health` - Health check endpoint
-- `POST /api/orders` - Order submission endpoint
+- `GET /health` - Health check endpoint (no auth required)
+- `POST /api/auth/register` - User registration (no auth required)
+- `POST /api/auth/login` - User login (no auth required)
+- `POST /api/orders` - Order submission endpoint (auth required)
 - `GET /api/orders` - Order info endpoint (testing)
 
-**Security Improvements Implemented (2025-10-27):**
-✅ **Helmet Security Headers** - Protection against XSS, clickjacking, MIME sniffing
-✅ **CORS Restrictions** - Limited to specific origin (`http://localhost:3000`)
-✅ **Rate Limiting** - 100 requests per 15 minutes per IP
-✅ **Request Size Limits** - 1MB maximum payload size
-✅ **Input Validation** - Comprehensive validation with express-validator
-✅ **Input Sanitization** - HTML escaping, trimming, type conversion
-✅ **Business Logic Validation** - Order total value limits
-✅ **Error Handling** - Generic errors, no information disclosure
+**Security Improvements Implemented:**
+✅ **Helmet Security Headers** - Protection against XSS, clickjacking, MIME sniffing (2025-10-27)
+✅ **CORS Restrictions** - Limited to specific origin (`http://localhost:3000`) (2025-10-27)
+✅ **Rate Limiting** - 100 requests per 15 minutes per IP (2025-10-27)
+✅ **Request Size Limits** - 1MB maximum payload size (2025-10-27)
+✅ **Input Validation** - Comprehensive validation with express-validator (2025-10-27)
+✅ **Input Sanitization** - HTML escaping, trimming, type conversion (2025-10-27)
+✅ **Business Logic Validation** - Order total value limits (2025-10-27)
+✅ **Error Handling** - Generic errors, no information disclosure (2025-10-27)
+✅ **JWT Authentication** - User authentication with bcrypt password hashing (2025-10-28)
+✅ **API Key Authentication** - Service-to-service authentication (2025-10-28)
 
 **Attack Vectors:**
-1. **Unauthenticated Access** ⚠️ **Still Present**
-   - No API keys, tokens, or authentication required
-   - Any client can submit orders
-   - *Risk:* Unauthorized order creation, data pollution
-   - *Recommendation:* Implement JWT-based authentication
+1. **Unauthenticated Access** ✅ **FIXED**
+   - Was: No API keys, tokens, or authentication required
+   - Now: JWT or API Key required for all order operations
+   - *Impact:* Only authenticated users/services can submit orders
+   - Implementation: `authenticateEither` middleware (JWT or API key)
 
 2. **Cross-Origin Resource Sharing (CORS)** ✅ **FIXED**
    - Was: `app.use(cors())` allows ALL origins
@@ -355,14 +359,13 @@ This system demonstrates good architectural patterns (queue-based async processi
    - Extra fields in payload are ignored
    - *Impact:* Reduced risk of unintended data storage
 
-**Security Score:** 🟡 **7/10** (was 🔴 **3/10**)
+**Security Score:** 🟢 **8/10** (was 🔴 **3/10**)
 
 **Remaining Gaps:**
-- ❌ No authentication/authorization
-- ❌ No HTTPS/TLS (development environment)
-- ⚠️ Basic audit logging only
+- ❌ No HTTPS/TLS (acceptable for local development)
+- ⚠️ Basic audit logging only (includes auth tracking)
 
-**See `SECURITY-IMPROVEMENTS.md` for detailed implementation guide.**
+**See `SECURITY-IMPROVEMENTS.md` and `AUTHENTICATION.md` for detailed implementation guides.**
 
 ---
 
@@ -466,10 +469,11 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 ### Critical Gaps (Production Blockers)
 
-1. **No Authentication/Authorization System**
-   - Impact: Anyone can submit orders
-   - Components: Frontend, API Gateway
-   - Recommendation: Implement JWT or OAuth2
+1. ~~**No Authentication/Authorization System**~~ ✅ **FIXED**
+   - ~~Impact: Anyone can submit orders~~
+   - ~~Components: Frontend, API Gateway~~
+   - ~~Recommendation: Implement JWT or OAuth2~~
+   - **Implementation:** JWT + API Key authentication (2025-10-28)
 
 2. **No HTTPS/TLS Encryption**
    - Impact: All traffic in plaintext
@@ -548,6 +552,16 @@ This system demonstrates good architectural patterns (queue-based async processi
     - Impact: Services accessible if host compromised
     - Components: All services
     - Recommendation: Use internal Docker networks only, remove port mappings
+
+---
+
+### Low Priority Gaps
+
+16. **No Role-Based Access Control (RBAC)**
+    - Impact: All authenticated users have same permissions
+    - Components: API Gateway
+    - Recommendation: Implement role system (admin, user, service) for future scalability
+    - Note: Basic authentication is sufficient for current requirements
 
 ---
 
@@ -793,4 +807,4 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 **Recent Updates:**
 - **2025-10-27:** Implemented API Gateway security hardening (CORS, rate limiting, input validation, sanitization, business logic validation, error handling)
-- **2025-10-28:** Updated document to reflect all fixed vulnerabilities
+- **2025-10-28:** Implemented authentication system (JWT + API Key) with user registration/login, password hashing (bcrypt), API key generation utility, and database tables for users and API keys. Updated security assessment to reflect authentication implementation.

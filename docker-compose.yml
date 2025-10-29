@@ -6,7 +6,7 @@ services:
       - "4571:4571"
     environment:
       - SERVICES=sqs,logs,iam
-      - DEBUG=1
+      - DEBUG=0
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - "localstack-data:/var/lib/localstack"
@@ -41,8 +41,8 @@ services:
 
   api-gateway:
     build:
-      context: ./backend/api-gateway
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: api-gateway/Dockerfile
     ports:
       - "3001:3001"
     environment:
@@ -52,8 +52,16 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       localstack:
+        condition: service_healthy
+      mariadb:
         condition: service_healthy
     networks:
       - echobase-network
@@ -61,8 +69,8 @@ services:
 
   order-processor:
     build:
-      context: ./backend/order-processor
-      dockerfile: Dockerfile
+      context: ./backend
+      dockerfile: order-processor/Dockerfile
     environment:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}

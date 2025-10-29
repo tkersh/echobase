@@ -2,8 +2,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from api-gateway
+COPY api-gateway/package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production
@@ -11,8 +11,9 @@ RUN npm ci --only=production
 # Run security audit
 RUN npm audit --omit=dev --audit-level=high
 
-# Copy application code
-COPY . .
+# Copy application code from api-gateway and shared
+COPY api-gateway/ ./
+COPY shared/ ../shared/
 
 # Expose port
 EXPOSE 3001

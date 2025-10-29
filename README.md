@@ -232,6 +232,8 @@ CREATE TABLE orders (
 
 ## Testing the Application
 
+### Functional Testing
+
 1. Open http://localhost:3000 in your browser
 2. Fill in the order form:
    - Customer Name
@@ -253,6 +255,26 @@ source .env
 # Then query the database using environment variables
 docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders;"
 ```
+
+### Security Testing
+
+Run automated security tests to verify no unauthorized access:
+
+```bash
+cd backend/api-gateway
+npm test
+```
+
+This will run 42+ security tests covering:
+- Authentication and authorization (JWT & API Keys)
+- SQS queue access control
+- Input validation and sanitization
+- Rate limiting and DoS protection
+- CORS configuration
+- Security headers
+- Error handling and information leakage
+
+For detailed information, see **`SECURITY_TESTING.md`**.
 
 ## Monitoring
 
@@ -352,11 +374,8 @@ If ports 3000, 3001, 3306, or 4566 are already in use, you can:
 
 ## Cleanup
 
-Stop all services and remove containers:
-
 ```bash
-# Stop scripts (if using start.sh)
-Ctrl+C
+# System must be running
 
 # Destroy Terraform resources FIRST (requires Localstack to be running)
 cd terraform
@@ -412,6 +431,8 @@ For comprehensive security information:
 
 - **`SECURITY.md`** - Complete security guide with credential setup, best practices, and production checklist
 - **`TrustBoundaries.md`** - Detailed trust boundary and attack surface analysis
+- **`SECURITY_TESTING.md`** - Automated security test suite for verifying no unauthorized access
+- **`AUTHENTICATION.md`** - JWT and API Key authentication guide
 
 ### Quick Security Checklist
 

@@ -10,3 +10,6 @@
 - [x] Generate mermaid markup for the component diagram
 - [x] Create a jpeg of the component diagram from the mermaid source
 - [x] Create Dockerfiles as appropriate
+- [x] Make logs less chatty: Eliminate polling logs [et.reactor-0] localstack.request.aws     : AWS sqs.ReceiveMessage => 200
+- [x] Change logging to use local timestamps
+- [x] Create a user registration page and then enforce login on the order page

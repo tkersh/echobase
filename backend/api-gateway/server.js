@@ -6,9 +6,29 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const mysql = require('mysql2/promise');
+const { log, logError } = require('../shared/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Create database connection pool
+const dbPool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
+});
+
+// Middleware to attach database connection to requests
+app.use((req, res, next) => {
+  req.db = dbPool;
+  next();
+});
 
 /**
  * Security Features Enabled:
@@ -20,6 +40,8 @@ const PORT = process.env.PORT || 3001;
  *   ✓ Input sanitization - HTML escaping, trimming, type conversion
  *   ✓ Business logic validation - Order total limits and range checks
  *   ✓ Error handling - Generic errors, no information disclosure
+ *   ✓ JWT authentication - User authentication with JSON Web Tokens
+ *   ✓ API key authentication - Service-to-service authentication
  */
 
 // Security: Helmet middleware for security headers
@@ -29,7 +51,7 @@ app.use(helmet());
 const corsOptions = {
   origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
   methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true,
   maxAge: 86400, // 24 hours
 };
@@ -63,6 +85,10 @@ const sqsClient = new SQSClient({
   },
 });
 
+// Import routes and middleware
+const authRoutes = require('./routes/auth');
+const { authenticateEither } = require('./middleware/auth');
+
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
   res.json({
@@ -71,6 +97,9 @@ app.get('/health', (req, res) => {
     version: '1.0.0'
   });
 });
+
+// Auth routes (registration and login - no authentication required)
+app.use('/api/auth', authRoutes);
 
 // Input validation and sanitization middleware
 const orderValidation = [
@@ -101,8 +130,8 @@ const orderValidation = [
     .toFloat(),
 ];
 
-// Order submission endpoint with validation
-app.post('/api/orders', orderValidation, async (req, res) => {
+// Order submission endpoint with authentication and validation
+app.post('/api/orders', authenticateEither, orderValidation, async (req, res) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -123,8 +152,9 @@ app.post('/api/orders', orderValidation, async (req, res) => {
       });
     }
 
-    // Create order object
+    // Create order object with user_id if authenticated by JWT
     const order = {
+      userId: req.user ? req.user.userId : null, // Include user_id for JWT auth, null for API key auth
       customerName,
       productName,
       quantity,
@@ -147,7 +177,8 @@ app.post('/api/orders', orderValidation, async (req, res) => {
     const result = await sqsClient.send(command);
 
     // Log for audit trail (in production, use proper logging service)
-    console.log(`Order submitted: ${result.MessageId} - ${customerName} - ${productName}`);
+    const authenticatedBy = req.user ? `user:${req.user.username}` : `apikey:${req.apiKey.keyName}`;
+    log(`Order submitted: ${result.MessageId} - ${customerName} - ${productName} [${authenticatedBy}]`);
 
     res.status(201).json({
       success: true,
@@ -162,7 +193,7 @@ app.post('/api/orders', orderValidation, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('Error submitting order:', error);
+    logError('Error submitting order:', error);
 
     // Security: Don't expose internal error details to client
     res.status(500).json({
@@ -190,7 +221,7 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error('Unhandled error:', err);
+  logError('Unhandled error:', err);
   res.status(500).json({
     error: 'Internal Server Error',
     message: 'An unexpected error occurred',
@@ -198,9 +229,9 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`API Gateway running on port ${PORT}`);
-  console.log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
-  console.log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
-  console.log(`CORS Origin: ${corsOptions.origin}`);
-  console.log(`Rate Limit: ${limiter.max} requests per ${limiter.windowMs / 60000} minutes`);
+  log(`API Gateway running on port ${PORT}`);
+  log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
+  log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
+  log(`CORS Origin: ${corsOptions.origin}`);
+  log(`Rate Limit: ${limiter.max} requests per ${limiter.windowMs / 60000} minutes`);
 });
