@@ -1,0 +1,29 @@
+[mysqld]
+# Enable data-at-rest encryption for MariaDB
+# This uses the file key management plugin for encryption
+
+# Enable the file key management plugin
+plugin_load_add = file_key_management
+file_key_management_filename = /etc/mysql/encryption/keyfile.enc
+
+# Enable encryption for new tables by default
+innodb_encrypt_tables = ON
+
+# Encrypt the InnoDB system tablespace
+innodb_encrypt_log = ON
+
+# Encrypt temporary files
+encrypt_tmp_files = ON
+
+# Encrypt binary logs
+encrypt_binlog = ON
+
+# Enable encryption for Aria tables (MariaDB's storage engine)
+aria_encrypt_tables = ON
+
+# Performance: Use AES encryption algorithm
+innodb_encryption_threads = 4
+innodb_encryption_rotate_key_age = 0
+
+# Enable automatic background encryption of tables
+innodb_encryption_rotation_iops = 100

@@ -7,6 +7,8 @@ services:
     environment:
       - SERVICES=sqs,logs,iam
       - DEBUG=0
+      - LS_LOG=warning
+      - PERSISTENCE=1
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
       - "localstack-data:/var/lib/localstack"
@@ -31,6 +33,8 @@ services:
     volumes:
       - mariadb-data:/var/lib/mysql
       - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./mariadb/config/encryption.cnf:/etc/mysql/conf.d/encryption.cnf:ro
+      - ./mariadb/config/keyfile.enc:/etc/mysql/encryption/keyfile.enc:ro
     networks:
       - echobase-network
     healthcheck:

@@ -1,4 +1,5 @@
 -- Users table for JWT-based authentication
+-- Encryption at rest enabled
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
@@ -7,13 +8,14 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENCRYPTED=YES;
 
 CREATE INDEX idx_username ON users(username);
 CREATE INDEX idx_email ON users(email);
 
 -- Orders table
 -- All orders must be associated with a registered user (JWT authentication only)
+-- Encryption at rest enabled
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     user_id INT NOT NULL,
@@ -24,7 +26,7 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENCRYPTED=YES;
 
 CREATE INDEX idx_user_id ON orders(user_id);
 CREATE INDEX idx_order_status ON orders(order_status);

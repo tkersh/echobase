@@ -30,7 +30,8 @@ A cloud-native, asynchronous order processing application built with React, Node
    - Automatic message deletion after processing
 
 5. **Data Store (MariaDB)** - Port 3306
-   - Persistent storage for orders
+   - Persistent storage for orders with encryption at rest
+   - AES-256 encryption for all data, logs, and temporary files
    - Tracks order status and metadata
 
 6. **Infrastructure (Terraform + Docker)**
@@ -56,9 +57,12 @@ A cloud-native, asynchronous order processing application built with React, Node
 
 This script will:
 - Generate strong random passwords for the database
+- Generate 256-bit AES encryption keys for database encryption at rest
 - Create a `.env` file with all necessary credentials
 - Set restrictive file permissions (600)
 - Display a credential summary
+
+**Note:** Database encryption at rest is enabled by default. All data stored in MariaDB is encrypted using AES-256.
 
 ### 2. Setup
 

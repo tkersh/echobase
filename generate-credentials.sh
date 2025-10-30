@@ -137,8 +137,24 @@ echo ""
 echo "Security:"
 echo "  - JWT Secret: [GENERATED - ${#JWT_SECRET} characters]"
 echo ""
+echo "Database Encryption:"
+echo "  - Encryption Key: Will be generated next"
+echo ""
 echo -e "${YELLOW}=================================================${NC}"
 echo ""
+
+echo -e "${GREEN}Generating MariaDB encryption keys...${NC}"
+echo ""
+
+# Generate MariaDB encryption keys
+if [ -f "mariadb/config/generate-keys.sh" ]; then
+    ./mariadb/config/generate-keys.sh
+    echo ""
+else
+    echo -e "${YELLOW}Warning: mariadb/config/generate-keys.sh not found${NC}"
+    echo -e "${YELLOW}Database encryption keys not generated${NC}"
+    echo ""
+fi
 
 echo -e "${GREEN}Next Steps:${NC}"
 echo "1. Review the generated .env file"
@@ -149,6 +165,7 @@ echo -e "${RED}IMPORTANT SECURITY NOTES:${NC}"
 echo "  - The .env file is already in .gitignore"
 echo "  - NEVER commit the .env file to version control"
 echo "  - Keep a secure backup of your credentials"
+echo "  - Backup your encryption key: mariadb/config/keyfile.enc"
 echo "  - For production, use AWS Secrets Manager or similar"
 echo ""
 echo -e "${GREEN}Credential generation complete!${NC}"

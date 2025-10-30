@@ -70,3 +70,10 @@ localstack-data/
 .env
 .env.local
 .env.*.local
+.env.backup*
+
+
+### MariaDB Encryption Keys ###
+# CRITICAL: Never commit encryption keys!
+mariadb/config/keyfile.enc
+*.enc
