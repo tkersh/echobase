@@ -87,7 +87,7 @@ const sqsClient = new SQSClient({
 
 // Import routes and middleware
 const authRoutes = require('./routes/auth');
-const { authenticateEither } = require('./middleware/auth');
+const { authenticateJWT } = require('./middleware/auth');
 
 // Health check endpoint (no rate limiting)
 app.get('/health', (req, res) => {
@@ -103,14 +103,6 @@ app.use('/api/auth', authRoutes);
 
 // Input validation and sanitization middleware
 const orderValidation = [
-  body('customerName')
-    .trim()
-    .isLength({ min: 1, max: 255 })
-    .withMessage('Customer name must be between 1 and 255 characters')
-    .matches(/^[a-zA-Z0-9\s\-'.]+$/)
-    .withMessage('Customer name contains invalid characters')
-    .escape(),
-
   body('productName')
     .trim()
     .isLength({ min: 1, max: 255 })
@@ -131,7 +123,7 @@ const orderValidation = [
 ];
 
 // Order submission endpoint with authentication and validation
-app.post('/api/orders', authenticateEither, orderValidation, async (req, res) => {
+app.post('/api/orders', authenticateJWT, orderValidation, async (req, res) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -142,7 +134,7 @@ app.post('/api/orders', authenticateEither, orderValidation, async (req, res) =>
       });
     }
 
-    const { customerName, productName, quantity, totalPrice } = req.body;
+    const { productName, quantity, totalPrice } = req.body;
 
     // Additional business logic validation
     if (quantity * totalPrice > 1000000) {
@@ -152,10 +144,9 @@ app.post('/api/orders', authenticateEither, orderValidation, async (req, res) =>
       });
     }
 
-    // Create order object with user_id if authenticated by JWT
+    // Create order object with user_id from JWT token
     const order = {
-      userId: req.user ? req.user.userId : null, // Include user_id for JWT auth, null for API key auth
-      customerName,
+      userId: req.user.userId,
       productName,
       quantity,
       totalPrice,
@@ -177,15 +168,13 @@ app.post('/api/orders', authenticateEither, orderValidation, async (req, res) =>
     const result = await sqsClient.send(command);
 
     // Log for audit trail (in production, use proper logging service)
-    const authenticatedBy = req.user ? `user:${req.user.username}` : `apikey:${req.apiKey.keyName}`;
-    log(`Order submitted: ${result.MessageId} - ${customerName} - ${productName} [${authenticatedBy}]`);
+    log(`Order submitted: ${result.MessageId} - ${req.user.fullName} - ${productName} [user:${req.user.username}]`);
 
     res.status(201).json({
       success: true,
       message: 'Order submitted successfully',
       messageId: result.MessageId,
       order: {
-        customerName: order.customerName,
         productName: order.productName,
         quantity: order.quantity,
         totalPrice: order.totalPrice,

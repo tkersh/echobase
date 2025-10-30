@@ -6,7 +6,6 @@ const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:3001';
 
 function OrderForm() {
   const [formData, setFormData] = useState({
-    customerName: '',
     productName: '',
     quantity: 1,
     totalPrice: 0,
@@ -49,7 +48,6 @@ function OrderForm() {
           text: `Order submitted successfully! Message ID: ${data.messageId}`,
         });
         setFormData({
-          customerName: '',
           productName: '',
           quantity: 1,
           totalPrice: 0,
@@ -97,7 +95,7 @@ function OrderForm() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <p style={{ margin: '0 0 10px 0', color: '#666' }}>
-              Logged in as: <strong>{user?.username}</strong>
+              Logged in as: <strong>{user?.fullName || user?.username}</strong>
             </p>
             <button
               onClick={handleLogout}
@@ -117,19 +115,6 @@ function OrderForm() {
         </div>
 
         <form onSubmit={handleSubmit} className="order-form">
-          <div className="form-group">
-            <label htmlFor="customerName">Customer Name</label>
-            <input
-              type="text"
-              id="customerName"
-              name="customerName"
-              value={formData.customerName}
-              onChange={handleChange}
-              required
-              placeholder="Enter customer name"
-            />
-          </div>
-
           <div className="form-group">
             <label htmlFor="productName">Product Name</label>
             <input

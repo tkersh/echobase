@@ -173,6 +173,12 @@ The following credential issues exist in the current development setup:
 - ✅ Strong random passwords (32 characters)
 - ✅ Separate root and application user
 - ✅ Parameterized SQL queries (SQL injection protection)
+- ✅ Normalized database schema:
+  - **users table:** id, username, email, full_name, password_hash
+  - **orders table:** id, user_id (NOT NULL, FK to users), product_name, quantity, total_price, status
+  - Foreign key: orders.user_id → users.id (ON DELETE CASCADE)
+  - Customer names stored in users table only (no duplication)
+  - API keys table removed (JWT-only authentication)
 
 #### Additional Recommendations
 - 🔒 Enable TLS for database connections
@@ -200,11 +206,67 @@ The following credential issues exist in the current development setup:
 ### 4. Application Security
 
 #### Authentication & Authorization
-- ❌ **Not Implemented** - No authentication system
-- 🔒 Implement JWT-based authentication
-- 🔒 Add API key validation
-- 🔒 Implement role-based access control (RBAC)
-- 🔒 Use the generated `JWT_SECRET` from `.env`
+- ✅ **Implemented** - JWT-based authentication
+  - User registration and login with bcrypt password hashing (12 salt rounds)
+  - JWT token generation with 24-hour expiration
+  - JWT validation middleware protecting all order endpoints
+  - Strong JWT secret (64 characters) from `.env`
+  - Password requirements: 8+ chars, uppercase, lowercase, number
+  - Username/email uniqueness validation
+- ✅ **Removed** - API key authentication (simplified to JWT-only)
+- 🔒 **Production TODO** - Implement role-based access control (RBAC)
+- 🔒 **Production TODO** - Add refresh token mechanism
+- 🔒 **Production TODO** - Implement account lockout after failed attempts
+
+#### JWT Validation Details
+
+**Validator:** The `jsonwebtoken` npm library (version tracked in package.json)
+
+**Location:** `backend/api-gateway/middleware/auth.js`
+
+**Validation Process:**
+```javascript
+// Line 23: jwt.verify performs:
+const decoded = jwt.verify(token, process.env.JWT_SECRET);
+```
+
+**What is Validated:**
+1. **Signature Verification** - Ensures token was signed with `JWT_SECRET` using HMAC-SHA256
+2. **Expiration Check** - Verifies token hasn't expired (24-hour lifetime from creation)
+3. **Payload Integrity** - Confirms payload hasn't been tampered with
+4. **Payload Extraction** - Decodes userId, username, and fullName
+
+**Error Handling:**
+- `JsonWebTokenError` → 401 "Invalid token" (malformed or wrong signature)
+- `TokenExpiredError` → 401 "Token expired" (lifetime exceeded)
+- Other errors → 500 "Authentication error" (unexpected issues)
+
+**Applied To:**
+- ✅ All `/api/orders` endpoints (POST, GET)
+- ✅ Applied via `authenticateJWT` middleware in `server.js:126`
+
+**NOT Applied To:**
+- ✅ `/api/auth/register` (public - user registration)
+- ✅ `/api/auth/login` (public - user authentication)
+- ✅ `/health` (public - health check endpoint)
+
+**Token Lifecycle:**
+1. User registers/logs in via `/api/auth/register` or `/api/auth/login`
+2. Server generates JWT with `jwt.sign(payload, JWT_SECRET, {expiresIn: '24h'})`
+3. Client stores token (localStorage/sessionStorage)
+4. Client sends token in `Authorization: Bearer <token>` header
+5. Middleware validates token before allowing access to protected routes
+6. Token expires after 24 hours, requiring re-authentication
+
+**Security Considerations:**
+- ✅ JWT secret is 64 characters (strong entropy)
+- ✅ Tokens expire after 24 hours (limits exposure window)
+- ✅ Tokens include user identity (userId, username, fullName)
+- ⚠️ No token revocation mechanism (token valid until expiration)
+- ⚠️ No refresh token (users must re-login after 24 hours)
+- 🔒 **Production TODO:** Implement token blacklist/revocation
+- 🔒 **Production TODO:** Add refresh tokens with shorter access token lifetime
+- 🔒 **Production TODO:** Store tokens in httpOnly cookies (more secure than localStorage)
 
 #### Network Security
 - ❌ **Not Implemented** - No TLS/HTTPS
@@ -214,22 +276,34 @@ The following credential issues exist in the current development setup:
 - 🔒 Implement HSTS headers
 
 #### CORS Configuration
-- ❌ **Insecure** - Currently allows all origins
-- 🔒 Restrict CORS to specific origins in production
-- 🔒 Never use `cors()` without options in production
+- ✅ **Configured** - Restricted to specific origin
+  - Default: `http://localhost:3000` (configurable via `CORS_ORIGIN`)
+  - Methods: GET, POST only
+  - Headers: Content-Type, Authorization
+  - Credentials: Enabled for cookie/session support
+- 🔒 **Production TODO:** Update `CORS_ORIGIN` to production frontend URL
+- 🔒 **Production TODO:** Consider multiple allowed origins if needed
 
 #### Rate Limiting
-- ❌ **Not Implemented** - No rate limiting
-- 🔒 Implement rate limiting middleware (express-rate-limit)
-- 🔒 Set appropriate limits (e.g., 100 requests per 15 minutes)
-- 🔒 Use Redis for distributed rate limiting
+- ✅ **Implemented** - Express rate limiter on API routes
+  - Default: 100 requests per 15 minutes per IP
+  - Applies to `/api/*` routes only (health check excluded)
+  - Configurable via `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX_REQUESTS`
+  - Returns 429 "Too many requests" when exceeded
+- 🔒 **Production TODO:** Use Redis for distributed rate limiting
+- 🔒 **Production TODO:** Implement different limits per endpoint
+- 🔒 **Production TODO:** Add stricter limits for auth endpoints
 
 #### Input Validation
-- ⚠️ **Minimal** - Only required field validation
-- 🔒 Implement comprehensive input validation (express-validator)
-- 🔒 Validate string lengths, patterns, ranges
-- 🔒 Sanitize all user input
-- 🔒 Implement business logic validation
+- ✅ **Implemented** - Comprehensive validation with express-validator
+  - **User Registration:** username (3-50 chars, alphanumeric), email, fullName, password (8+ chars with complexity)
+  - **User Login:** username and password required
+  - **Orders:** productName (1-255 chars), quantity (1-10000), totalPrice (0.01-1000000)
+  - **Sanitization:** HTML escaping, trimming, type conversion
+  - **Business Logic:** Order total cannot exceed $1,000,000
+- ✅ **SQL Injection Protection:** Parameterized queries throughout
+- 🔒 **Production TODO:** Add more specific business rules
+- 🔒 **Production TODO:** Implement file upload validation if needed
 
 ---
 
@@ -254,26 +328,32 @@ Before deploying to production, ensure all items are completed:
   - [ ] Enable TLS for database connections
   - [ ] Obtain and configure SSL/TLS certificates
 
-- [ ] **Authentication & Authorization**
-  - [ ] Implement JWT-based authentication
-  - [ ] Add API key validation
-  - [ ] Implement role-based access control
-  - [ ] Add user registration/login flows
-  - [ ] Implement password policies
+- [x] **Authentication & Authorization**
+  - [x] Implement JWT-based authentication
+  - [x] Add user registration/login flows
+  - [x] Implement password policies
+  - [ ] ~~Add API key validation~~ (removed - JWT-only)
+  - [ ] Implement role-based access control (RBAC)
+  - [ ] Add refresh token mechanism
+  - [ ] Implement account lockout after failed attempts
+  - [ ] Add password reset flow
 
-- [ ] **Network Security**
-  - [ ] Configure CORS for specific origins only
-  - [ ] Implement rate limiting
-  - [ ] Add request size limits
-  - [ ] Configure security headers (CSP, HSTS, etc.)
+- [x] **Network Security**
+  - [x] Configure CORS for specific origins only (configured, needs production URL)
+  - [x] Implement rate limiting (100 req/15 min, configurable)
+  - [x] Add request size limits (1MB payload limit)
+  - [x] Configure security headers (Helmet.js - XSS, clickjacking, MIME sniffing)
   - [ ] Use private subnets for backend services
-  - [ ] Close unnecessary ports (3306, 4566)
+  - [ ] Close unnecessary ports (3306, 4566) in production
+  - [ ] Enable HTTPS/TLS
+  - [ ] Configure HSTS headers
 
-- [ ] **Input Validation**
-  - [ ] Implement comprehensive input validation
-  - [ ] Add business logic validation
-  - [ ] Sanitize all user inputs
-  - [ ] Validate file uploads (if applicable)
+- [x] **Input Validation**
+  - [x] Implement comprehensive input validation (express-validator)
+  - [x] Add business logic validation (order totals, field ranges)
+  - [x] Sanitize all user inputs (HTML escaping, trimming)
+  - [x] Use parameterized queries (SQL injection protection)
+  - [ ] Validate file uploads (not applicable - no file uploads currently)
 
 - [ ] **Monitoring & Logging**
   - [ ] Implement audit logging for all actions
@@ -373,30 +453,72 @@ This document should be reviewed and updated:
 - Quarterly as part of security reviews
 - When new security features are added
 
-**Last Updated:** 2025-10-24
+**Last Updated:** 2025-10-30 (JWT authentication implementation)
 **Next Review:** Before production deployment
 
 ---
 
 ## Summary
 
-The Echobase application has been updated with improved credential management:
+The Echobase application has been updated with comprehensive security features:
 
-✅ **Fixed:**
-- Hardcoded database credentials removed
-- Strong random password generation implemented
-- `.env` file with restrictive permissions
-- Automated credential generation script
+✅ **Implemented:**
+- **Credential Management**
+  - Hardcoded database credentials removed
+  - Strong random password generation (32+ char passwords, 64 char JWT secret)
+  - `.env` file with restrictive permissions (600)
+  - Automated credential generation script
+- **Authentication & Authorization**
+  - JWT-based authentication with 24-hour token expiration
+  - User registration with bcrypt password hashing (12 salt rounds)
+  - Password complexity requirements (8+ chars, mixed case, numbers)
+  - Username/email uniqueness validation
+  - JWT validation middleware on all protected endpoints
+  - API key authentication removed (JWT-only for simplicity)
+- **Input Validation & Sanitization**
+  - Comprehensive validation with express-validator
+  - HTML escaping and input trimming
+  - SQL injection protection via parameterized queries
+  - Business logic validation (order totals, field ranges)
+- **Network Security**
+  - CORS restricted to specific origin (configurable)
+  - Rate limiting (100 requests per 15 minutes per IP)
+  - Request size limits (1MB payload maximum)
+  - Security headers via Helmet.js (XSS, clickjacking, MIME sniffing protection)
+- **Database Security**
+  - Foreign key relationships (orders.user_id → users.id)
+  - Proper database normalization (customer name in users table)
+  - Separate database users (root vs application)
 
 ⚠️ **Still Required for Production:**
-- AWS Secrets Manager or similar
-- IAM roles instead of hardcoded AWS credentials
-- HTTPS/TLS encryption
-- Authentication and authorization
-- Comprehensive input validation
-- Rate limiting
-- Monitoring and logging
+- **Secrets Management**
+  - AWS Secrets Manager or HashiCorp Vault
+  - IAM roles instead of hardcoded AWS credentials
+- **Encryption**
+  - HTTPS/TLS for all endpoints
+  - Database encryption at rest
+  - SQS message encryption (KMS)
+- **Enhanced Authentication**
+  - Refresh token mechanism
+  - Token revocation/blacklist
+  - Account lockout after failed attempts
+  - Password reset flow
+  - Role-based access control (RBAC)
+- **Infrastructure**
+  - Private subnets for backend services
+  - Close unnecessary ports in production
+  - Distributed rate limiting with Redis
+- **Monitoring & Compliance**
+  - Comprehensive audit logging
+  - CloudWatch or similar monitoring
+  - Log aggregation and alerting
+  - Compliance documentation (PCI DSS, GDPR, etc.)
 
-**Current Status:** ✅ Secure for local development | ⚠️ Not production ready
+**Current Status:** ✅ Secure for local development | ⚠️ Production-ready baseline (additional hardening recommended)
 
-Refer to `TrustBoundaries.md` for a comprehensive security analysis and `README.md` for deployment instructions.
+**Key Files:**
+- `SECURITY.md` (this file) - Security implementation details
+- `TrustBoundaries.md` - Comprehensive trust boundary and attack surface analysis
+- `AUTHENTICATION.md` - Authentication system documentation
+- `README.md` - Setup and deployment instructions
+- `docs/architecture.mmd` - System architecture diagram with authentication flow

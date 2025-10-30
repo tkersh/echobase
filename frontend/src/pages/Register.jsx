@@ -8,6 +8,7 @@ function Register() {
   const [formData, setFormData] = useState({
     username: '',
     email: '',
+    fullName: '',
     password: '',
     confirmPassword: ''
   });
@@ -76,6 +77,7 @@ function Register() {
         body: JSON.stringify({
           username: formData.username,
           email: formData.email,
+          fullName: formData.fullName,
           password: formData.password
         }),
       });
@@ -87,7 +89,7 @@ function Register() {
       }
 
       // Register and login the user
-      register(data.token, { username: data.username, email: data.email });
+      register(data.token, { username: data.user.username, email: data.user.email, fullName: data.user.fullName });
 
       // Redirect to orders page
       navigate('/orders');
@@ -213,6 +215,57 @@ function Register() {
               color: '#1a1a1a'
             }}
           />
+        </div>
+
+        <div style={{ marginBottom: '28px' }}>
+          <label
+            htmlFor="fullName"
+            style={{
+              display: 'block',
+              marginBottom: '8px',
+              fontSize: '18px',
+              fontWeight: '600',
+              color: '#1a1a1a',
+              lineHeight: '1.5'
+            }}
+          >
+            Full Name
+          </label>
+          <input
+            id="fullName"
+            type="text"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleChange}
+            required
+            minLength={1}
+            maxLength={255}
+            pattern="^[a-zA-Z\s\-'.]+$"
+            aria-describedby="fullname-requirements"
+            aria-required="true"
+            style={{
+              width: '100%',
+              padding: '14px',
+              fontSize: '18px',
+              boxSizing: 'border-box',
+              border: '2px solid #d0d0d0',
+              borderRadius: '4px',
+              lineHeight: '1.5',
+              background: '#ffffff',
+              color: '#1a1a1a'
+            }}
+          />
+          <div
+            id="fullname-requirements"
+            style={{
+              marginTop: '8px',
+              fontSize: '16px',
+              color: '#4a4a4a',
+              lineHeight: '1.6'
+            }}
+          >
+            Your full name (letters, spaces, hyphens, apostrophes, and periods only)
+          </div>
         </div>
 
         <div style={{ marginBottom: '28px' }}>

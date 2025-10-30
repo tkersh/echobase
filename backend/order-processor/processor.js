@@ -41,22 +41,21 @@ async function initDatabase() {
 
 async function insertOrder(order) {
   try {
+    // All orders must have a user_id from JWT authentication
     const query = `
-      INSERT INTO orders (user_id, customer_name, product_name, quantity, total_price, order_status)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, product_name, quantity, total_price, order_status)
+      VALUES (?, ?, ?, ?, ?)
     `;
 
     const [result] = await dbPool.execute(query, [
-      order.userId || null, // Use userId if present (JWT auth), otherwise NULL (API key auth)
-      order.customerName,
+      order.userId,
       order.productName,
       order.quantity,
       order.totalPrice,
       'completed',
     ]);
 
-    const userInfo = order.userId ? `for user_id: ${order.userId}` : 'via API key';
-    log(`Order inserted with ID: ${result.insertId} ${userInfo}`);
+    log(`Order inserted with ID: ${result.insertId} for user_id: ${order.userId}`);
     return result.insertId;
   } catch (error) {
     logError('Error inserting order:', error);

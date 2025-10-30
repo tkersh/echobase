@@ -9,9 +9,10 @@ const mysql = require('mysql2/promise');
  * This test suite verifies that:
  * 1. Unauthenticated requests are rejected
  * 2. Invalid/expired JWT tokens are rejected
- * 3. Invalid/inactive/expired API keys are rejected
- * 4. Valid authentication grants access
+ * 3. Rate limiting is enforced
+ * 4. Input validation prevents malicious input
  * 5. No information leakage in error messages
+ * 6. Security headers are properly set
  */
 
 // Test configuration
@@ -71,7 +72,6 @@ describe('API Gateway Security Tests', () => {
       const response = await request('http://localhost:3001')
         .post('/api/orders')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -89,7 +89,6 @@ describe('API Gateway Security Tests', () => {
       const response = await request('http://localhost:3001')
         .post('/api/orders')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -106,7 +105,6 @@ describe('API Gateway Security Tests', () => {
       const response = await request('http://localhost:3001')
         .post('/api/orders')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -126,7 +124,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', 'Bearer invalid-token-format')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -150,7 +147,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${wrongToken}`)
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -174,7 +170,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${expiredToken}`)
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -193,7 +188,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', 'InvalidFormat token123')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -210,7 +204,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', 'Bearer ')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -224,56 +217,7 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('3. API Key Authentication Failures', () => {
-    test('should reject invalid API key', async () => {
-      const response = await request('http://localhost:3001')
-        .post('/api/orders')
-        .set('X-API-Key', 'invalid-api-key-12345')
-        .send({
-          customerName: 'Test User',
-          productName: 'Test Product',
-          quantity: 1,
-          totalPrice: 10.00,
-        });
-
-      expect([401, 429]).toContain(response.status);
-      if (response.status === 401) {
-        expect(response.body.error).toBe('Authentication failed');
-        expect(response.body.message).toBe('Invalid API key');
-      }
-    });
-
-    test('should reject inactive API key', async () => {
-      // This test would need a real database connection
-      // Placeholder for integration test
-      expect(true).toBe(true);
-    });
-
-    test('should reject expired API key', async () => {
-      // This test would need a real database connection
-      // Placeholder for integration test
-      expect(true).toBe(true);
-    });
-
-    test('should reject empty API key', async () => {
-      const response = await request('http://localhost:3001')
-        .post('/api/orders')
-        .set('X-API-Key', '')
-        .send({
-          customerName: 'Test User',
-          productName: 'Test Product',
-          quantity: 1,
-          totalPrice: 10.00,
-        });
-
-      expect([401, 429]).toContain(response.status);
-      if (response.status === 401) {
-        expect(response.body.error).toBe('Authentication required');
-      }
-    });
-  });
-
-  describe('4. Rate Limiting Security', () => {
+  describe('3. Rate Limiting Security', () => {
     test('should apply rate limiting to API endpoints', async () => {
       // Create a valid token for testing
       const validToken = jwt.sign(
@@ -311,7 +255,7 @@ describe('API Gateway Security Tests', () => {
     }, 30000); // Increased timeout for this test
   });
 
-  describe('5. Cross-Origin Resource Sharing (CORS)', () => {
+  describe('4. Cross-Origin Resource Sharing (CORS)', () => {
     test('should enforce CORS restrictions', async () => {
       const response = await request('http://localhost:3001')
         .options('/api/orders')
@@ -331,7 +275,7 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('6. Input Validation Security', () => {
+  describe('5. Input Validation Security', () => {
     test('should reject order with missing required fields', async () => {
       const validToken = jwt.sign(
         { userId: 1, username: 'testuser' },
@@ -343,7 +287,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          customerName: 'Test User',
           // Missing productName, quantity, totalPrice
         });
 
@@ -365,7 +308,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: -1, // Invalid negative quantity
           totalPrice: 10.00,
@@ -378,7 +320,7 @@ describe('API Gateway Security Tests', () => {
       }
     });
 
-    test('should reject order with XSS attempt in customer name', async () => {
+    test('should reject order with XSS attempt in product name', async () => {
       const validToken = jwt.sign(
         { userId: 1, username: 'testuser' },
         TEST_JWT_SECRET,
@@ -389,8 +331,7 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          customerName: '<script>alert("xss")</script>',
-          productName: 'Test Product',
+          productName: '<script>alert("xss")</script>',
           quantity: 1,
           totalPrice: 10.00,
         });
@@ -413,7 +354,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 10000,
           totalPrice: 1000000, // Exceeds maximum
@@ -427,7 +367,7 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('7. Security Headers', () => {
+  describe('6. Security Headers', () => {
     test('should include security headers (Helmet)', async () => {
       const response = await request('http://localhost:3001')
         .get('/health');
@@ -439,13 +379,12 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('8. Endpoint Protection Coverage', () => {
+  describe('7. Endpoint Protection Coverage', () => {
     test('should protect all sensitive endpoints', async () => {
       // Test that /api/orders requires authentication
       const orderResponse = await request('http://localhost:3001')
         .post('/api/orders')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -477,7 +416,7 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('9. Token Payload Security', () => {
+  describe('8. Token Payload Security', () => {
     test('should not include sensitive data in JWT payload', async () => {
       const token = jwt.sign(
         { userId: 1, username: 'testuser' },
@@ -495,12 +434,11 @@ describe('API Gateway Security Tests', () => {
     });
   });
 
-  describe('10. Error Response Security', () => {
+  describe('9. Error Response Security', () => {
     test('should not expose stack traces in production errors', async () => {
       const response = await request('http://localhost:3001')
         .post('/api/orders')
         .send({
-          customerName: 'Test User',
           productName: 'Test Product',
           quantity: 1,
           totalPrice: 10.00,
@@ -524,7 +462,6 @@ describe('API Gateway Security Tests', () => {
         .post('/api/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          customerName: null,
           productName: null,
           quantity: 'invalid',
           totalPrice: 'invalid',

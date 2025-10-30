@@ -4,11 +4,13 @@ graph TB
     end
 
     subgraph "Frontend Layer"
-        React[React Frontend<br/>Port 3000<br/>Order Placement UI]
+        React[React Frontend<br/>Port 3000<br/>Registration/Login/Orders UI]
     end
 
     subgraph "API Layer"
-        API[API Gateway<br/>Port 3001<br/>Express Server]
+        API[API Gateway<br/>Port 3001<br/>Express + JWT Auth]
+        Auth[Auth Routes<br/>/api/auth/register<br/>/api/auth/login]
+        Orders[Order Routes<br/>/api/orders<br/>JWT Protected]
     end
 
     subgraph "AWS Services - Localstack"
@@ -22,6 +24,8 @@ graph TB
 
     subgraph "Data Layer"
         MariaDB[(MariaDB<br/>Port 3306<br/>orders_db)]
+        Users[Users Table<br/>id, username, email<br/>full_name, password_hash]
+        OrdersTable[Orders Table<br/>id, user_id, product_name<br/>quantity, total_price, status]
     end
 
     subgraph "Infrastructure"
@@ -29,13 +33,24 @@ graph TB
         Docker[Docker Compose<br/>Localstack + MariaDB]
     end
 
-    User -->|Places Order| React
-    React -->|HTTP POST /api/orders| API
-    API -->|Sends Message| SQS
+    User -->|1. Register/Login| React
+    React -->|2. POST /api/auth/register<br/>POST /api/auth/login| Auth
+    Auth -->|3. Creates User| Users
+    Auth -->|4. Returns JWT Token| React
+
+    User -->|5. Places Order| React
+    React -->|6. POST /api/orders<br/>Authorization: Bearer JWT| Orders
+    Orders -->|7. Validates JWT| Orders
+    Orders -->|8. Sends Message<br/>with user_id| SQS
+
     SQS -.->|Failed Messages| DLQ
-    Processor -->|Long Polls| SQS
-    Processor -->|Deletes Message| SQS
-    Processor -->|INSERT Order| MariaDB
+    Processor -->|9. Long Polls| SQS
+    Processor -->|10. Deletes Message| SQS
+    Processor -->|11. INSERT Order<br/>with user_id| OrdersTable
+
+    OrdersTable -.->|Foreign Key| Users
+    Users -.->|Belongs To| MariaDB
+    OrdersTable -.->|Belongs To| MariaDB
 
     Terraform -.->|Provisions| SQS
     Terraform -.->|Provisions| DLQ
@@ -45,9 +60,13 @@ graph TB
     style User fill:#e1f5ff
     style React fill:#61dafb
     style API fill:#68a063
+    style Auth fill:#90EE90
+    style Orders fill:#90EE90
     style SQS fill:#ff9900
     style DLQ fill:#ff9900
     style Processor fill:#68a063
     style MariaDB fill:#003545
+    style Users fill:#4a90e2
+    style OrdersTable fill:#4a90e2
     style Terraform fill:#7b42bc
     style Docker fill:#2496ed

@@ -22,6 +22,14 @@ const registerValidation = [
     .withMessage('Must be a valid email address')
     .normalizeEmail(),
 
+  body('fullName')
+    .trim()
+    .isLength({ min: 1, max: 255 })
+    .withMessage('Full name must be between 1 and 255 characters')
+    .matches(/^[a-zA-Z\s\-'.]+$/)
+    .withMessage('Full name contains invalid characters')
+    .escape(),
+
   body('password')
     .isLength({ min: 8 })
     .withMessage('Password must be at least 8 characters long')
@@ -57,7 +65,7 @@ router.post('/register', registerValidation, async (req, res) => {
       });
     }
 
-    const { username, email, password } = req.body;
+    const { username, email, fullName, password } = req.body;
 
     // Check if user already exists
     const [existingUsers] = await req.db.execute(
@@ -78,18 +86,18 @@ router.post('/register', registerValidation, async (req, res) => {
 
     // Insert new user
     const [result] = await req.db.execute(
-      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
-      [username, email, passwordHash]
+      'INSERT INTO users (username, email, full_name, password_hash) VALUES (?, ?, ?, ?)',
+      [username, email, fullName, passwordHash]
     );
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: result.insertId, username },
+      { userId: result.insertId, username, fullName },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    log(`New user registered: ${username} (ID: ${result.insertId})`);
+    log(`New user registered: ${username} (${fullName}) - ID: ${result.insertId}`);
 
     res.status(201).json({
       success: true,
@@ -99,6 +107,7 @@ router.post('/register', registerValidation, async (req, res) => {
         id: result.insertId,
         username,
         email,
+        fullName,
       },
     });
   } catch (error) {
@@ -129,7 +138,7 @@ router.post('/login', loginValidation, async (req, res) => {
 
     // Find user by username
     const [users] = await req.db.execute(
-      'SELECT id, username, email, password_hash FROM users WHERE username = ?',
+      'SELECT id, username, email, full_name, password_hash FROM users WHERE username = ?',
       [username]
     );
 
@@ -154,12 +163,12 @@ router.post('/login', loginValidation, async (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, fullName: user.full_name },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    log(`User logged in: ${username} (ID: ${user.id})`);
+    log(`User logged in: ${username} (${user.full_name}) - ID: ${user.id}`);
 
     res.json({
       success: true,
@@ -169,6 +178,7 @@ router.post('/login', loginValidation, async (req, res) => {
         id: user.id,
         username: user.username,
         email: user.email,
+        fullName: user.full_name,
       },
     });
   } catch (error) {
