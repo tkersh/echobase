@@ -5,7 +5,7 @@ services:
       - "4566:4566"
       - "4571:4571"
     environment:
-      - SERVICES=sqs,logs,iam
+      - SERVICES=sqs,logs,iam,kms,secretsmanager
       - DEBUG=0
       - LS_LOG=warning
       - PERSISTENCE=1
@@ -50,18 +50,17 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - PORT=${PORT:-3001}
+      - PORT=${PORT}
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
+      - DB_SECRET_NAME=${DB_SECRET_NAME}
       - JWT_SECRET=${JWT_SECRET}
+      - CORS_ORIGIN=${CORS_ORIGIN}
+      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
+      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
     depends_on:
       localstack:
         condition: service_healthy
@@ -81,13 +80,9 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - POLL_INTERVAL=${POLL_INTERVAL:-5000}
-      - MAX_MESSAGES=${MAX_MESSAGES:-10}
+      - DB_SECRET_NAME=${DB_SECRET_NAME}
+      - POLL_INTERVAL=${POLL_INTERVAL}
+      - MAX_MESSAGES=${MAX_MESSAGES}
     depends_on:
       localstack:
         condition: service_healthy
@@ -104,7 +99,7 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:3001}
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
     depends_on:
       - api-gateway
     networks:

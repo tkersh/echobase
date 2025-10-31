@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
   }
 }
 
@@ -19,5 +23,7 @@ provider "aws" {
     sqs            = "http://localhost:4566"
     cloudwatchlogs = "http://localhost:4566"
     iam            = "http://localhost:4566"
+    kms            = "http://localhost:4566"
+    secretsmanager = "http://localhost:4566"
   }
 }

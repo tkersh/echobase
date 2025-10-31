@@ -70,7 +70,7 @@ localstack-data/
 .env
 .env.local
 .env.*.local
-.env.backup*
+.env.backup
 
 
 ### MariaDB Encryption Keys ###

@@ -6,23 +6,70 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const mysql = require('mysql2/promise');
 const { log, logError } = require('../shared/logger');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 
-// Create database connection pool
-const dbPool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-});
+let dbPool;
+
+// Retrieve database credentials from AWS Secrets Manager
+async function getDbCredentials() {
+  try {
+    const secretName = process.env.DB_SECRET_NAME;
+    log(`Retrieving database credentials from Secrets Manager: ${secretName}`);
+
+    const awsConfig = {
+      region: process.env.AWS_REGION,
+      endpoint: process.env.SQS_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    };
+
+    const secretsClient = new SecretsManagerClient(awsConfig);
+    const command = new GetSecretValueCommand({
+      SecretId: secretName,
+    });
+
+    const response = await secretsClient.send(command);
+    const secret = JSON.parse(response.SecretString);
+
+    log('Successfully retrieved database credentials from Secrets Manager');
+    return secret;
+  } catch (error) {
+    logError('Error retrieving database credentials from Secrets Manager:', error);
+    throw error;
+  }
+}
+
+// Initialize database connection pool
+async function initDatabase() {
+  try {
+    const dbCredentials = await getDbCredentials();
+
+    dbPool = mysql.createPool({
+      host: dbCredentials.host,
+      port: dbCredentials.port,
+      user: dbCredentials.username,
+      password: dbCredentials.password,
+      database: dbCredentials.dbname,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+
+    const connection = await dbPool.getConnection();
+    log(`Connected to RDS MariaDB database at ${dbCredentials.host}:${dbCredentials.port}`);
+    connection.release();
+  } catch (error) {
+    logError('Error initializing database:', error);
+    throw error;
+  }
+}
 
 // Middleware to attach database connection to requests
 app.use((req, res, next) => {
@@ -49,7 +96,7 @@ app.use(helmet());
 
 // Security: CORS configuration - restrict to specific origins
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: process.env.CORS_ORIGIN,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true,
@@ -63,8 +110,8 @@ app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
 // Security: Rate limiting (prevent DoS attacks)
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes default
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS),
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS),
   message: {
     error: 'Too many requests from this IP, please try again later.',
   },
@@ -77,11 +124,11 @@ app.use('/api/', limiter);
 
 // Configure AWS SQS Client for Localstack
 const sqsClient = new SQSClient({
-  region: process.env.AWS_REGION || 'us-east-1',
-  endpoint: process.env.SQS_ENDPOINT || 'http://localhost:4566',
+  region: process.env.AWS_REGION,
+  endpoint: process.env.SQS_ENDPOINT,
   credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
   },
 });
 
@@ -135,6 +182,14 @@ app.post('/api/orders', authenticateJWT, orderValidation, async (req, res) => {
     }
 
     const { productName, quantity, totalPrice } = req.body;
+
+    // Validate userId from JWT token
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'User ID not found in token',
+      });
+    }
 
     // Additional business logic validation
     if (quantity * totalPrice > 1000000) {
@@ -217,10 +272,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  log(`API Gateway running on port ${PORT}`);
-  log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
-  log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
-  log(`CORS Origin: ${corsOptions.origin}`);
-  log(`Rate Limit: ${limiter.max} requests per ${limiter.windowMs / 60000} minutes`);
-});
+// Start server after initializing database
+initDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      log(`API Gateway running on port ${PORT}`);
+      log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
+      log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
+      log(`CORS Origin: ${corsOptions.origin}`);
+      log(`Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS} requests per ${parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 60000} minutes`);
+    });
+  })
+  .catch((error) => {
+    logError('Failed to start API Gateway:', error);
+    process.exit(1);
+  });

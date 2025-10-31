@@ -8,9 +8,10 @@
     "dev": "nodemon processor.js"
   },
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.921.0",
     "@aws-sdk/client-sqs": "^3.621.0",
-    "mysql2": "^3.6.0",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

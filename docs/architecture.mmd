@@ -16,6 +16,8 @@ graph TB
     subgraph "AWS Services - Localstack"
         SQS[SQS Queue<br/>order-processing-queue<br/>Async Message Queue]
         DLQ[Dead Letter Queue<br/>order-processing-dlq]
+        KMS[KMS Key<br/>Database Encryption<br/>Key Rotation Enabled]
+        Secrets[Secrets Manager<br/>DB Credentials<br/>KMS Encrypted]
     end
 
     subgraph "Processing Layer"
@@ -23,7 +25,7 @@ graph TB
     end
 
     subgraph "Data Layer"
-        MariaDB[(MariaDB<br/>Port 3306<br/>orders_db)]
+        MariaDB[(MariaDB<br/>Port 3306<br/>orders_db<br/>Encryption at Rest)]
         Users[Users Table<br/>id, username, email<br/>full_name, password_hash]
         OrdersTable[Orders Table<br/>id, user_id, product_name<br/>quantity, total_price, status]
     end
@@ -35,18 +37,21 @@ graph TB
 
     User -->|1. Register/Login| React
     React -->|2. POST /api/auth/register<br/>POST /api/auth/login| Auth
-    Auth -->|3. Creates User| Users
-    Auth -->|4. Returns JWT Token| React
+    Auth -->|3. Retrieves Credentials| Secrets
+    Secrets -->|Encrypted| KMS
+    Auth -->|4. Creates User| Users
+    Auth -->|5. Returns JWT Token| React
 
-    User -->|5. Places Order| React
-    React -->|6. POST /api/orders<br/>Authorization: Bearer JWT| Orders
-    Orders -->|7. Validates JWT| Orders
-    Orders -->|8. Sends Message<br/>with user_id| SQS
+    User -->|6. Places Order| React
+    React -->|7. POST /api/orders<br/>Authorization: Bearer JWT| Orders
+    Orders -->|8. Validates JWT| Orders
+    Orders -->|9. Sends Message<br/>with user_id| SQS
 
     SQS -.->|Failed Messages| DLQ
-    Processor -->|9. Long Polls| SQS
-    Processor -->|10. Deletes Message| SQS
-    Processor -->|11. INSERT Order<br/>with user_id| OrdersTable
+    Processor -->|10. Retrieves Credentials| Secrets
+    Processor -->|11. Long Polls| SQS
+    Processor -->|12. Deletes Message| SQS
+    Processor -->|13. INSERT Order<br/>with user_id| OrdersTable
 
     OrdersTable -.->|Foreign Key| Users
     Users -.->|Belongs To| MariaDB
@@ -54,8 +59,12 @@ graph TB
 
     Terraform -.->|Provisions| SQS
     Terraform -.->|Provisions| DLQ
+    Terraform -.->|Creates| KMS
+    Terraform -.->|Creates| Secrets
     Docker -.->|Runs| SQS
     Docker -.->|Runs| MariaDB
+    Docker -.->|Runs| KMS
+    Docker -.->|Runs| Secrets
 
     style User fill:#e1f5ff
     style React fill:#61dafb
@@ -64,6 +73,8 @@ graph TB
     style Orders fill:#90EE90
     style SQS fill:#ff9900
     style DLQ fill:#ff9900
+    style KMS fill:#ff6b6b
+    style Secrets fill:#ffd93d
     style Processor fill:#68a063
     style MariaDB fill:#003545
     style Users fill:#4a90e2
