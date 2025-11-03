@@ -269,11 +269,24 @@ const decoded = jwt.verify(token, process.env.JWT_SECRET);
 - 🔒 **Production TODO:** Store tokens in httpOnly cookies (more secure than localStorage)
 
 #### Network Security
-- ❌ **Not Implemented** - No TLS/HTTPS
-- 🔒 Enable HTTPS/TLS for all endpoints
-- 🔒 Use Let's Encrypt or ACM for certificates
-- 🔒 Configure Nginx for TLS 1.3
-- 🔒 Implement HSTS headers
+- ✅ **Implemented** - End-to-End HTTPS/TLS with MITM Protection
+  - **Frontend (Nginx):** TLS 1.2 and TLS 1.3 protocols enabled
+  - **Backend (Express):** HTTPS with TLS encryption
+  - **Internal Communication:** Nginx → API Gateway uses HTTPS (no plaintext)
+  - Strong cipher suites (ECDHE, AES-GCM, ChaCha20-Poly1305)
+  - Self-signed certificates for local development (frontend + backend)
+  - Automatic HTTP to HTTPS redirect
+  - HSTS headers (1 year, includeSubDomains, preload)
+  - Content Security Policy (CSP) to prevent XSS
+  - Additional security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy)
+  - Nginx reverse proxy with HTTPS to backend (prevents mixed content)
+  - Frontend served on https://localhost:3443
+  - Backend API on https://api-gateway:3001 (internal Docker network)
+  - Full encryption path: Browser → Nginx (HTTPS) → API Gateway (HTTPS)
+- 🔒 **Production TODO:** Replace self-signed certs with Let's Encrypt or ACM
+- 🔒 **Production TODO:** Enable OCSP stapling for certificate validation
+- 🔒 **Production TODO:** Submit domain to HSTS preload list
+- 🔒 **Production TODO:** Enable mutual TLS (mTLS) for service-to-service auth
 
 #### CORS Configuration
 - ✅ **Configured** - Restricted to specific origin
@@ -321,12 +334,15 @@ Before deploying to production, ensure all items are completed:
   - [ ] Generate production-specific strong passwords
   - [ ] Store backup of credentials in secure location
 
-- [ ] **Encryption**
-  - [ ] Enable HTTPS/TLS for all endpoints
-  - [ ] Enable database encryption at rest
-  - [ ] Enable SQS message encryption (KMS)
+- [x] **Encryption**
+  - [x] Enable HTTPS/TLS for frontend (self-signed certs for development)
+  - [x] Configure security headers (HSTS, CSP, X-Frame-Options, etc.)
+  - [x] Implement nginx reverse proxy (prevents mixed content)
+  - [x] Enable database encryption at rest (MariaDB file-based encryption)
+  - [ ] Replace self-signed certs with CA-signed certs for production
   - [ ] Enable TLS for database connections
-  - [ ] Obtain and configure SSL/TLS certificates
+  - [ ] Enable SQS message encryption (KMS)
+  - [ ] Enable OCSP stapling
 
 - [x] **Authentication & Authorization**
   - [x] Implement JWT-based authentication
@@ -343,10 +359,13 @@ Before deploying to production, ensure all items are completed:
   - [x] Implement rate limiting (100 req/15 min, configurable)
   - [x] Add request size limits (1MB payload limit)
   - [x] Configure security headers (Helmet.js - XSS, clickjacking, MIME sniffing)
+  - [x] Enable HTTPS/TLS (self-signed certs for local dev)
+  - [x] Configure HSTS headers (1 year, includeSubDomains, preload)
+  - [x] Add Content Security Policy (CSP)
+  - [x] Implement nginx reverse proxy (prevents mixed content)
   - [ ] Use private subnets for backend services
   - [ ] Close unnecessary ports (3306, 4566) in production
-  - [ ] Enable HTTPS/TLS
-  - [ ] Configure HSTS headers
+  - [ ] Replace self-signed certs with CA-signed certs
 
 - [x] **Input Validation**
   - [x] Implement comprehensive input validation (express-validator)

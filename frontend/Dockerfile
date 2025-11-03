@@ -27,12 +27,20 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port
-EXPOSE 80
+# Copy SSL certificates for HTTPS (MITM Protection)
+COPY ssl/localhost.crt /etc/nginx/ssl/localhost.crt
+COPY ssl/localhost.key /etc/nginx/ssl/localhost.key
 
-# Health check
+# Set proper permissions for SSL certificates
+RUN chmod 644 /etc/nginx/ssl/localhost.crt && \
+    chmod 600 /etc/nginx/ssl/localhost.key
+
+# Expose ports (HTTP for redirect, HTTPS for secure traffic)
+EXPOSE 80 443
+
+# Health check (using HTTPS)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
+  CMD wget --quiet --tries=1 --spider --no-check-certificate https://localhost/ || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const API_URL = import.meta.env.REACT_APP_API_URL || 'http://localhost:3001';
+// Use same-origin for API calls (nginx proxies to backend)
+// This prevents mixed content issues with HTTPS
+const API_URL = import.meta.env.REACT_APP_API_URL || window.location.origin;
 
 function Login() {
   const [formData, setFormData] = useState({

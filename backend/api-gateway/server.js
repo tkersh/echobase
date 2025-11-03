@@ -1,5 +1,8 @@
 require('dotenv').config();
 const express = require('express');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const helmet = require('helmet');
@@ -272,16 +275,49 @@ app.use((err, req, res, next) => {
   });
 });
 
+// SSL/TLS Configuration for HTTPS (MITM Protection)
+let server;
+const sslKeyPath = path.join(__dirname, 'ssl', 'api-gateway.key');
+const sslCertPath = path.join(__dirname, 'ssl', 'api-gateway.crt');
+
+// Check if SSL certificates exist
+if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
+  const httpsOptions = {
+    key: fs.readFileSync(sslKeyPath),
+    cert: fs.readFileSync(sslCertPath),
+  };
+
+  server = https.createServer(httpsOptions, app);
+  log('HTTPS/TLS enabled - MITM protection active');
+} else {
+  // Fallback to HTTP if certificates don't exist (development only)
+  log('WARNING: SSL certificates not found - running in HTTP mode');
+  log('For production, ensure SSL certificates are present');
+  server = app;
+}
+
 // Start server after initializing database
 initDatabase()
   .then(() => {
-    app.listen(PORT, () => {
-      log(`API Gateway running on port ${PORT}`);
-      log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
-      log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
-      log(`CORS Origin: ${corsOptions.origin}`);
-      log(`Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS} requests per ${parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 60000} minutes`);
-    });
+    if (server === app) {
+      // HTTP fallback
+      app.listen(PORT, () => {
+        log(`API Gateway running on HTTP port ${PORT} (INSECURE - development only)`);
+        log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
+        log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
+        log(`CORS Origin: ${corsOptions.origin}`);
+        log(`Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS} requests per ${parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 60000} minutes`);
+      });
+    } else {
+      // HTTPS
+      server.listen(PORT, () => {
+        log(`API Gateway running on HTTPS port ${PORT} (Secure - MITM Protected)`);
+        log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
+        log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
+        log(`CORS Origin: ${corsOptions.origin}`);
+        log(`Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS} requests per ${parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 60000} minutes`);
+      });
+    }
   })
   .catch((error) => {
     logError('Failed to start API Gateway:', error);

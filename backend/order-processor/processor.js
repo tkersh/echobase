@@ -81,6 +81,19 @@ async function insertOrder(order) {
       throw new Error(`Order missing required fields: ${missingFields.join(', ')}. Order data: ${JSON.stringify(order)}`);
     }
 
+    // Verify user exists before inserting order (prevent foreign key constraint violation)
+    const [users] = await dbPool.execute(
+      'SELECT id, username FROM users WHERE id = ?',
+      [order.userId]
+    );
+
+    if (users.length === 0) {
+      throw new Error(`User with ID ${order.userId} does not exist. Cannot create order for non-existent user.`);
+    }
+
+    const user = users[0];
+    log(`Verified user exists: ${user.username} (ID: ${user.id})`);
+
     // All orders must have a user_id from JWT authentication
     const query = `
       INSERT INTO orders (user_id, product_name, quantity, total_price, order_status)
@@ -95,7 +108,7 @@ async function insertOrder(order) {
       'completed',
     ]);
 
-    log(`Order inserted with ID: ${result.insertId} for user_id: ${order.userId}`);
+    log(`Order inserted with ID: ${result.insertId} for user: ${user.username} (user_id: ${order.userId})`);
     return result.insertId;
   } catch (error) {
     logError('Error inserting order:', error);
