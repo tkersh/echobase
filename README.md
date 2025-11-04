@@ -1,4 +1,9 @@
 # Echobase - Multi-Tier Order Processing System
+This is companion code for the article Security By Design - Pt 2: AI for Threat Modeling and Remediation https://medium.com/p/f2e827994ef2
+
+Generated while testing Claude Sonnet 4.5
+
+SAMPLE CODE ONLY: NOT FOR PRODUCTION USE
 
 A cloud-native, asynchronous order processing application built with React, Node.js, AWS SQS, and MariaDB. This application runs locally using Localstack to simulate AWS services.
 
