@@ -25,7 +25,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 **Updated CORS origin for HTTPS:**
 ```javascript
 // Before
-process.env.CORS_ORIGIN = 'http://localhost:3000';
+process.env.CORS_ORIGIN = 'https://localhost:3443';
 
 // After
 process.env.CORS_ORIGIN = 'https://localhost:3443';
@@ -161,7 +161,7 @@ cd ../..  # back to root
 1. **`backend/api-gateway/__tests__/security.test.js`**
    - Added `NODE_TLS_REJECT_UNAUTHORIZED = '0'` for self-signed certs
    - Changed all HTTP URLs to HTTPS (21 occurrences)
-   - Updated CORS origin from `http://localhost:3000` to `https://localhost:3443`
+   - Updated CORS origin to `https://localhost:3443`
    - Updated CORS test to expect HTTPS origin
 
 2. **`backend/order-processor/processor.js`**

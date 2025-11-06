@@ -53,7 +53,7 @@ backend/api-gateway/__tests__/
    AWS_REGION=us-east-1
    AWS_ACCESS_KEY_ID=test
    AWS_SECRET_ACCESS_KEY=test
-   CORS_ORIGIN=http://localhost:3000
+   CORS_ORIGIN=https://localhost:3443
    ```
 
 ## Running Tests
@@ -370,7 +370,7 @@ In addition to automated tests, perform manual security testing:
 ### 1. Test Invalid JWT Token
 
 ```bash
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer invalid-token" \
   -d '{
@@ -386,7 +386,7 @@ curl -X POST http://localhost:3001/api/orders \
 ### 2. Test Invalid API Key
 
 ```bash
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "X-API-Key: invalid-api-key" \
   -d '{
@@ -402,7 +402,7 @@ curl -X POST http://localhost:3001/api/orders \
 ### 3. Test No Authentication
 
 ```bash
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -d '{
     "customerName": "Test User",
@@ -418,12 +418,12 @@ curl -X POST http://localhost:3001/api/orders \
 
 ```bash
 # First, get a valid token
-TOKEN=$(curl -X POST http://localhost:3001/api/auth/login \
+TOKEN=$(curl -X POST https://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"TestPassword123"}' | jq -r '.token')
 
 # Then try SQL injection
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -439,7 +439,7 @@ curl -X POST http://localhost:3001/api/orders \
 ### 5. Test XSS Attempt
 
 ```bash
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $TOKEN" \
   -d '{
@@ -457,7 +457,7 @@ curl -X POST http://localhost:3001/api/orders \
 ```bash
 # Send 150 requests rapidly
 for i in {1..150}; do
-  curl -X POST http://localhost:3001/api/orders \
+  curl -X POST https://localhost:3001/api/orders \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer $TOKEN" \
     -d '{

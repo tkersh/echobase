@@ -61,6 +61,25 @@ echo ""
 echo "Step 1: Destroying Terraform infrastructure..."
 if [ -d "terraform" ]; then
     cd terraform
+
+    # Export database credentials as Terraform variables
+    # These are needed for terraform destroy to work properly
+    if [ -f ../.env ]; then
+        print_status "Loading database credentials from .env file..."
+        source ../.env
+        export TF_VAR_db_user=$DB_USER
+        export TF_VAR_db_password=$DB_PASSWORD
+        export TF_VAR_db_host=$DB_HOST
+        export TF_VAR_db_port=$DB_PORT
+        export TF_VAR_db_name=$DB_NAME
+    else
+        print_warning ".env file not found - using default values for Terraform variables"
+        export TF_VAR_db_user=orderuser
+        export TF_VAR_db_host=mariadb
+        export TF_VAR_db_port=3306
+        export TF_VAR_db_name=orders_db
+    fi
+
     if terraform destroy -auto-approve; then
         print_status "Terraform infrastructure destroyed successfully"
     else
@@ -130,7 +149,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 echo ""
 echo "To rebuild the infrastructure, run:"
-echo "  ./generate-credentials.sh (optional)"
+echo "  ./generate-credentials.sh (ONLY on first run!)"
 echo "  ./setup.sh"
 #echo "  docker-compose up -d"
 #echo "  cd terraform && terraform init && terraform apply -auto-approve"

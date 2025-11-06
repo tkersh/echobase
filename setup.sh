@@ -49,7 +49,25 @@ if command -v terraform &> /dev/null; then
   terraform init
 
   echo ""
-  echo "Applying Terraform configuration (creating SQS queue)..."
+  echo "Applying Terraform configuration (creating AWS resources)..."
+
+  # Export database credentials as Terraform variables
+  # These are read from the root .env file
+  if [ -f ../.env ]; then
+    echo "Loading database credentials from .env file..."
+    source ../.env
+    export TF_VAR_db_user=$DB_USER
+    export TF_VAR_db_password=$DB_PASSWORD
+    export TF_VAR_db_host=$DB_HOST
+    export TF_VAR_db_port=$DB_PORT
+    export TF_VAR_db_name=$DB_NAME
+  else
+    echo "Warning: .env file not found!"
+    echo "Database credentials will not be available to Terraform."
+    echo "Please run ./generate-credentials.sh first."
+    exit 1
+  fi
+
   terraform apply -auto-approve
   cd ..
 else

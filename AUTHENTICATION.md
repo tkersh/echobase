@@ -276,7 +276,7 @@ Order submitted: msg-456 - Jane Smith - Gadget [apikey:frontend-app]
 
 ```bash
 # 1. Register a new user
-curl -X POST http://localhost:3001/api/auth/register \
+curl -X POST https://localhost:3001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "username": "johndoe",
@@ -288,7 +288,7 @@ curl -X POST http://localhost:3001/api/auth/register \
 # {"success":true,"token":"eyJhbGci...","user":{...}}
 
 # 2. Submit an order using the token
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
@@ -303,7 +303,7 @@ curl -X POST http://localhost:3001/api/orders \
 
 ```bash
 # 1. Login with existing credentials
-curl -X POST http://localhost:3001/api/auth/login \
+curl -X POST https://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "johndoe",
@@ -314,7 +314,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 # {"success":true,"token":"eyJhbGci...","user":{...}}
 
 # 2. Submit an order using the token
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
   -d '{
@@ -335,7 +335,7 @@ node utils/generate-api-key.js "frontend-app"
 # Copy the generated API key from output
 
 # 2. Submit an order using the API key
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -H "X-API-Key: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8" \
   -d '{
@@ -352,7 +352,7 @@ curl -X POST http://localhost:3001/api/orders \
 // JWT Authentication
 async function registerAndSubmitOrder() {
   // 1. Register user
-  const registerResponse = await fetch('http://localhost:3001/api/auth/register', {
+  const registerResponse = await fetch('https://localhost:3001/api/auth/register', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -365,7 +365,7 @@ async function registerAndSubmitOrder() {
   const { token } = await registerResponse.json();
 
   // 2. Submit order with JWT
-  const orderResponse = await fetch('http://localhost:3001/api/orders', {
+  const orderResponse = await fetch('https://localhost:3001/api/orders', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -385,7 +385,7 @@ async function registerAndSubmitOrder() {
 
 // API Key Authentication
 async function submitOrderWithAPIKey() {
-  const response = await fetch('http://localhost:3001/api/orders', {
+  const response = await fetch('https://localhost:3001/api/orders', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

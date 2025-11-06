@@ -195,7 +195,7 @@ x-content-type-options: nosniff ✅
 x-xss-protection: 1; mode=block ✅
 ```
 
-### 2. HTTP Redirect Test
+### 2. HTTP Redirect Test (Port 3000 redirects to 3443)
 ```bash
 $ curl -I http://localhost:3000
 
@@ -248,7 +248,7 @@ $ docker-compose logs api-gateway | grep HTTPS
 https://localhost:3443
 ```
 
-**HTTP URL (Auto-redirects to HTTPS):**
+**HTTP URL on port 3000 (Auto-redirects to HTTPS):**
 ```
 http://localhost:3000 → https://localhost:3443
 ```

@@ -15,17 +15,17 @@ resource "aws_secretsmanager_secret" "db_credentials" {
 }
 
 # Store the database credentials in Secrets Manager
-# In localstack, MariaDB runs in a docker container
-# These credentials match the .env file configuration
+# Credentials are read from environment variables (set in .env file)
+# This avoids hardcoding sensitive values in Terraform code
 resource "aws_secretsmanager_secret_version" "db_credentials" {
   secret_id = aws_secretsmanager_secret.db_credentials.id
   secret_string = jsonencode({
-    username = "orderuser"
-    password = "Sk9NwvzVdqbiV0cNJF8ALBESKCGCbIjh"
+    username = var.db_user
+    password = var.db_password
     engine   = "mariadb"
-    host     = "mariadb"
-    port     = 3306
-    dbname   = "orders_db"
+    host     = var.db_host
+    port     = var.db_port
+    dbname   = var.db_name
   })
 }
 

@@ -83,6 +83,10 @@ DB_USER=${DB_USER}
 DB_PASSWORD=${DB_PASSWORD}
 DB_NAME=${DB_NAME}
 
+# Secrets Manager Configuration
+# Database credentials are stored in AWS Secrets Manager (Localstack)
+DB_SECRET_NAME=echobase/database/credentials
+
 # AWS/Localstack Configuration
 # NOTE: These are test credentials for Localstack local development
 # For production, use AWS IAM roles or AWS Secrets Manager
@@ -96,7 +100,7 @@ SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/
 
 # API Gateway Configuration
 PORT=3001
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=https://localhost:3443
 RATE_LIMIT_WINDOW_MS=900000
 RATE_LIMIT_MAX_REQUESTS=100
 
@@ -105,7 +109,7 @@ POLL_INTERVAL=5000
 MAX_MESSAGES=10
 
 # Frontend Configuration
-REACT_APP_API_URL=http://localhost:3001
+REACT_APP_API_URL=https://localhost:3443
 
 # Security Configuration
 # JWT secret for future authentication implementation

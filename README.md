@@ -111,8 +111,8 @@ This will:
 - Follow logs from all containers (Ctrl+C to stop)
 
 Services will be available at:
-- React Frontend: http://localhost:3000
-- API Gateway: http://localhost:3001
+- React Frontend: https://localhost:3443
+- API Gateway: https://localhost:3001
 - Order Processor: Running in Docker
 - Localstack: http://localhost:4566
 - MariaDB: localhost:3306
@@ -121,7 +121,7 @@ Services will be available at:
 
 Open your browser and navigate to:
 ```
-http://localhost:3000
+https://localhost:3443
 ```
 
 ## Manual Setup
@@ -254,7 +254,7 @@ CREATE TABLE orders (
 
 ## API Endpoints
 
-### API Gateway (Port 3001)
+### API Gateway (Port 3001 - HTTPS)
 
 - **GET /health** - Health check
 - **POST /api/orders** - Submit a new order
@@ -271,7 +271,7 @@ CREATE TABLE orders (
 
 ### Functional Testing
 
-1. Open http://localhost:3000 in your browser
+1. Open https://localhost:3443 in your browser
 2. Fill in the order form:
    - Customer Name
    - Product Name
@@ -411,22 +411,47 @@ If ports 3000, 3001, 3306, or 4566 are already in use, you can:
 
 ## Cleanup
 
-```bash
-# System must be running
+### Automated Teardown (Recommended)
 
-# Destroy Terraform resources FIRST (requires Localstack to be running)
+```bash
+./teardown.sh
+```
+
+This script:
+- Ensures Localstack is running (starts if needed)
+- Exports database credentials from `.env` file
+- Runs `terraform destroy` with proper variables
+- Stops and removes Docker containers
+- Optionally removes Docker volumes (prompts for confirmation)
+
+### Manual Teardown
+
+If you need to teardown manually:
+
+```bash
+# 1. Export Terraform variables from .env
+source .env
+export TF_VAR_db_user=$DB_USER
+export TF_VAR_db_password=$DB_PASSWORD
+export TF_VAR_db_host=$DB_HOST
+export TF_VAR_db_port=$DB_PORT
+export TF_VAR_db_name=$DB_NAME
+
+# 2. Destroy Terraform resources (requires Localstack running)
 cd terraform
 terraform destroy -auto-approve
 cd ..
 
-# Then stop Docker containers
+# 3. Stop Docker containers
 docker-compose down
 
-# OR remove volumes as well (WARNING: This deletes all data)
+# 4. Remove volumes (WARNING: This deletes all data)
 docker-compose down -v
 ```
 
-**Note:** It's important to run `terraform destroy` BEFORE `docker-compose down` because Terraform needs to connect to Localstack (running in Docker) to properly clean up the SQS resources.
+**Important:** Always run `terraform destroy` BEFORE `docker-compose down` because Terraform needs to connect to Localstack (running in Docker) to properly clean up the AWS resources.
+
+**Note:** Terraform variables must be exported before running `terraform destroy` to avoid "No value for required variable" errors.
 
 ## Development
 

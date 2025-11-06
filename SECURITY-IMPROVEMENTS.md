@@ -343,6 +343,10 @@ resource "aws_kms_key" "database_encryption" {
   - Database engine type
 - Secret is encrypted at rest using the KMS key
 - Created IAM policy for accessing the secret with KMS decrypt permissions
+- **Security Enhancement:** Credentials are read from environment variables (not hardcoded)
+  - Uses Terraform variables: `var.db_user`, `var.db_password`, etc.
+  - Loaded from `.env` file via `TF_VAR_*` environment variables
+  - Prevents accidental credential exposure in version control
 
 #### 3. Backend Services Update
 Both `api-gateway` and `order-processor` services now:
@@ -559,14 +563,14 @@ data "aws_secretsmanager_secret_rotation" "rds" {
 
 ```bash
 # Should succeed (from allowed origin)
-curl -X POST http://localhost:3001/api/orders \
-  -H "Origin: http://localhost:3000" \
+curl -X POST https://localhost:3001/api/orders \
+  -H "Origin: https://localhost:3443" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"productName":"Widget","quantity":1,"totalPrice":9.99}'
 
 # Should fail (from disallowed origin)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Origin: http://evil-site.com" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
@@ -578,7 +582,7 @@ curl -X POST http://localhost:3001/api/orders \
 ```bash
 # Run this script to trigger rate limiting
 for i in {1..105}; do
-  curl -X POST http://localhost:3001/api/orders \
+  curl -X POST https://localhost:3001/api/orders \
     -H "Authorization: Bearer YOUR_JWT_TOKEN" \
     -H "Content-Type: application/json" \
     -d '{"productName":"Widget","quantity":1,"totalPrice":9.99}'
@@ -593,25 +597,25 @@ done
 
 ```bash
 # Test 1: Missing required field (should fail)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"productName":"Widget"}'
 
 # Test 2: Invalid quantity (should fail)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"productName":"Widget","quantity":-5,"totalPrice":9.99}'
 
 # Test 3: Invalid characters in name (should fail)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"productName":"<script>alert(1)</script>","quantity":1,"totalPrice":9.99}'
 
 # Test 4: Valid order (should succeed)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"productName":"Widget","quantity":5,"totalPrice":49.95}'
@@ -621,17 +625,17 @@ curl -X POST http://localhost:3001/api/orders \
 
 ```bash
 # Register new user
-curl -X POST http://localhost:3001/api/auth/register \
+curl -X POST https://localhost:3001/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","email":"test@example.com","fullName":"Test User","password":"TestPass123"}'
 
 # Login
-curl -X POST http://localhost:3001/api/auth/login \
+curl -X POST https://localhost:3001/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"testuser","password":"TestPass123"}'
 
 # Try to access orders without token (should fail)
-curl -X POST http://localhost:3001/api/orders \
+curl -X POST https://localhost:3001/api/orders \
   -H "Content-Type: application/json" \
   -d '{"productName":"Widget","quantity":1,"totalPrice":9.99}'
 ```
@@ -663,7 +667,7 @@ docker-compose logs order-processor | grep "Secrets Manager"
 
 #### 4. Test API Health
 ```bash
-curl http://localhost:3001/health
+curl https://localhost:3001/health
 # Returns: {"status":"healthy","timestamp":"...","version":"1.0.0"}
 ```
 
@@ -753,7 +757,7 @@ Add these to your `.env` file:
 
 ```bash
 # API Gateway Security Configuration
-CORS_ORIGIN=http://localhost:3000
+CORS_ORIGIN=https://localhost:3443
 RATE_LIMIT_WINDOW_MS=900000      # 15 minutes in milliseconds
 RATE_LIMIT_MAX_REQUESTS=100       # Max requests per window
 

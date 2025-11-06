@@ -277,7 +277,7 @@ This system demonstrates good architectural patterns (queue-based async processi
 ### A. Frontend (React/Nginx)
 
 **Entry Points:**
-- HTTP endpoint on port 3000 (localhost)
+- HTTPS endpoint on port 3443 (localhost)
 - Static asset serving
 - User input form (order submission)
 
@@ -331,7 +331,7 @@ This system demonstrates good architectural patterns (queue-based async processi
 
 2. **Cross-Origin Resource Sharing (CORS)** ✅ **FIXED**
    - Was: `app.use(cors())` allows ALL origins
-   - Now: Restricted to `process.env.CORS_ORIGIN` (default: `http://localhost:3000`)
+   - Now: Restricted to `process.env.CORS_ORIGIN` (default: `https://localhost:3443`)
    - *Impact:* Prevents unauthorized cross-origin requests
 
 3. **Denial of Service (DoS)** ✅ **MITIGATED**
@@ -581,10 +581,10 @@ This system demonstrates good architectural patterns (queue-based async processi
    - Configure Nginx for HTTPS
    - Redirect HTTP → HTTPS
 
-3. **Restrict CORS**
+3. **Restrict CORS** ✅ **FIXED**
    ```javascript
    app.use(cors({
-     origin: 'https://yourdomain.com',
+     origin: process.env.CORS_ORIGIN || 'https://localhost:3443',
      credentials: true
    }));
    ```

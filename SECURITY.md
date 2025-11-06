@@ -290,7 +290,7 @@ const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
 #### CORS Configuration
 - ✅ **Configured** - Restricted to specific origin
-  - Default: `http://localhost:3000` (configurable via `CORS_ORIGIN`)
+  - Default: `https://localhost:3443` (configurable via `CORS_ORIGIN`)
   - Methods: GET, POST only
   - Headers: Content-Type, Authorization
   - Credentials: Enabled for cookie/session support
