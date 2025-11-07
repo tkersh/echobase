@@ -1,9 +1,12 @@
 #!/bin/bash
 # Script to initialize RDS database schema after Terraform creates the RDS instance
+# This script is idempotent - it can be run multiple times safely
 
 set -e
 
-echo "Initializing RDS database schema..."
+echo "========================================"
+echo "Initializing RDS Database Schema"
+echo "========================================"
 
 # Get database credentials from Secrets Manager
 SECRET_JSON=$(aws secretsmanager get-secret-value \
@@ -19,10 +22,27 @@ DB_USER=$(echo $SECRET_JSON | jq -r '.username')
 DB_PASSWORD=$(echo $SECRET_JSON | jq -r '.password')
 DB_NAME=$(echo $SECRET_JSON | jq -r '.dbname')
 
-echo "Connecting to database at $DB_HOST:$DB_PORT..."
+echo ""
+echo "Database connection details:"
+echo "  Host: $DB_HOST"
+echo "  Port: $DB_PORT"
+echo "  Database: $DB_NAME"
+echo ""
+
+# Test database connection
+echo "Testing database connection..."
+if mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1;" > /dev/null 2>&1; then
+    echo "✓ Database connection successful"
+else
+    echo "✗ Failed to connect to database"
+    exit 1
+fi
+
+echo ""
+echo "Creating database schema (idempotent - safe to run multiple times)..."
 
 # Create the schema
-mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" <<EOF
+mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" <<EOF
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -64,4 +84,15 @@ CREATE TABLE IF NOT EXISTS api_keys (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 EOF
 
-echo "Database schema initialized successfully!"
+if [ $? -eq 0 ]; then
+    echo ""
+    echo "========================================"
+    echo "Database schema initialized successfully!"
+    echo "========================================"
+    echo ""
+    echo "The following tables are ready:"
+    mariadb -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" -e "SHOW TABLES;" 2>/dev/null || true
+else
+    echo "✗ Failed to create database schema"
+    exit 1
+fi

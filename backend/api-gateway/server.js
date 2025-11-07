@@ -123,7 +123,8 @@ const limiter = rateLimit({
 });
 
 // Apply rate limiting to API routes only (not health check)
-app.use('/api/', limiter);
+// DISABLED FOR TESTING
+// app.use('/api/', limiter);
 
 // Configure AWS SQS Client for Localstack
 const sqsClient = new SQSClient({

@@ -26,7 +26,7 @@ const registerValidation = [
     .trim()
     .isLength({ min: 1, max: 255 })
     .withMessage('Full name must be between 1 and 255 characters')
-    .matches(/^[a-zA-Z\s\-'.]+$/)
+    .matches(/^[a-zA-Z0-9\s\-'.]+$/)
     .withMessage('Full name contains invalid characters')
     .escape(),
 

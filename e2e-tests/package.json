@@ -1,0 +1,30 @@
+{
+  "name": "echobase-e2e-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive E2E tests for Echobase application",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:api": "playwright test tests/api/",
+    "test:frontend": "playwright test tests/frontend/",
+    "test:integration": "playwright test tests/integration/",
+    "test:security": "playwright test tests/security/",
+    "report": "playwright show-report",
+    "codegen": "playwright codegen"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "dotenv": "^17.2.3",
+    "mysql2": "^3.11.5"
+  },
+  "keywords": [
+    "e2e",
+    "testing",
+    "playwright"
+  ],
+  "author": "",
+  "license": "ISC"
+}

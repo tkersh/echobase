@@ -46,7 +46,7 @@ function Login() {
       }
 
       // Login the user
-      login(data.token, { username: data.username });
+      login(data.token, data.user);
 
       // Redirect to orders page
       navigate('/orders');

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,9 +17,17 @@ function Register() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState([]);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
-  const { register } = useAuth();
+  const { register, user } = useAuth();
   const navigate = useNavigate();
+
+  // Navigate to orders page after successful registration
+  useEffect(() => {
+    if (registrationSuccess && user) {
+      navigate('/orders');
+    }
+  }, [user, registrationSuccess, navigate]);
 
   const validatePassword = (password) => {
     const errors = [];
@@ -91,10 +99,10 @@ function Register() {
       }
 
       // Register and login the user
-      register(data.token, { username: data.user.username, email: data.user.email, fullName: data.user.fullName });
+      register(data.token, data.user);
 
-      // Redirect to orders page
-      navigate('/orders');
+      // Set flag to trigger navigation after user state updates
+      setRegistrationSuccess(true);
     } catch (err) {
       setError(err.message || 'An error occurred during registration');
     } finally {
