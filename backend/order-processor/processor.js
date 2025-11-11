@@ -1,69 +1,20 @@
 require('dotenv').config();
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
-const mysql = require('mysql2/promise');
 const { log, logError } = require('../shared/logger');
+const { getAwsConfig } = require('../shared/aws-config');
+const { initDatabase } = require('../shared/database');
+const { validateEnvVars, ORDER_PROCESSOR_REQUIRED_VARS } = require('../shared/env-validator');
 
-// Configure AWS clients for Localstack
-const awsConfig = {
-  region: process.env.AWS_REGION,
-  endpoint: process.env.SQS_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-};
+// Validate environment variables at startup
+if (!validateEnvVars(ORDER_PROCESSOR_REQUIRED_VARS)) {
+  process.exit(1);
+}
 
+// Configure AWS clients
+const awsConfig = getAwsConfig();
 const sqsClient = new SQSClient(awsConfig);
-const secretsClient = new SecretsManagerClient(awsConfig);
 
 let dbPool;
-
-// Retrieve database credentials from AWS Secrets Manager
-async function getDbCredentials() {
-  try {
-    const secretName = process.env.DB_SECRET_NAME;
-    log(`Retrieving database credentials from Secrets Manager: ${secretName}`);
-
-    const command = new GetSecretValueCommand({
-      SecretId: secretName,
-    });
-
-    const response = await secretsClient.send(command);
-    const secret = JSON.parse(response.SecretString);
-
-    log('Successfully retrieved database credentials from Secrets Manager');
-    return secret;
-  } catch (error) {
-    logError('Error retrieving database credentials from Secrets Manager:', error);
-    throw error;
-  }
-}
-
-async function initDatabase() {
-  try {
-    const dbCredentials = await getDbCredentials();
-
-    const dbConfig = {
-      host: dbCredentials.host,
-      port: dbCredentials.port,
-      user: dbCredentials.username,
-      password: dbCredentials.password,
-      database: dbCredentials.dbname,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    };
-
-    dbPool = mysql.createPool(dbConfig);
-    const connection = await dbPool.getConnection();
-    log(`Connected to RDS MariaDB database at ${dbCredentials.host}:${dbCredentials.port}`);
-    connection.release();
-  } catch (error) {
-    logError('Error connecting to database:', error);
-    throw error;
-  }
-}
 
 async function insertOrder(order) {
   try {
@@ -166,7 +117,7 @@ async function startProcessor() {
   log(`SQS Queue URL: ${process.env.SQS_QUEUE_URL}`);
   log(`Database: ${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}`);
 
-  await initDatabase();
+  dbPool = await initDatabase(awsConfig);
 
   // Poll the queue continuously
   const pollInterval = parseInt(process.env.POLL_INTERVAL);

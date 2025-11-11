@@ -1,0 +1,47 @@
+import { test, expect } from '../../fixtures/test-fixtures.js';
+
+test.describe('Authentication & Authorization', () => {
+  test('should reject order submission without token', async ({ apiHelper }) => {
+    apiHelper.clearToken();
+
+    const response = await apiHelper.submitOrder({
+      productName: 'Test Product',
+      quantity: 1,
+      totalPrice: 10
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.data).not.toHaveProperty('messageId');
+  });
+
+  test('should reject order submission with invalid token', async ({ apiHelper }) => {
+    apiHelper.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpbnZhbGlkIjoidG9rZW4ifQ.invalid');
+
+    const response = await apiHelper.submitOrder({
+      productName: 'Test Product',
+      quantity: 1,
+      totalPrice: 10
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  test('should reject order submission with malformed token', async ({ apiHelper }) => {
+    apiHelper.setToken('not-a-jwt');
+
+    const response = await apiHelper.submitOrder({
+      productName: 'Test Product',
+      quantity: 1,
+      totalPrice: 10
+    });
+
+    expect(response.status).toBe(401);
+  });
+
+  test('should protect orders page from unauthenticated access', async ({ page }) => {
+    await page.goto('/orders');
+
+    // Should redirect to login
+    await expect(page).toHaveURL(/\/$|\/login/);
+  });
+});

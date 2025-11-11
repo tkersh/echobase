@@ -90,6 +90,15 @@ else
     exit 1
 fi
 
+# Purge SQS queue
+echo ""
+echo "Purging SQS queue..."
+if docker exec echobase-localstack-1 awslocal sqs purge-queue --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue > /dev/null 2>&1; then
+    print_success "SQS queue purged"
+else
+    print_warning "Could not purge SQS queue (queue may not exist or already be empty)"
+fi
+
 echo ""
 echo "========================================="
 echo "Cleanup complete!"

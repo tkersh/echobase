@@ -254,6 +254,12 @@ npm run report
 
 ```
 e2e-tests/
+├── config/                           # Centralized configuration
+│   └── test-config.js                # Configuration constants
+├── fixtures/                         # Playwright fixtures
+│   └── test-fixtures.js              # Reusable test fixtures
+├── helpers/                          # Test helper functions
+│   └── test-helpers.js               # Common workflows
 ├── tests/
 │   ├── api/                          # API tests
 │   │   ├── auth.api.spec.js          # Authentication tests
@@ -265,19 +271,140 @@ e2e-tests/
 │   ├── integration/                  # Full flow tests
 │   │   ├── full-flow.integration.spec.js
 │   │   └── async-processing.integration.spec.js
-│   └── security/                     # Security tests
-│       └── security.security.spec.js
+│   └── security/                     # Security tests (split by concern)
+│       ├── sql-injection.security.spec.js
+│       ├── xss-protection.security.spec.js
+│       ├── authentication.security.spec.js
+│       ├── input-validation.security.spec.js
+│       ├── https-security.security.spec.js
+│       ├── error-handling.security.spec.js
+│       ├── session-management.security.spec.js
+│       └── rate-limiting.security.spec.js
 ├── utils/                            # Test utilities
 │   ├── db-helper.js                  # Database operations
 │   ├── api-helper.js                 # API client
 │   └── test-data.js                  # Test data generators
 ├── scripts/                          # Helper scripts
+│   ├── common.sh                     # Shared shell functions
 │   ├── setup-tests.sh                # Environment setup
 │   ├── cleanup-tests.sh              # Cleanup test data
 │   └── run-all-tests.sh              # Run all tests
 ├── playwright.config.js              # Playwright configuration
 ├── package.json
 └── README.md
+```
+
+## Test Fixtures and Helpers
+
+### Using Fixtures (`fixtures/test-fixtures.js`)
+
+The test suite includes Playwright fixtures that automatically handle setup and teardown, eliminating repetitive boilerplate code:
+
+```javascript
+import { test, expect } from '../fixtures/test-fixtures.js';
+
+test.describe('My Tests', () => {
+  test('example test', async ({ apiHelper, dbHelper, testUsers }) => {
+    // dbHelper is already connected, will auto-disconnect after test
+    // apiHelper provides API methods
+    // testUsers array automatically cleans up users after test
+
+    const userData = createValidUser();
+    testUsers.push(userData);  // Tracked for automatic cleanup
+
+    await apiHelper.register(userData);
+    const dbUser = await dbHelper.getUserByUsername(userData.username);
+
+    expect(dbUser).toBeTruthy();
+    // No manual cleanup needed - fixture handles it!
+  });
+});
+```
+
+**Available Fixtures:**
+- `dbHelper` - Database helper with automatic connect/disconnect
+- `apiHelper` - API interaction helper
+- `testUsers` - Array for tracking test users (auto-cleanup after each test)
+
+### Test Helper Functions (`helpers/test-helpers.js`)
+
+Common test workflows extracted into reusable helpers:
+
+```javascript
+import {
+  registerUser,
+  registerAndLoginUser,
+  submitAndWaitForOrder,
+  verifyOrderMatches,
+  loginViaUI,
+  submitOrderViaUI,
+  purgeSQSQueue
+} from '../helpers/test-helpers.js';
+
+// Register a user with automatic tracking
+const { userData, dbUser, regResponse } =
+  await registerUser(apiHelper, dbHelper, testUsers);
+
+// Register and login in one step
+const { userData, token, dbUser } =
+  await registerAndLoginUser(apiHelper, dbHelper, testUsers);
+
+// Submit order and wait for async processing
+const { dbOrder, orderData } =
+  await submitAndWaitForOrder(apiHelper, dbHelper, userId);
+
+// Verify order matches submitted data
+verifyOrderMatches(dbOrder, orderData);
+
+// UI helper functions
+await loginViaUI(page, credentials);
+await submitOrderViaUI(page, orderData);
+
+// SQS queue management
+await purgeSQSQueue();
+```
+
+### Configuration (`config/test-config.js`)
+
+Centralized configuration eliminates magic numbers and hardcoded values:
+
+```javascript
+import { TEST_CONFIG } from '../config/test-config.js';
+
+// Use configuration constants
+await page.waitForTimeout(TEST_CONFIG.TIMEOUTS.SHORT_WAIT);
+expect(response.status).toBe(TEST_CONFIG.HTTP_STATUS.CREATED);
+
+const queueUrl = TEST_CONFIG.SQS_QUEUE_URL;
+const containerName = TEST_CONFIG.LOCALSTACK_CONTAINER_NAME;
+```
+
+**Available Configuration:**
+- `LOCALSTACK_CONTAINER_NAME` - Docker container name
+- `SQS_QUEUE_URL` - SQS queue URL
+- `API_URL`, `FRONTEND_URL` - Service URLs
+- `DB_*` - Database connection settings
+- `TIMEOUTS.*` - Standard timeout values
+- `HTTP_STATUS.*` - HTTP status code constants
+
+### Shell Scripts (`scripts/common.sh`)
+
+Common shell functions for test scripts:
+
+```bash
+source "$(dirname "$0")/common.sh"
+
+# Colored output
+print_success "Operation completed successfully"
+print_error "Something went wrong"
+print_warning "Proceeding with caution"
+print_info "For your information"
+
+# Retry with exponential backoff
+retry 5 curl -s https://localhost:3001/health
+
+# Wait for service to be ready
+wait_for_service "https://localhost:3001/health" 30 "API Gateway"
 ```
 
 ## Utilities

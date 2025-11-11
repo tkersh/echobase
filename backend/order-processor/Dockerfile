@@ -16,4 +16,4 @@ COPY order-processor/ ./
 COPY shared/ ../shared/
 
 # Start the application (wait for secrets first)
-CMD ["sh", "-c", "NODE_PATH=/app/node_modules node ../shared/wait-for-secrets.js && node processor.js"]
+CMD ["sh", "-c", "NODE_PATH=/app/node_modules node ../shared/wait-for-secrets.js && NODE_PATH=/app/node_modules node processor.js"]

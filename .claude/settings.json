@@ -1,0 +1,50 @@
+{
+  "sandbox": {
+    "filesystem": {
+      "read": {
+        "denyOnly": [
+          "~/.ssh",
+          "~/.aws/credentials",
+          "~/.npmrc",
+          "~/.gitconfig",
+          "/etc/passwd",
+          "/etc/shadow"
+        ]
+      },
+      "write": {
+        "allowOnly": [
+          "/tmp/claude",
+          "/private/tmp/claude",
+          "~/.npm/_logs",
+          "~/.claude/debug",
+          "~/.claude/statsig",
+          "."
+        ],
+        "denyWithinAllow": [
+          ".env",
+          "node_modules/.bin",
+          "**/node_modules/.bin"
+        ]
+      }
+    },
+    "network": {
+      "allowOnly": [
+        "localhost",
+        "127.0.0.1",
+        "0.0.0.0",
+        "::1",
+        "host.docker.internal",
+        "docker.internal",
+        "*.localhost.localstack.cloud",
+        "sqs.us-east-1.localhost.localstack.cloud",
+        "github.com",
+        "*.github.com",
+        "registry.npmjs.org",
+        "*.npmjs.org",
+        "playwright.azureedge.net",
+        "*.playwright.dev",
+        "docs.claude.com"
+      ]
+    }
+  }
+}

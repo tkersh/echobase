@@ -138,45 +138,6 @@ export const invalidOrders = {
 };
 
 /**
- * Common test users (for manual testing/debugging)
- */
-export const testUsers = {
-  validUser1: {
-    username: 'e2etestuser1',
-    email: 'e2etest1@example.com',
-    fullName: 'E2E Test User One',
-    password: 'TestPass123'
-  },
-  validUser2: {
-    username: 'e2etestuser2',
-    email: 'e2etest2@example.com',
-    fullName: 'E2E Test User Two',
-    password: 'TestPass456'
-  }
-};
-
-/**
- * Common test orders
- */
-export const testOrders = {
-  smallOrder: {
-    productName: 'Test Mouse',
-    quantity: 1,
-    totalPrice: 25.99
-  },
-  largeOrder: {
-    productName: 'Test Laptop',
-    quantity: 5,
-    totalPrice: 5000.00
-  },
-  decimalQuantity: {
-    productName: 'Test Cable',
-    quantity: 2.5,
-    totalPrice: 15.50
-  }
-};
-
-/**
  * SQL Injection test payloads
  */
 export const sqlInjectionPayloads = [

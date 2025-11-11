@@ -3,6 +3,18 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { log, logError } = require('../../shared/logger');
+const {
+  JWT_EXPIRATION,
+  BCRYPT_SALT_ROUNDS,
+  USERNAME_MIN_LENGTH,
+  USERNAME_MAX_LENGTH,
+  USERNAME_PATTERN,
+  FULLNAME_MIN_LENGTH,
+  FULLNAME_MAX_LENGTH,
+  FULLNAME_PATTERN,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_PATTERN,
+} = require('../../shared/constants');
 
 const router = express.Router();
 
@@ -10,9 +22,9 @@ const router = express.Router();
 const registerValidation = [
   body('username')
     .trim()
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Username must be between 3 and 50 characters')
-    .matches(/^[a-zA-Z0-9_]+$/)
+    .isLength({ min: USERNAME_MIN_LENGTH, max: USERNAME_MAX_LENGTH })
+    .withMessage(`Username must be between ${USERNAME_MIN_LENGTH} and ${USERNAME_MAX_LENGTH} characters`)
+    .matches(USERNAME_PATTERN)
     .withMessage('Username can only contain letters, numbers, and underscores')
     .escape(),
 
@@ -24,16 +36,16 @@ const registerValidation = [
 
   body('fullName')
     .trim()
-    .isLength({ min: 1, max: 255 })
-    .withMessage('Full name must be between 1 and 255 characters')
-    .matches(/^[a-zA-Z0-9\s\-'.]+$/)
+    .isLength({ min: FULLNAME_MIN_LENGTH, max: FULLNAME_MAX_LENGTH })
+    .withMessage(`Full name must be between ${FULLNAME_MIN_LENGTH} and ${FULLNAME_MAX_LENGTH} characters`)
+    .matches(FULLNAME_PATTERN)
     .withMessage('Full name contains invalid characters')
     .escape(),
 
   body('password')
-    .isLength({ min: 8 })
-    .withMessage('Password must be at least 8 characters long')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .isLength({ min: PASSWORD_MIN_LENGTH })
+    .withMessage(`Password must be at least ${PASSWORD_MIN_LENGTH} characters long`)
+    .matches(PASSWORD_PATTERN)
     .withMessage('Password must contain at least one uppercase letter, one lowercase letter, and one number'),
 ];
 
@@ -81,8 +93,7 @@ router.post('/register', registerValidation, async (req, res) => {
     }
 
     // Hash password
-    const saltRounds = 12;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
     // Insert new user
     const [result] = await req.db.execute(
@@ -94,7 +105,7 @@ router.post('/register', registerValidation, async (req, res) => {
     const token = jwt.sign(
       { userId: result.insertId, username, fullName },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: JWT_EXPIRATION }
     );
 
     log(`New user registered: ${username} (${fullName}) - ID: ${result.insertId}`);
@@ -165,7 +176,7 @@ router.post('/login', loginValidation, async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, username: user.username, fullName: user.full_name },
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: JWT_EXPIRATION }
     );
 
     log(`User logged in: ${username} (${user.full_name}) - ID: ${user.id}`);

@@ -5,39 +5,27 @@ resource "aws_sqs_queue" "order_processing_queue" {
   message_retention_seconds  = 345600
   receive_wait_time_seconds  = 10
   visibility_timeout_seconds = 30
+  kms_master_key_id          = aws_kms_key.database_encryption.id
 
-  tags = {
-    Name        = "order-processing-queue"
-    Environment = "localstack"
-    Application = "echobase"
-    ManagedBy   = "terraform"
-    Purpose     = "Main queue for order processing"
-  }
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "order-processing-queue"
+      Purpose = "Main queue for order processing"
+    }
+  )
 }
 
 resource "aws_sqs_queue" "order_processing_dlq" {
-  name = "order-processing-dlq"
+  name                      = "order-processing-dlq"
+  message_retention_seconds = 1209600 # 14 days - longer retention for DLQ
+  kms_master_key_id         = aws_kms_key.database_encryption.id
 
-  tags = {
-    Name        = "order-processing-dlq"
-    Environment = "localstack"
-    Application = "echobase"
-    ManagedBy   = "terraform"
-    Purpose     = "Dead letter queue for failed order messages"
-  }
-}
-
-output "sqs_queue_url" {
-  value       = aws_sqs_queue.order_processing_queue.url
-  description = "URL of the order processing SQS queue"
-}
-
-output "sqs_queue_arn" {
-  value       = aws_sqs_queue.order_processing_queue.arn
-  description = "ARN of the order processing SQS queue"
-}
-
-output "sqs_dlq_url" {
-  value       = aws_sqs_queue.order_processing_dlq.url
-  description = "URL of the dead letter queue"
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "order-processing-dlq"
+      Purpose = "Dead letter queue for failed order messages"
+    }
+  )
 }

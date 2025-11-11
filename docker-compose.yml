@@ -81,6 +81,9 @@ services:
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
       - DB_SECRET_NAME=${DB_SECRET_NAME}
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
       - POLL_INTERVAL=${POLL_INTERVAL}
       - MAX_MESSAGES=${MAX_MESSAGES}
     depends_on:

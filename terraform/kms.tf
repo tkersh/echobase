@@ -1,29 +1,19 @@
-# KMS key for encrypting database secrets and RDS encryption at rest
+# KMS key for encrypting db secrets and RDS encryption at rest
 resource "aws_kms_key" "database_encryption" {
-  description             = "KMS key for database secrets encryption and RDS encryption at rest"
-  deletion_window_in_days = 7
+  description             = "KMS key for db secrets encryption and RDS encryption at rest"
+  deletion_window_in_days = var.kms_deletion_window_days
   enable_key_rotation     = true
 
-  tags = {
-    Name        = "echobase-database-kms-key"
-    Environment = "localstack"
-    Application = "echobase"
-    ManagedBy   = "terraform"
-    Purpose     = "Database secrets and RDS encryption"
-  }
+  tags = merge(
+    local.common_tags,
+    {
+      Name    = "echobase-db-kms-key"
+      Purpose = "DB secrets and RDS encryption"
+    }
+  )
 }
 
 resource "aws_kms_alias" "database_encryption" {
-  name          = "alias/echobase-database"
+  name          = "alias/echobase-db"
   target_key_id = aws_kms_key.database_encryption.key_id
-}
-
-output "kms_key_id" {
-  value       = aws_kms_key.database_encryption.id
-  description = "ID of the KMS key for database encryption"
-}
-
-output "kms_key_arn" {
-  value       = aws_kms_key.database_encryption.arn
-  description = "ARN of the KMS key for database encryption"
 }

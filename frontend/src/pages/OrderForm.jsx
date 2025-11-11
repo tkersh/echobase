@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-// Use same-origin for API calls (nginx proxies to backend)
-// This prevents mixed content issues with HTTPS
-const API_URL = import.meta.env.REACT_APP_API_URL || window.location.origin;
+import { orders } from '../services/api';
 
 function OrderForm() {
   const [formData, setFormData] = useState({
@@ -33,50 +30,34 @@ function OrderForm() {
     setMessage({ type: '', text: '' });
 
     try {
-      const response = await fetch(`${API_URL}/api/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
+      const { data } = await orders.create(formData, token);
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage({
-          type: 'success',
-          text: `Order submitted successfully! Message ID: ${data.messageId}`,
-        });
-        setFormData({
-          productName: '',
-          quantity: 1,
-          totalPrice: 0,
-        });
-      } else {
-        // Handle authentication errors
-        if (response.status === 401 || response.status === 403) {
-          setMessage({
-            type: 'error',
-            text: 'Session expired. Please login again.',
-          });
-          setTimeout(() => {
-            logout();
-            navigate('/login');
-          }, 2000);
-        } else {
-          setMessage({
-            type: 'error',
-            text: `Error: ${data.error || data.message || 'Failed to submit order'}`,
-          });
-        }
-      }
-    } catch (error) {
       setMessage({
-        type: 'error',
-        text: `Network error: ${error.message}`,
+        type: 'success',
+        text: `Order submitted successfully! Message ID: ${data.messageId}`,
       });
+      setFormData({
+        productName: '',
+        quantity: 1,
+        totalPrice: 0,
+      });
+    } catch (error) {
+      // Handle authentication errors
+      if (error.message.includes('Authentication') || error.message.includes('Token')) {
+        setMessage({
+          type: 'error',
+          text: 'Session expired. Please login again.',
+        });
+        setTimeout(() => {
+          logout();
+          navigate('/login');
+        }, 2000);
+      } else {
+        setMessage({
+          type: 'error',
+          text: `Error: ${error.message || 'Failed to submit order'}`,
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -29,6 +29,8 @@ fi
 # Start Docker containers
 echo ""
 echo "Starting Docker containers (Localstack and MariaDB)..."
+echo "Rebuilding order-processor to ensure latest code..."
+docker-compose up -d --build order-processor
 docker-compose up -d
 
 # Wait for services to be ready

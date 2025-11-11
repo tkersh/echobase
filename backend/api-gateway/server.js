@@ -9,70 +9,32 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
-const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
-const mysql = require('mysql2/promise');
 const { log, logError } = require('../shared/logger');
+const { getAwsConfig } = require('../shared/aws-config');
+const { initDatabase } = require('../shared/database');
+const { validateEnvVars, API_GATEWAY_REQUIRED_VARS } = require('../shared/env-validator');
+const {
+  ORDER_MAX_VALUE,
+  ORDER_MAX_QUANTITY,
+  ORDER_MIN_PRICE,
+  ORDER_MAX_PRICE,
+  PRODUCT_NAME_MIN_LENGTH,
+  PRODUCT_NAME_MAX_LENGTH,
+  PRODUCT_NAME_PATTERN,
+} = require('../shared/constants');
+
+// Validate environment variables at startup
+if (!validateEnvVars(API_GATEWAY_REQUIRED_VARS)) {
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT;
 
 let dbPool;
 
-// Retrieve database credentials from AWS Secrets Manager
-async function getDbCredentials() {
-  try {
-    const secretName = process.env.DB_SECRET_NAME;
-    log(`Retrieving database credentials from Secrets Manager: ${secretName}`);
-
-    const awsConfig = {
-      region: process.env.AWS_REGION,
-      endpoint: process.env.SQS_ENDPOINT,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      },
-    };
-
-    const secretsClient = new SecretsManagerClient(awsConfig);
-    const command = new GetSecretValueCommand({
-      SecretId: secretName,
-    });
-
-    const response = await secretsClient.send(command);
-    const secret = JSON.parse(response.SecretString);
-
-    log('Successfully retrieved database credentials from Secrets Manager');
-    return secret;
-  } catch (error) {
-    logError('Error retrieving database credentials from Secrets Manager:', error);
-    throw error;
-  }
-}
-
-// Initialize database connection pool
-async function initDatabase() {
-  try {
-    const dbCredentials = await getDbCredentials();
-
-    dbPool = mysql.createPool({
-      host: dbCredentials.host,
-      port: dbCredentials.port,
-      user: dbCredentials.username,
-      password: dbCredentials.password,
-      database: dbCredentials.dbname,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    });
-
-    const connection = await dbPool.getConnection();
-    log(`Connected to RDS MariaDB database at ${dbCredentials.host}:${dbCredentials.port}`);
-    connection.release();
-  } catch (error) {
-    logError('Error initializing database:', error);
-    throw error;
-  }
-}
+// AWS configuration
+const awsConfig = getAwsConfig();
 
 // Middleware to attach database connection to requests
 app.use((req, res, next) => {
@@ -112,29 +74,29 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
 // Security: Rate limiting (prevent DoS attacks)
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS),
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS),
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-  },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-});
+// Can be enabled by setting RATE_LIMIT_ENABLED=true in .env
+const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED === 'true';
 
-// Apply rate limiting to API routes only (not health check)
-// DISABLED FOR TESTING
-// app.use('/api/', limiter);
+if (rateLimitEnabled) {
+  const limiter = rateLimit({
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS),
+    max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS),
+    message: {
+      error: 'Too many requests from this IP, please try again later.',
+    },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  });
 
-// Configure AWS SQS Client for Localstack
-const sqsClient = new SQSClient({
-  region: process.env.AWS_REGION,
-  endpoint: process.env.SQS_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+  // Apply rate limiting to API routes only (not health check)
+  app.use('/api/', limiter);
+  log('Rate limiting enabled');
+} else {
+  log('Rate limiting disabled (set RATE_LIMIT_ENABLED=true to enable)');
+}
+
+// Configure AWS SQS Client
+const sqsClient = new SQSClient(awsConfig);
 
 // Import routes and middleware
 const authRoutes = require('./routes/auth');
@@ -156,20 +118,20 @@ app.use('/api/auth', authRoutes);
 const orderValidation = [
   body('productName')
     .trim()
-    .isLength({ min: 1, max: 255 })
-    .withMessage('Product name must be between 1 and 255 characters')
-    .matches(/^[a-zA-Z0-9\s\-'.]+$/)
+    .isLength({ min: PRODUCT_NAME_MIN_LENGTH, max: PRODUCT_NAME_MAX_LENGTH })
+    .withMessage(`Product name must be between ${PRODUCT_NAME_MIN_LENGTH} and ${PRODUCT_NAME_MAX_LENGTH} characters`)
+    .matches(PRODUCT_NAME_PATTERN)
     .withMessage('Product name contains invalid characters')
     .escape(),
 
   body('quantity')
-    .isInt({ min: 1, max: 10000 })
-    .withMessage('Quantity must be an integer between 1 and 10,000')
+    .isInt({ min: 1, max: ORDER_MAX_QUANTITY })
+    .withMessage(`Quantity must be an integer between 1 and ${ORDER_MAX_QUANTITY.toLocaleString()}`)
     .toInt(),
 
   body('totalPrice')
-    .isFloat({ min: 0.01, max: 1000000 })
-    .withMessage('Total price must be between 0.01 and 1,000,000')
+    .isFloat({ min: ORDER_MIN_PRICE, max: ORDER_MAX_PRICE })
+    .withMessage(`Total price must be between ${ORDER_MIN_PRICE} and ${ORDER_MAX_PRICE.toLocaleString()}`)
     .toFloat(),
 ];
 
@@ -196,10 +158,10 @@ app.post('/api/orders', authenticateJWT, orderValidation, async (req, res) => {
     }
 
     // Additional business logic validation
-    if (quantity * totalPrice > 1000000) {
+    if (quantity * totalPrice > ORDER_MAX_VALUE) {
       return res.status(400).json({
         error: 'Order total exceeds maximum allowed value',
-        message: 'Order value (quantity × price) cannot exceed $1,000,000',
+        message: `Order value (quantity × price) cannot exceed $${ORDER_MAX_VALUE.toLocaleString()}`,
       });
     }
 
@@ -298,8 +260,9 @@ if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
 }
 
 // Start server after initializing database
-initDatabase()
-  .then(() => {
+initDatabase(awsConfig)
+  .then((pool) => {
+    dbPool = pool;
     if (server === app) {
       // HTTP fallback
       app.listen(PORT, () => {

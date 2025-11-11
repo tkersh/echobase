@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "const proto = require('fs').existsSync('ssl/api-gateway.crt') ? require('https') : require('http'); proto.get({host:'localhost',port:3001,path:'/health',rejectUnauthorized:false}, (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"
 
 # Start the application (wait for secrets first)
-CMD ["sh", "-c", "NODE_PATH=/app/node_modules node ../shared/wait-for-secrets.js && node server.js"]
+CMD ["sh", "-c", "NODE_PATH=/app/node_modules node ../shared/wait-for-secrets.js && NODE_PATH=/app/node_modules node server.js"]
