@@ -16,7 +16,7 @@ test.describe('Orders Frontend Tests', () => {
     // Register and login a user for each test
     const userData = createValidUser();
     testUsers.push(userData);
-    await apiHelper.register(userData);
+    const registrationResponse = await apiHelper.register(userData);
 
     // Set token in browser
     await page.goto('/');
@@ -30,7 +30,7 @@ test.describe('Orders Frontend Tests', () => {
         email: user.email,
         fullName: user.fullName
       }));
-    }, { id: 1, username: userData.username, email: userData.email, fullName: userData.fullName });
+    }, registrationResponse.data.user);
 
     await page.goto('/orders');
   });

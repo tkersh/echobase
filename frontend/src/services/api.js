@@ -21,11 +21,11 @@ class APIClient {
 
     try {
       const response = await fetch(url, {
+        ...options,
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
         },
-        ...options,
       });
 
       const data = await response.json();
@@ -108,26 +108,26 @@ class APIClient {
 // Create singleton instance
 const apiClient = new APIClient(API_URL);
 
-// Auth API methods
+// Auth API methods (v1)
 export const auth = {
   login: (credentials) =>
-    apiClient.post('/api/auth/login', credentials),
+    apiClient.post('/api/v1/auth/login', credentials),
 
   register: (userData) =>
-    apiClient.post('/api/auth/register', userData),
+    apiClient.post('/api/v1/auth/register', userData),
 };
 
-// Orders API methods
+// Orders API methods (v1)
 export const orders = {
   create: (orderData, token) =>
-    apiClient.post('/api/orders', orderData, {
+    apiClient.post('/api/v1/orders', orderData, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
     }),
 
   list: (token) =>
-    apiClient.get('/api/orders', {
+    apiClient.get('/api/v1/orders', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

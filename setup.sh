@@ -26,24 +26,36 @@ if [ ! -f .env ]; then
   echo "Otherwise, Docker Compose will use default/empty values."
 fi
 
+# Install Node.js dependencies FIRST (before building Docker images)
+# This ensures package.json is up-to-date before Docker copies it
+echo ""
+echo "Installing Node.js dependencies..."
+echo "Installing API Gateway dependencies..."
+cd backend/api-gateway
+npm install
+cd ../..
+
+echo "Installing Order Processor dependencies..."
+cd backend/order-processor
+npm install
+cd ../..
+
+echo "Installing Frontend dependencies..."
+cd frontend
+npm install
+cd ..
+
 # Start Docker containers
 echo ""
-echo "Starting Docker containers (Localstack and MariaDB)..."
-echo "Rebuilding order-processor to ensure latest code..."
-docker-compose up -d --build order-processor
-docker-compose up -d
+echo "Starting Docker infrastructure (Localstack and MariaDB)..."
+docker-compose up -d localstack mariadb
 
-# Wait for services to be ready
+# Wait for infrastructure to be ready
 echo ""
-echo "Waiting for services to be ready..."
+echo "Waiting for infrastructure to be ready..."
 sleep 10
 
-# Check if services are healthy
-echo ""
-echo "Checking service health..."
-docker-compose ps
-
-# Initialize Terraform
+# Initialize Terraform (needs Localstack running)
 if command -v terraform &> /dev/null; then
   echo ""
   echo "Initializing Terraform..."
@@ -79,23 +91,22 @@ else
   echo "aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name order-processing-queue"
 fi
 
-# Install Node.js dependencies
+# Build and start application containers
+# IMPORTANT: Use --build to rebuild images with updated dependencies
 echo ""
-echo "Installing Node.js dependencies..."
-echo "Installing API Gateway dependencies..."
-cd backend/api-gateway
-npm install
-cd ../..
+echo "Building and starting application containers..."
+echo "This will rebuild Docker images to include any new dependencies..."
+docker-compose up -d --build api-gateway order-processor frontend
 
-echo "Installing Order Processor dependencies..."
-cd backend/order-processor
-npm install
-cd ../..
+# Wait for services to be ready
+echo ""
+echo "Waiting for services to be ready..."
+sleep 10
 
-echo "Installing Frontend dependencies..."
-cd frontend
-npm install
-cd ..
+# Check if services are healthy
+echo ""
+echo "Checking service health..."
+docker-compose ps
 
 echo ""
 echo "=========================================="

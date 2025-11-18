@@ -2,22 +2,70 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
+/**
+ * Decode JWT token without verification (client-side only)
+ * For expiration checking only - server still validates signature
+ */
+function decodeJWT(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Failed to decode JWT:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if JWT token is expired
+ */
+function isTokenExpired(token) {
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) {
+    return true;
+  }
+  const currentTime = Math.floor(Date.now() / 1000);
+  return decoded.exp < currentTime;
+}
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load token from localStorage on mount
+  // Load token from localStorage on mount with validation
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
-    const storedUser = localStorage.getItem('user');
+    try {
+      const storedToken = localStorage.getItem('token');
+      const storedUser = localStorage.getItem('user');
 
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(JSON.parse(storedUser));
+      if (storedToken && storedUser) {
+        // Check if token is expired
+        if (isTokenExpired(storedToken)) {
+          console.log('Stored token is expired, clearing session');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+        } else {
+          // Token is valid, restore session
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to restore session from localStorage:', error);
+      // Clear potentially corrupted data
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, []);
 
   const login = (token, userData) => {

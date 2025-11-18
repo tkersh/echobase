@@ -63,7 +63,78 @@ const loginValidation = [
 ];
 
 /**
- * POST /api/auth/register
+ * @swagger
+ * /api/v1/auth/register:
+ *   post:
+ *     summary: Register a new user
+ *     description: Create a new user account and receive a JWT token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, email, fullName, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username (3-50 characters, alphanumeric and underscores only)
+ *                 example: john_doe
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Valid email address
+ *                 example: john@example.com
+ *               fullName:
+ *                 type: string
+ *                 description: Full name (1-255 characters)
+ *                 example: John Doe
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Password (min 8 characters, must contain uppercase, lowercase, and number)
+ *                 example: SecurePass123
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: User registered successfully
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: User already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+/**
+ * POST /api/v1/auth/register
  * Register a new user
  */
 router.post('/register', registerValidation, async (req, res) => {
@@ -131,7 +202,69 @@ router.post('/register', registerValidation, async (req, res) => {
 });
 
 /**
- * POST /api/auth/login
+ * @swagger
+ * /api/v1/auth/login:
+ *   post:
+ *     summary: User login
+ *     description: Authenticate with username and password to receive a JWT token
+ *     tags: [Authentication]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [username, password]
+ *             properties:
+ *               username:
+ *                 type: string
+ *                 description: Username
+ *                 example: john_doe
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 description: Password
+ *                 example: SecurePass123
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Login successful
+ *                 token:
+ *                   type: string
+ *                   description: JWT authentication token (valid for 24 hours)
+ *                 user:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Authentication failed (invalid credentials)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+/**
+ * POST /api/v1/auth/login
  * Login with username and password
  */
 router.post('/login', loginValidation, async (req, res) => {

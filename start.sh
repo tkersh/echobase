@@ -28,9 +28,19 @@ set -a
 source .env
 set +a
 
+# Check if --rebuild flag is passed
+REBUILD_FLAG=""
+if [ "$1" == "--rebuild" ] || [ "$1" == "-r" ]; then
+  echo "Rebuilding Docker images with latest code and dependencies..."
+  REBUILD_FLAG="--build"
+else
+  echo "Starting services with existing Docker images..."
+  echo "(Use './start.sh --rebuild' to rebuild images if you've updated dependencies)"
+fi
+
 # Start all services with docker-compose
 echo "Starting all services with Docker Compose..."
-docker-compose up -d
+docker-compose up -d $REBUILD_FLAG
 
 echo ""
 echo "Waiting for services to be healthy..."
@@ -58,6 +68,9 @@ echo "  - All services:    docker-compose logs -f"
 echo "  - API Gateway:     docker-compose logs -f api-gateway"
 echo "  - Order Processor: docker-compose logs -f order-processor"
 echo "  - Frontend:        docker-compose logs -f frontend"
+echo ""
+echo "To rebuild after code/dependency changes:"
+echo "  ./start.sh --rebuild"
 echo ""
 echo "Press Ctrl+C to stop all services"
 echo ""

@@ -29,9 +29,15 @@ function OrderForm() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
+    // Debug logging
+    console.log('[OrderForm] Submitting order:', formData);
+    console.log('[OrderForm] User from context:', user);
+    console.log('[OrderForm] Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+
     try {
       const { data } = await orders.create(formData, token);
 
+      console.log('[OrderForm] Order submitted successfully:', data);
       setMessage({
         type: 'success',
         text: `Order submitted successfully! Message ID: ${data.messageId}`,
@@ -42,6 +48,7 @@ function OrderForm() {
         totalPrice: 0,
       });
     } catch (error) {
+      console.error('[OrderForm] Order submission error:', error);
       // Handle authentication errors
       if (error.message.includes('Authentication') || error.message.includes('Token')) {
         setMessage({

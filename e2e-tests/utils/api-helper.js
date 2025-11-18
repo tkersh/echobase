@@ -41,7 +41,7 @@ class ApiHelper {
    */
   async register(userData) {
     const context = await this.createContext();
-    const response = await context.post('/api/auth/register', {
+    const response = await context.post('/api/v1/auth/register', {
       data: userData
     });
 
@@ -67,7 +67,7 @@ class ApiHelper {
    */
   async login(credentials) {
     const context = await this.createContext();
-    const response = await context.post('/api/auth/login', {
+    const response = await context.post('/api/v1/auth/login', {
       data: credentials
     });
 
@@ -93,7 +93,7 @@ class ApiHelper {
    */
   async submitOrder(orderData) {
     const context = await this.createContext();
-    const response = await context.post('/api/orders', {
+    const response = await context.post('/api/v1/orders', {
       data: orderData,
       headers: this.token ? {
         'Authorization': `Bearer ${this.token}`
@@ -122,7 +122,7 @@ class ApiHelper {
    */
   async getOrdersInfo() {
     const context = await this.createContext();
-    const response = await context.get('/api/orders');
+    const response = await context.get('/api/v1/orders');
 
     const responseData = await response.json();
 

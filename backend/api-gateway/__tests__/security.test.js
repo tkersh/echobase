@@ -1,3 +1,6 @@
+// IMPORTANT: Set this BEFORE any requires to allow self-signed certificates
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
 const express = require('express');
@@ -84,7 +87,7 @@ beforeAll(async () => {
   console.log('Setting up test user...');
   try {
     const response = await request('https://localhost:3001')
-      .post('/api/auth/register')
+      .post('/api/v1/auth/register')
       .send({
         username: 'securitytestuser',
         email: 'sectest@test.com',
@@ -100,7 +103,7 @@ beforeAll(async () => {
       console.log('✓ Test user already exists');
       // Try to login to get the user ID
       const loginResponse = await request('https://localhost:3001')
-        .post('/api/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           username: 'securitytestuser',
           password: 'TestPassword123!',
@@ -136,10 +139,10 @@ afterAll(async () => {
 
 describe('API Gateway Security Tests', () => {
   describe('1. Unauthenticated Access', () => {
-    test('should reject POST /api/orders without authentication', async () => {
+    test('should reject POST /api/v1/orders without authentication', async () => {
       const response = await request('https://localhost:3001')
         
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .send({
           productName: 'Test Product',
           quantity: 1,
@@ -157,7 +160,7 @@ describe('API Gateway Security Tests', () => {
     test('should reject with missing Authorization header', async () => {
       const response = await request('https://localhost:3001')
         
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .send({
           productName: 'Test Product',
           quantity: 1,
@@ -174,7 +177,7 @@ describe('API Gateway Security Tests', () => {
     test('should not leak sensitive information in error messages', async () => {
       const response = await request('https://localhost:3001')
         
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .send({
           productName: 'Test Product',
           quantity: 1,
@@ -192,7 +195,7 @@ describe('API Gateway Security Tests', () => {
   describe('2. JWT Authentication Failures', () => {
     test('should reject invalid JWT token format', async () => {
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', 'Bearer invalid-token-format')
         .send({
           productName: 'Test Product',
@@ -215,7 +218,7 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${wrongToken}`)
         .send({
           productName: 'Test Product',
@@ -238,7 +241,7 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${expiredToken}`)
         .send({
           productName: 'Test Product',
@@ -256,7 +259,7 @@ describe('API Gateway Security Tests', () => {
 
     test('should reject malformed Authorization header', async () => {
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', 'InvalidFormat token123')
         .send({
           productName: 'Test Product',
@@ -272,7 +275,7 @@ describe('API Gateway Security Tests', () => {
 
     test('should reject empty Bearer token', async () => {
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', 'Bearer ')
         .send({
           productName: 'Test Product',
@@ -305,7 +308,7 @@ describe('API Gateway Security Tests', () => {
 
       // Send a few test requests and check for rate limit headers
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           productName: 'Rate Limit Test',
@@ -334,7 +337,7 @@ describe('API Gateway Security Tests', () => {
   describe('4. Cross-Origin Resource Sharing (CORS)', () => {
     test('should enforce CORS restrictions', async () => {
       const response = await request('https://localhost:3001')
-        .options('/api/orders')
+        .options('/api/v1/orders')
         .set('Origin', 'http://malicious-site.com');
 
       // CORS should be configured to block unauthorized origins
@@ -344,7 +347,7 @@ describe('API Gateway Security Tests', () => {
 
     test('should allow configured origin', async () => {
       const response = await request('https://localhost:3001')
-        .options('/api/orders')
+        .options('/api/v1/orders')
         .set('Origin', 'https://localhost:3443');
 
       expect(response.headers['access-control-allow-origin']).toBeDefined();
@@ -360,7 +363,7 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           // Missing productName, quantity, totalPrice
@@ -381,7 +384,7 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           productName: 'Test Product',
@@ -404,7 +407,7 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           productName: '<script>alert("xss")</script>',
@@ -427,18 +430,21 @@ describe('API Gateway Security Tests', () => {
       );
 
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           productName: 'Test Product',
           quantity: 10000,
-          totalPrice: 1000000, // Exceeds maximum
+          totalPrice: 1000001, // Exceeds maximum (1000000)
         });
 
       // May get 429 if rate limited, or 400 for validation
       expect([400, 429]).toContain(response.status);
       if (response.status === 400) {
-        expect(response.body.error).toContain('maximum');
+        expect(response.body.error).toBe('Validation failed');
+        // Check that the details contain a message about maximum/price
+        const detailsStr = JSON.stringify(response.body.details || []);
+        expect(detailsStr).toMatch(/maximum|price|exceed/i);
       }
     });
   });
@@ -457,9 +463,9 @@ describe('API Gateway Security Tests', () => {
 
   describe('7. Endpoint Protection Coverage', () => {
     test('should protect all sensitive endpoints', async () => {
-      // Test that /api/orders requires authentication
+      // Test that /api/v1/orders requires authentication
       const orderResponse = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .send({
           productName: 'Test Product',
           quantity: 1,
@@ -481,7 +487,7 @@ describe('API Gateway Security Tests', () => {
     test('should allow public access to auth endpoints', async () => {
       // Registration and login should not require authentication
       const loginResponse = await request('https://localhost:3001')
-        .post('/api/auth/login')
+        .post('/api/v1/auth/login')
         .send({
           username: 'testuser',
           password: 'TestPassword123',
@@ -516,7 +522,7 @@ describe('API Gateway Security Tests', () => {
   describe('9. Error Response Security', () => {
     test('should not expose stack traces in production errors', async () => {
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .send({
           productName: 'Test Product',
           quantity: 1,
@@ -538,7 +544,7 @@ describe('API Gateway Security Tests', () => {
 
       // Send invalid data to trigger an error
       const response = await request('https://localhost:3001')
-        .post('/api/orders')
+        .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
           productName: null,

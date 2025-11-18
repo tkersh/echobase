@@ -15,6 +15,7 @@ const awsConfig = getAwsConfig();
 const sqsClient = new SQSClient(awsConfig);
 
 let dbPool;
+let pollIntervalId;
 
 async function insertOrder(order) {
   try {
@@ -104,8 +105,11 @@ async function pollQueue() {
     if (response.Messages && response.Messages.length > 0) {
       log(`Received ${response.Messages.length} message(s)`);
 
-      // Process messages in parallel
-      await Promise.all(response.Messages.map(processMessage));
+      // Process messages sequentially to avoid database connection pool exhaustion
+      // This ensures we don't exceed the connection pool limit
+      for (const message of response.Messages) {
+        await processMessage(message);
+      }
     }
   } catch (error) {
     logError('Error polling queue:', error);
@@ -128,17 +132,36 @@ async function startProcessor() {
   await pollQueue();
 
   // Set up interval polling
-  setInterval(pollQueue, pollInterval);
+  pollIntervalId = setInterval(pollQueue, pollInterval);
 }
 
 // Handle graceful shutdown
-process.on('SIGINT', async () => {
-  log('\nShutting down gracefully...');
-  if (dbPool) {
-    await dbPool.end();
+const shutdownHandler = async (signal) => {
+  log(`\nReceived ${signal}, shutting down gracefully...`);
+
+  // Clear polling interval
+  if (pollIntervalId) {
+    clearInterval(pollIntervalId);
+    log('Stopped polling for new messages');
   }
+
+  // Close database connection pool
+  if (dbPool) {
+    try {
+      await dbPool.end();
+      log('Database connection pool closed');
+    } catch (error) {
+      logError('Error closing database pool:', error);
+    }
+  }
+
+  log('Shutdown complete');
   process.exit(0);
-});
+};
+
+// Register shutdown handlers for multiple signals
+process.on('SIGINT', () => shutdownHandler('SIGINT'));
+process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
 
 // Start the processor
 startProcessor().catch((error) => {

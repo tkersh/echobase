@@ -37,6 +37,11 @@ async function initDatabase(awsConfig) {
   try {
     const dbCredentials = await getDbCredentials(awsConfig);
 
+    // Configure connection pool with reasonable defaults for production
+    // Can be overridden via DB_CONNECTION_LIMIT environment variable
+    const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT) || 50;
+    const queueLimit = parseInt(process.env.DB_QUEUE_LIMIT) || 0; // 0 = unlimited queue
+
     const dbPool = mysql.createPool({
       host: dbCredentials.host,
       port: dbCredentials.port,
@@ -44,9 +49,11 @@ async function initDatabase(awsConfig) {
       password: dbCredentials.password,
       database: dbCredentials.dbname,
       waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
+      connectionLimit,
+      queueLimit,
     });
+
+    log(`Database connection pool configured: limit=${connectionLimit}, queueLimit=${queueLimit === 0 ? 'unlimited' : queueLimit}`);
 
     const connection = await dbPool.getConnection();
     log(`Connected to RDS MariaDB database at ${dbCredentials.host}:${dbCredentials.port}`);
@@ -59,7 +66,83 @@ async function initDatabase(awsConfig) {
   }
 }
 
+/**
+ * Execute a function within a database transaction
+ * Automatically handles commit on success and rollback on error
+ *
+ * @param {Object} pool - Database connection pool
+ * @param {Function} callback - Async function to execute within transaction
+ * @returns {Promise<any>} - Result of the callback function
+ *
+ * @example
+ * const result = await withTransaction(dbPool, async (connection) => {
+ *   await connection.execute('INSERT INTO users ...', [values]);
+ *   await connection.execute('INSERT INTO orders ...', [values]);
+ *   return { success: true };
+ * });
+ */
+async function withTransaction(pool, callback) {
+  const connection = await pool.getConnection();
+
+  try {
+    // Start transaction
+    await connection.beginTransaction();
+    log('Transaction started');
+
+    // Execute callback with connection
+    const result = await callback(connection);
+
+    // Commit transaction
+    await connection.commit();
+    log('Transaction committed successfully');
+
+    return result;
+  } catch (error) {
+    // Rollback on error
+    await connection.rollback();
+    logError('Transaction rolled back due to error:', error.message);
+    throw error;
+  } finally {
+    // Always release connection back to pool
+    connection.release();
+  }
+}
+
+/**
+ * Execute multiple operations in a transaction with retry logic
+ * Useful for handling transient errors
+ *
+ * @param {Object} pool - Database connection pool
+ * @param {Function} callback - Async function to execute
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 3)
+ * @returns {Promise<any>} - Result of the callback function
+ */
+async function withTransactionRetry(pool, callback, maxRetries = 3) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await withTransaction(pool, callback);
+    } catch (error) {
+      lastError = error;
+      logError(`Transaction attempt ${attempt} failed:`, error.message);
+
+      if (attempt < maxRetries) {
+        // Exponential backoff: 100ms, 200ms, 400ms
+        const delay = 100 * Math.pow(2, attempt - 1);
+        log(`Retrying transaction in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  logError(`Transaction failed after ${maxRetries} attempts`);
+  throw lastError;
+}
+
 module.exports = {
   getDbCredentials,
   initDatabase,
+  withTransaction,
+  withTransactionRetry,
 };
