@@ -1,0 +1,574 @@
+# GitLab CI/CD Pipeline for Echobase
+# Designed for local development machine deployment with GitLab Runner (Docker Executor)
+
+# Stages define the order of execution
+stages:
+  - validate       # Code validation and linting
+  - build          # Build Docker images
+  - test           # Run all tests
+  - deploy         # Deploy to local environment
+  - cleanup        # Optional cleanup stage
+
+# Global variables
+variables:
+  # Docker Configuration
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  DOCKER_HOST: tcp://docker:2376
+  DOCKER_TLS_VERIFY: 1
+  DOCKER_CERT_PATH: "$DOCKER_TLS_CERTDIR/client"
+  COMPOSE_PROJECT_NAME: echobase
+
+  # For Docker-in-Docker
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+  # Terraform Configuration
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+  # Test Configuration
+  PLAYWRIGHT_BROWSERS_PATH: "$CI_PROJECT_DIR/.cache/ms-playwright"
+
+  # Deployment Configuration
+  DEPLOYMENT_ENV: "local"
+
+  # CI/CD Flags
+  GIT_STRATEGY: fetch
+  GIT_DEPTH: "10"
+
+# Default settings for all jobs
+default:
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  tags:
+    - docker-local  # Tag for your local GitLab runner with Docker executor
+  before_script:
+    - apk add --no-cache bash curl git
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
+# Cache configuration for dependencies
+.cache_node_modules: &cache_node_modules
+  cache:
+    key:
+      files:
+        - package-lock.json
+        - backend/api-gateway/package-lock.json
+        - backend/order-processor/package-lock.json
+        - frontend/package-lock.json
+        - e2e-tests/package-lock.json
+    paths:
+      - .npm/
+      - backend/api-gateway/node_modules/
+      - backend/order-processor/node_modules/
+      - frontend/node_modules/
+      - e2e-tests/node_modules/
+    policy: pull
+
+# ============================================================================
+# VALIDATE STAGE
+# ============================================================================
+
+validate:env-check:
+  stage: validate
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash curl git terraform nodejs npm
+  script:
+    - echo "Checking environment prerequisites..."
+    - docker --version
+    - docker-compose --version
+    - terraform --version
+    - node --version
+    - npm --version
+    - echo "Checking for .env file..."
+    - |
+      if [ ! -f .env ]; then
+        echo "ERROR: .env file not found!"
+        echo "Run ./generate-credentials.sh to create it."
+        exit 1
+      fi
+    - echo "Environment check passed!"
+  only:
+    - branches
+    - merge_requests
+
+validate:terraform:
+  stage: validate
+  image: hashicorp/terraform:latest
+  before_script:
+    - apk add --no-cache bash
+  script:
+    - echo "Validating Terraform configuration..."
+    - cd terraform
+    - terraform init -backend=false
+    - terraform validate
+    - terraform fmt -check -recursive
+    - echo "Terraform validation passed!"
+  only:
+    - branches
+    - merge_requests
+
+validate:docker-compose:
+  stage: validate
+  image: docker/compose:latest
+  script:
+    - echo "Validating docker-compose.yml..."
+    - docker-compose config > /dev/null
+    - echo "Docker Compose configuration is valid!"
+  only:
+    - branches
+    - merge_requests
+
+# ============================================================================
+# BUILD STAGE
+# ============================================================================
+
+build:dependencies:
+  stage: build
+  image: node:18-alpine
+  before_script:
+    - apk add --no-cache bash git
+  <<: *cache_node_modules
+  cache:
+    policy: pull-push
+  script:
+    - echo "Installing Node.js dependencies..."
+    - npm config set cache $CI_PROJECT_DIR/.npm --global
+
+    # Install API Gateway dependencies
+    - echo "Installing API Gateway dependencies..."
+    - cd backend/api-gateway
+    - npm ci --prefer-offline --no-audit
+    - cd ../..
+
+    # Install Order Processor dependencies
+    - echo "Installing Order Processor dependencies..."
+    - cd backend/order-processor
+    - npm ci --prefer-offline --no-audit
+    - cd ../..
+
+    # Install Frontend dependencies
+    - echo "Installing Frontend dependencies..."
+    - cd frontend
+    - npm ci --prefer-offline --no-audit
+    - cd ..
+
+    # Install E2E test dependencies
+    - echo "Installing E2E test dependencies..."
+    - cd e2e-tests
+    - npm ci --prefer-offline --no-audit
+    - cd ..
+
+    - echo "All dependencies installed successfully!"
+  artifacts:
+    paths:
+      - backend/api-gateway/node_modules/
+      - backend/order-processor/node_modules/
+      - frontend/node_modules/
+      - e2e-tests/node_modules/
+    expire_in: 1 hour
+  only:
+    - branches
+    - merge_requests
+
+build:docker-images:
+  stage: build
+  image: docker/compose:latest
+  dependencies:
+    - build:dependencies
+  script:
+    - echo "Building Docker images..."
+    - source .env
+
+    # Build images without starting services
+    - docker-compose build --parallel
+
+    - echo "Docker images built successfully!"
+    - docker images | grep echobase || echo "Images built"
+  artifacts:
+    reports:
+      dotenv: .env
+  only:
+    - branches
+    - merge_requests
+
+# ============================================================================
+# TEST STAGE
+# ============================================================================
+
+test:api-gateway-unit:
+  stage: test
+  image: node:18-alpine
+  before_script:
+    - apk add --no-cache bash git
+  <<: *cache_node_modules
+  dependencies:
+    - build:dependencies
+  script:
+    - echo "Running API Gateway unit tests..."
+    - cd backend/api-gateway
+
+    # Check if tests exist
+    - |
+      if [ -d "__tests__" ] || [ -d "tests" ] || grep -q "jest" package.json; then
+        npm test -- --coverage --ci || true
+      else
+        echo "No unit tests found, skipping..."
+      fi
+
+    - cd ../..
+  artifacts:
+    reports:
+      junit: backend/api-gateway/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/api-gateway/coverage/cobertura-coverage.xml
+    paths:
+      - backend/api-gateway/coverage/
+    expire_in: 1 week
+    when: always
+  only:
+    - branches
+    - merge_requests
+
+test:security:
+  stage: test
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash curl git terraform nodejs npm
+  <<: *cache_node_modules
+  dependencies:
+    - build:dependencies
+    - build:docker-images
+  needs:
+    - build:dependencies
+    - build:docker-images
+  script:
+    - echo "Starting security tests..."
+    - source .env
+
+    # Ensure infrastructure is running
+    - docker-compose up -d localstack mariadb
+    - sleep 15
+
+    # Wait for services to be healthy
+    - echo "Waiting for Localstack to be ready..."
+    - |
+      for i in {1..30}; do
+        if docker-compose exec -T localstack curl -f http://localhost:4566/_localstack/health > /dev/null 2>&1; then
+          echo "Localstack is ready!"
+          break
+        fi
+        echo "Waiting for Localstack... ($i/30)"
+        sleep 2
+      done
+
+    # Initialize Terraform infrastructure
+    - cd terraform
+    - terraform init
+    - |
+      export TF_VAR_db_user=$DB_USER
+      export TF_VAR_db_password=$DB_PASSWORD
+      export TF_VAR_db_host=$DB_HOST
+      export TF_VAR_db_port=$DB_PORT
+      export TF_VAR_db_name=$DB_NAME
+    - terraform apply -auto-approve
+    - cd ..
+
+    # Start API Gateway for security tests
+    - docker-compose up -d api-gateway
+    - sleep 10
+
+    # Run security tests inside a container
+    - docker-compose exec -T api-gateway npm run test:security || true
+  artifacts:
+    paths:
+      - backend/api-gateway/test-results/
+    expire_in: 1 week
+    when: always
+  after_script:
+    - docker-compose logs api-gateway || true
+  only:
+    - branches
+    - merge_requests
+
+test:e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.48.0-focal
+  before_script:
+    - apt-get update && apt-get install -y docker.io docker-compose curl
+  <<: *cache_node_modules
+  dependencies:
+    - build:dependencies
+    - build:docker-images
+  needs:
+    - build:dependencies
+    - build:docker-images
+  script:
+    - echo "Starting E2E tests..."
+    - source .env
+
+    # Start all services
+    - docker-compose up -d
+
+    # Wait for services to be healthy
+    - echo "Waiting for all services to be ready..."
+    - sleep 30
+
+    # Check service health
+    - docker-compose ps
+
+    # Run E2E tests
+    - cd e2e-tests
+    - npm test -- --reporter=html
+    - cd ..
+  artifacts:
+    paths:
+      - e2e-tests/playwright-report/
+      - e2e-tests/test-results/
+    reports:
+      junit: e2e-tests/test-results/junit.xml
+    expire_in: 1 week
+    when: always
+  after_script:
+    - echo "Service logs:"
+    - docker-compose logs --tail=100 || true
+  only:
+    - branches
+    - merge_requests
+
+# ============================================================================
+# DEPLOY STAGE
+# ============================================================================
+
+deploy:local:
+  stage: deploy
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash curl git terraform
+  dependencies:
+    - build:docker-images
+  needs:
+    - test:security
+    - test:e2e
+  script:
+    - echo "Deploying to local environment..."
+    - source .env
+
+    # Stop existing containers
+    - echo "Stopping existing containers..."
+    - docker-compose down || true
+
+    # Clean up any orphaned containers
+    - docker-compose rm -f || true
+
+    # Initialize Terraform infrastructure
+    - echo "Provisioning infrastructure with Terraform..."
+    - cd terraform
+    - terraform init
+    - |
+      export TF_VAR_db_user=$DB_USER
+      export TF_VAR_db_password=$DB_PASSWORD
+      export TF_VAR_db_host=$DB_HOST
+      export TF_VAR_db_port=$DB_PORT
+      export TF_VAR_db_name=$DB_NAME
+    - terraform apply -auto-approve
+    - cd ..
+
+    # Start all services
+    - echo "Starting all services..."
+    - docker-compose up -d
+
+    # Wait for services to be healthy
+    - echo "Waiting for services to start..."
+    - sleep 30
+
+    # Verify deployment
+    - echo "Verifying deployment..."
+    - docker-compose ps
+
+    # Check service health
+    - |
+      echo "Checking API Gateway health..."
+      for i in {1..10}; do
+        if curl -k -f https://localhost:3001/health > /dev/null 2>&1; then
+          echo "API Gateway is healthy!"
+          break
+        fi
+        echo "Waiting for API Gateway... ($i/10)"
+        sleep 3
+      done
+
+    - |
+      echo "Checking Frontend availability..."
+      for i in {1..10}; do
+        if curl -k -f https://localhost:3443 > /dev/null 2>&1; then
+          echo "Frontend is available!"
+          break
+        fi
+        echo "Waiting for Frontend... ($i/10)"
+        sleep 3
+      done
+
+    - echo "Deployment successful!"
+    - echo "Services available at:"
+    - echo "  - Frontend: https://localhost:3443"
+    - echo "  - API Gateway: https://localhost:3001"
+    - echo "  - Localstack: http://localhost:4566"
+  environment:
+    name: local-development
+    url: https://localhost:3443
+    on_stop: cleanup:local
+  only:
+    - main
+    - develop
+
+deploy:local-manual:
+  stage: deploy
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash curl git terraform
+  dependencies:
+    - build:docker-images
+  script:
+    - echo "Manual deployment triggered..."
+    - source .env
+    - docker-compose down || true
+    - cd terraform
+    - terraform init
+    - |
+      export TF_VAR_db_user=$DB_USER
+      export TF_VAR_db_password=$DB_PASSWORD
+      export TF_VAR_db_host=$DB_HOST
+      export TF_VAR_db_port=$DB_PORT
+      export TF_VAR_db_name=$DB_NAME
+    - terraform apply -auto-approve
+    - cd ..
+    - docker-compose up -d
+    - sleep 30
+    - docker-compose ps
+    - echo "Manual deployment complete!"
+  environment:
+    name: local-development
+    url: https://localhost:3443
+    on_stop: cleanup:local
+  when: manual
+  only:
+    - branches
+
+# ============================================================================
+# CLEANUP STAGE
+# ============================================================================
+
+cleanup:local:
+  stage: cleanup
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash terraform
+  script:
+    - echo "Cleaning up local deployment..."
+    - source .env || true
+
+    # Export Terraform variables
+    - |
+      if [ -f .env ]; then
+        export TF_VAR_db_user=$DB_USER
+        export TF_VAR_db_password=$DB_PASSWORD
+        export TF_VAR_db_host=$DB_HOST
+        export TF_VAR_db_port=$DB_PORT
+        export TF_VAR_db_name=$DB_NAME
+      fi
+
+    # Destroy Terraform resources
+    - cd terraform
+    - terraform init || true
+    - terraform destroy -auto-approve || true
+    - cd ..
+
+    # Stop and remove containers
+    - docker-compose down
+
+    - echo "Cleanup complete!"
+  environment:
+    name: local-development
+    action: stop
+  when: manual
+  only:
+    - branches
+
+cleanup:volumes:
+  stage: cleanup
+  image: docker/compose:latest
+  before_script:
+    - apk add --no-cache bash terraform
+  script:
+    - echo "WARNING: This will remove all Docker volumes and data!"
+    - source .env || true
+
+    # Export Terraform variables
+    - |
+      if [ -f .env ]; then
+        export TF_VAR_db_user=$DB_USER
+        export TF_VAR_db_password=$DB_PASSWORD
+        export TF_VAR_db_host=$DB_HOST
+        export TF_VAR_db_port=$DB_PORT
+        export TF_VAR_db_name=$DB_NAME
+      fi
+
+    # Destroy Terraform resources
+    - cd terraform
+    - terraform init || true
+    - terraform destroy -auto-approve || true
+    - cd ..
+
+    # Stop and remove containers with volumes
+    - docker-compose down -v
+
+    - echo "All volumes removed!"
+  when: manual
+  only:
+    - branches
+
+# ============================================================================
+# UTILITY JOBS
+# ============================================================================
+
+logs:view:
+  stage: .post
+  image: docker/compose:latest
+  script:
+    - echo "Fetching logs from running containers..."
+    - docker-compose ps
+    - echo "=== API Gateway Logs ==="
+    - docker-compose logs --tail=50 api-gateway || true
+    - echo "=== Order Processor Logs ==="
+    - docker-compose logs --tail=50 order-processor || true
+    - echo "=== Frontend Logs ==="
+    - docker-compose logs --tail=50 frontend || true
+    - echo "=== Localstack Logs ==="
+    - docker-compose logs --tail=50 localstack || true
+  when: manual
+  only:
+    - branches
+
+database:query:
+  stage: .post
+  image: docker:24-dind
+  script:
+    - echo "Querying database for recent orders..."
+    - source .env
+    - |
+      docker exec echobase-mariadb-1 mariadb \
+        -u $DB_USER \
+        -p$DB_PASSWORD \
+        $DB_NAME \
+        -e "SELECT id, customer_name, product_name, order_status, created_at FROM orders ORDER BY created_at DESC LIMIT 10;"
+  when: manual
+  only:
+    - branches

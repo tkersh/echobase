@@ -1,0 +1,159 @@
+# Sample GitLab Runner Configuration for Docker Executor
+#
+# This is an example configuration file for the GitLab Runner.
+# After running ./setup-gitlab-runner.sh, your actual config will be at:
+#   - macOS: ~/.gitlab-runner/config.toml
+#   - Linux: /etc/gitlab-runner/config.toml
+#
+# Copy relevant sections from this file if you need to manually configure your runner.
+
+concurrent = 1  # Number of jobs that can run concurrently
+check_interval = 0  # How often to check for new jobs (0 = use default)
+
+# Session server for interactive debugging (optional)
+[session_server]
+  session_timeout = 1800
+
+# Runner configuration
+[[runners]]
+  name = "Local Development Runner"  # Your runner name
+  url = "https://gitlab.com"  # Your GitLab instance URL
+  token = "YOUR_RUNNER_TOKEN_HERE"  # Token from registration
+  executor = "docker"  # Use Docker executor
+
+  # Docker executor configuration
+  [runners.docker]
+    # Default image for jobs (can be overridden in .gitlab-ci.yml)
+    image = "docker:24-dind"
+
+    # IMPORTANT: Privileged mode required for Docker-in-Docker
+    privileged = true
+
+    # Disable TLS verification for local development
+    tls_verify = false
+
+    # Don't override entrypoint
+    disable_entrypoint_overwrite = false
+
+    # Don't disable OOM killer
+    oom_kill_disable = false
+
+    # Enable caching
+    disable_cache = false
+
+    # Volumes to mount
+    # - Mount Docker socket from host for better performance
+    # - Mount /certs/client for Docker TLS
+    # - Mount /cache for GitLab Runner cache
+    volumes = [
+      "/var/run/docker.sock:/var/run/docker.sock",
+      "/certs/client",
+      "/cache"
+    ]
+
+    # Shared memory size (0 = use default)
+    shm_size = 0
+
+    # Network mode (default)
+    network_mode = "bridge"
+
+    # Pull policy for Docker images
+    pull_policy = ["if-not-present"]
+
+    # Docker DNS settings (optional)
+    # dns = ["8.8.8.8", "8.8.4.4"]
+
+    # Extra hosts (optional)
+    # extra_hosts = ["somehost:162.242.195.82"]
+
+    # Environment variables (optional)
+    # environment = ["ENV=value", "LC_ALL=en_US.UTF-8"]
+
+    # CPU and memory limits (optional)
+    # cpus = "1.0"
+    # memory = "2g"
+    # memory_swap = "3g"
+    # memory_reservation = "1g"
+
+  # Cache configuration (optional)
+  [runners.cache]
+    # Cache type (optional: s3, gcs, azure)
+    # Type = "s3"
+    # Path = "cache"
+    # Shared = false
+
+    # [runners.cache.s3]
+    #   ServerAddress = "s3.amazonaws.com"
+    #   BucketName = "gitlab-runner-cache"
+    #   BucketLocation = "us-east-1"
+
+# Example: Multiple runners configuration
+# [[runners]]
+#   name = "Production Runner"
+#   url = "https://gitlab.com"
+#   token = "ANOTHER_TOKEN"
+#   executor = "docker"
+#   [runners.docker]
+#     image = "docker:24-dind"
+#     privileged = true
+#     volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+
+# Configuration notes:
+#
+# 1. Token Security:
+#    - The token is automatically generated during registration
+#    - Keep this file secure (permissions: 600)
+#    - Never commit config.toml to version control
+#
+# 2. Privileged Mode:
+#    - Required for Docker-in-Docker (building images in CI)
+#    - Provides container access to host's kernel features
+#    - Required for docker-compose operations
+#
+# 3. Docker Socket Mounting:
+#    - Mounts host Docker daemon socket into containers
+#    - Provides better performance than true Docker-in-Docker
+#    - Called "Docker-out-of-Docker" (DooD)
+#    - Jobs use host's Docker daemon
+#
+# 4. Volume Mounting:
+#    - Format: "host-path:container-path:options"
+#    - Options: ro (read-only), rw (read-write)
+#    - Example: "/data:/app/data:ro"
+#
+# 5. Resource Limits:
+#    - Uncomment cpus/memory settings to limit resource usage
+#    - Prevents CI jobs from consuming all host resources
+#    - Recommended for production runners
+#
+# 6. Concurrent Jobs:
+#    - Set concurrent = N to run N jobs in parallel
+#    - Each job runs in a separate container
+#    - Be mindful of host resources
+#
+# 7. Tags:
+#    - Jobs with matching tags will run on this runner
+#    - Multiple runners can have same tags
+#    - Use specific tags for different environments
+
+# Troubleshooting:
+#
+# - Runner not picking up jobs:
+#   Check token is valid, runner is started, and tags match
+#
+# - Docker permission errors:
+#   Ensure privileged = true and Docker socket is mounted
+#
+# - Out of memory errors:
+#   Uncomment and set memory limits in [runners.docker]
+#
+# - Slow image pulls:
+#   Use pull_policy = ["if-not-present"] to avoid unnecessary pulls
+#
+# - Network issues:
+#   Add custom DNS servers or extra_hosts as needed
+
+# Additional Resources:
+# - GitLab Runner docs: https://docs.gitlab.com/runner/
+# - Configuration reference: https://docs.gitlab.com/runner/configuration/advanced-configuration.html
+# - Docker executor: https://docs.gitlab.com/runner/executors/docker.html

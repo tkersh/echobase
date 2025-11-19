@@ -500,6 +500,7 @@ For comprehensive security information:
 - **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** - Detailed implementation guide for KMS, Secrets Manager, and API security hardening
 - **[AUTHENTICATION.md](AUTHENTICATION.md)** - JWT authentication guide with examples
 - **[SECURITY_TESTING.md](SECURITY_TESTING.md)** - Automated security test suite (42+ tests)
+- **`TrustBoundaries.md`** - Detailed trust boundary and attack surface analysis
 
 ### Quick Security Checklist
 
