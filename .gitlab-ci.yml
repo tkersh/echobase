@@ -55,13 +55,7 @@ default:
 # Cache configuration for dependencies
 .cache_node_modules: &cache_node_modules
   cache:
-    key:
-      files:
-        - package-lock.json
-        - backend/api-gateway/package-lock.json
-        - backend/order-processor/package-lock.json
-        - frontend/package-lock.json
-        - e2e-tests/package-lock.json
+    key: ${CI_COMMIT_REF_SLUG}-node-modules
     paths:
       - .npm/
       - backend/api-gateway/node_modules/
