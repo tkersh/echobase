@@ -220,21 +220,22 @@ echobase/
 │   ├── sqs.tf                # SQS queue resources
 │   ├── kms.tf                # KMS encryption key
 │   └── secrets.tf            # Secrets Manager configuration
-├── docs/                     # Documentation
-│   ├── architecture.mmd      # Mermaid diagram source
-│   ├── architecture.png      # PNG diagram
-│   └── architecture.jpg      # JPEG diagram
-├── mariadb/                  # MariaDB configuration
-│   └── config/               # Database encryption config
-├── docker-compose.yml        # Docker services
-├── init-db.sql              # Database schema
-├── setup.sh                 # Setup script
-├── start.sh                 # Start script
-├── SECURITY_IMPROVEMENTS.md # KMS & Secrets Manager documentation
-├── SECURITY.md              # Security best practices
-├── SECURITY_TESTING.md      # Security test documentation
-├── AUTHENTICATION.md        # JWT authentication guide
-└── README.md                # This file
+├── docs/                       # Documentation
+│   ├── architecture.mmd        # Mermaid diagram source
+│   ├── architecture.png        # PNG diagram
+│   └── architecture.jpg        # JPEG diagram
+├── mariadb/                    # MariaDB configuration
+│   └── config/                 # Database encryption config
+│       └── README.md           # Encryption configuration guide
+├── docker-compose.yml          # Docker services
+├── init-db.sql                # Database schema
+├── setup.sh                   # Setup script
+├── start.sh                   # Start script
+├── SECURITY.md                # Security overview and best practices
+├── SECURITY_IMPROVEMENTS.md   # KMS & Secrets Manager implementation guide
+├── SECURITY_TESTING.md        # Security test documentation
+├── AUTHENTICATION.md          # JWT authentication guide
+└── README.md                  # This file
 ```
 
 ## Database Schema
@@ -495,11 +496,10 @@ To modify the database schema:
 
 For comprehensive security information:
 
-- **`SECURITY_IMPROVEMENTS.md`** - **NEW!** KMS and Secrets Manager implementation guide
-- **`SECURITY.md`** - Complete security guide with credential setup, best practices, and production checklist
-- **`TrustBoundaries.md`** - Detailed trust boundary and attack surface analysis
-- **`SECURITY_TESTING.md`** - Automated security test suite for verifying no unauthorized access
-- **`AUTHENTICATION.md`** - JWT and API Key authentication guide
+- **[SECURITY.md](SECURITY.md)** - **START HERE!** Complete security overview, architecture, and best practices
+- **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** - Detailed implementation guide for KMS, Secrets Manager, and API security hardening
+- **[AUTHENTICATION.md](AUTHENTICATION.md)** - JWT authentication guide with examples
+- **[SECURITY_TESTING.md](SECURITY_TESTING.md)** - Automated security test suite (42+ tests)
 
 ### Quick Security Checklist
 
