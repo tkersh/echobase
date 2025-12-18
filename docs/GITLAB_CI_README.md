@@ -88,13 +88,13 @@ The pipeline will automatically:
 ### Jobs Use Different Images
 - **Validation jobs**: `docker/compose:latest`, `hashicorp/terraform:latest`
 - **Build jobs**: `node:18-alpine`, `docker/compose:latest`
-- **Test jobs**: `node:18-alpine`, `mcr.microsoft.com/playwright:v1.48.0-focal`
+- **Test jobs**: `node:18-alpine`, `mcr.microsoft.com/playwright:v1.56.1-focal`
 - **Deploy jobs**: `docker/compose:latest`
 
 ### Docker-in-Docker (DinD)
 The pipeline uses Docker-in-Docker to:
 - Build Docker images within CI jobs
-- Run docker-compose commands
+- Run docker compose commands
 - Start services for testing
 - Deploy containers to your local machine
 
@@ -127,7 +127,7 @@ The runner is configured with:
 ```
 validate:env-check       → Check Docker, Terraform, Node.js
 validate:terraform       → Validate Terraform configuration
-validate:docker-compose  → Validate Docker Compose config
+validate:compose  → Validate Docker Compose config
 ```
 
 ### 2. Build Stage (2 jobs)
@@ -145,13 +145,13 @@ test:e2e             → Run Playwright E2E tests
 
 ### 4. Deploy Stage (2 jobs)
 ```
-deploy:local         → Auto deploy (main/develop branches)
-deploy:local-manual  → Manual deploy (feature branches)
+deploy:ci-blue         → Auto deploy to CI Blue (main/develop branches)
+deploy:ci-blue-manual  → Manual deploy to CI Blue (feature branches)
 ```
 
 ### 5. Cleanup Stage (2 jobs)
 ```
-cleanup:local    → Stop containers (manual)
+cleanup:devlocal    → Stop devlocal containers (manual)
 cleanup:volumes  → Remove volumes (manual, destructive)
 ```
 
@@ -170,13 +170,15 @@ Once deployed, services are available at:
 3. **Logs**: Real-time logs in job view
 4. **Artifacts**: Click "Browse" on right side
 5. **Tests**: Click "Tests" tab for test results
-6. **Environment**: `Deployments > Environments > local-development`
+6. **Environment**: `Deployments > Environments > devlocal` or `ci-blue-development`
 
 ## Manual Jobs
 
 Some jobs are manual and require clicking "play" button:
-- `deploy:local-manual` - Manual deployment for feature branches
-- `cleanup:local` - Stop and remove containers
+- `deploy:ci-blue-manual` - Manual deployment to CI Blue for feature branches
+- `cleanup:devlocal` - Stop and remove devlocal containers
+- `cleanup:ci-blue` - Stop and remove CI Blue containers
+- `cleanup:green` - Stop and remove green containers
 - `cleanup:volumes` - Remove containers AND volumes (destructive)
 - `logs:view` - View logs from all services
 - `database:query` - Query recent orders
@@ -207,8 +209,8 @@ gitlab-runner unregister --all-runners
 | Pipeline stuck in "pending" | `gitlab-runner restart` |
 | "Docker permission denied" | Check config.toml has privileged=true |
 | ".env file not found" | Run `./generate-credentials.sh` |
-| Port already in use | `docker-compose down` |
-| Services not starting | Check `docker-compose logs` |
+| Port already in use | `docker compose down` |
+| Services not starting | Check `docker compose logs` |
 | Tests timeout | Increase sleep time in .gitlab-ci.yml |
 
 ## Environment Variables
@@ -246,7 +248,7 @@ The pipeline uses variables from `.env` file:
 
 **Application Issues:**
 - See README.md
-- Check service logs: `docker-compose logs`
+- Check service logs: `docker compose logs`
 
 **GitLab Runner Issues:**
 - GitLab Runner docs: https://docs.gitlab.com/runner/

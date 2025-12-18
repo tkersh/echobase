@@ -63,6 +63,45 @@ set -a
 source .env
 set +a
 
+# Retrieve database credentials from Secrets Manager (same as CI system)
+echo ""
+echo "Retrieving database credentials from Secrets Manager..."
+if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localstack$"; then
+    SECRET_JSON=$(docker exec echobase-devlocal-durable-localstack awslocal secretsmanager get-secret-value \
+        --secret-id echobase/database/credentials \
+        --query SecretString \
+        --output text 2>/dev/null)
+
+    if [ -n "$SECRET_JSON" ]; then
+        MYSQL_USER=$(echo "$SECRET_JSON" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+        export MYSQL_USER
+        MYSQL_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
+        export MYSQL_PASSWORD
+        MYSQL_DATABASE=$(echo "$SECRET_JSON" | grep -o '"dbname":"[^"]*"' | cut -d'"' -f4)
+        export MYSQL_DATABASE
+        # For root access, fall back to credentials file
+        if [ -f "durable/.credentials.devlocal" ]; then
+            MYSQL_ROOT_PASSWORD=$(grep MYSQL_ROOT_PASSWORD durable/.credentials.devlocal | cut -d'=' -f2)
+            export MYSQL_ROOT_PASSWORD
+        fi
+        print_success "Retrieved database credentials from Secrets Manager"
+    else
+        print_warning "Could not retrieve credentials from Secrets Manager, falling back to credentials file"
+        if [ -f "durable/.credentials.devlocal" ]; then
+            set -a
+            source durable/.credentials.devlocal
+            set +a
+        fi
+    fi
+else
+    print_warning "Durable LocalStack not running, falling back to credentials file"
+    if [ -f "durable/.credentials.devlocal" ]; then
+        set -a
+        source durable/.credentials.devlocal
+        set +a
+    fi
+fi
+
 # Check if docker-compose.yml exists
 if [ ! -f "docker-compose.yml" ]; then
     print_error "docker-compose.yml not found in project root"
@@ -70,23 +109,35 @@ if [ ! -f "docker-compose.yml" ]; then
 fi
 print_success "Found docker-compose.yml"
 
-# Ensure services are running (idempotent - won't recreate if already running)
+# Ensure durable infrastructure is running
 echo ""
-echo "Ensuring services are running..."
-docker-compose up -d
-print_success "Docker Compose services started"
+echo "Ensuring durable infrastructure is running..."
+if ! docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-mariadb$"; then
+    print_warning "Durable database not running, starting it..."
+    chmod +x durable/setup.sh
+    ./durable/setup.sh devlocal
+fi
+print_success "Durable infrastructure ready"
+
+# Ensure application services are running (idempotent - won't recreate if already running)
+echo ""
+echo "Ensuring application services are running..."
+docker compose up -d
+print_success "Application services started"
 
 echo ""
 echo "Waiting for services to be healthy..."
 
-# Wait for database
+# Wait for database (in durable infrastructure)
 echo "Waiting for database..."
 RETRY_COUNT=0
 MAX_RETRIES=30
-until docker-compose exec -T mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
+until docker exec echobase-devlocal-durable-mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
         print_error "Database failed to become healthy after ${MAX_RETRIES} attempts"
+        print_error "Container: echobase-devlocal-durable-mariadb"
+        docker ps --filter "name=echobase-durable"
         exit 1
     fi
     sleep 2
@@ -137,15 +188,41 @@ echo "Installing Playwright browsers..."
 npx playwright install chromium
 print_success "Playwright browsers installed"
 
-# Verify database connection
+# Verify database connection (use app user, not root)
 echo ""
 echo "Verifying database connection..."
-if docker-compose exec -T mariadb mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "USE ${MYSQL_DATABASE}; SELECT 1;" > /dev/null 2>&1; then
-    print_success "Database connection verified"
+if docker exec echobase-devlocal-durable-mariadb mariadb -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e "USE ${MYSQL_DATABASE}; SELECT 1;" > /dev/null 2>&1; then
+    print_success "Database connection verified (user: ${MYSQL_USER})"
 else
     print_error "Cannot connect to database"
+    print_error "Database container: echobase-devlocal-durable-mariadb"
+    print_error "User: ${MYSQL_USER}"
+    docker ps --filter "name=echobase-devlocal-durable"
     exit 1
 fi
+
+# Export database credentials to e2e-tests/.env for Playwright tests
+# Note: We're already in e2e-tests directory from the previous step
+echo ""
+echo "Exporting database credentials for Playwright tests..."
+
+# Read existing .env and preserve non-DB variables
+if [ -f ".env" ]; then
+    # Create a backup
+    cp .env .env.backup
+    # Remove old DB_USER and DB_PASSWORD if they exist
+    grep -v "^DB_USER=" .env | grep -v "^DB_PASSWORD=" > .env.tmp
+    mv .env.tmp .env
+fi
+
+# Append the credentials
+echo "" >> .env
+echo "# Database credentials (auto-generated by setup-tests.sh)" >> .env
+echo "DB_USER=${MYSQL_USER}" >> .env
+echo "DB_PASSWORD=${MYSQL_PASSWORD}" >> .env
+
+print_success "Database credentials exported to e2e-tests/.env"
+cd ..
 
 # Display service URLs
 echo ""

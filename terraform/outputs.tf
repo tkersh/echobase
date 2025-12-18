@@ -19,25 +19,25 @@ output "sqs_dlq_arn" {
   description = "ARN of the dead letter queue"
 }
 
-# KMS Outputs
+# KMS Outputs (conditional - only in durable environments)
 output "kms_key_id" {
-  value       = aws_kms_key.database_encryption.id
-  description = "ID of the KMS key for db encryption"
+  value       = length(aws_kms_key.database_encryption) > 0 ? aws_kms_key.database_encryption[0].id : "not-created-in-ephemeral-env"
+  description = "ID of the KMS key for db encryption (only in durable environments)"
 }
 
 output "kms_key_arn" {
-  value       = aws_kms_key.database_encryption.arn
-  description = "ARN of the KMS key for db encryption"
+  value       = length(aws_kms_key.database_encryption) > 0 ? aws_kms_key.database_encryption[0].arn : "not-created-in-ephemeral-env"
+  description = "ARN of the KMS key for db encryption (only in durable environments)"
 }
 
-# Secrets Manager Outputs
+# Secrets Manager Outputs (conditional - only in durable environments)
 output "secret_arn" {
-  value       = aws_secretsmanager_secret.db_credentials.arn
-  description = "ARN of the Secrets Manager secret containing database credentials"
+  value       = length(aws_secretsmanager_secret.db_credentials) > 0 ? aws_secretsmanager_secret.db_credentials[0].arn : "not-created-in-ephemeral-env"
+  description = "ARN of the Secrets Manager secret containing database credentials (only in durable environments)"
   sensitive   = true
 }
 
 output "secret_name" {
-  value       = aws_secretsmanager_secret.db_credentials.name
-  description = "Name of the Secrets Manager secret"
+  value       = length(aws_secretsmanager_secret.db_credentials) > 0 ? aws_secretsmanager_secret.db_credentials[0].name : "not-created-in-ephemeral-env"
+  description = "Name of the Secrets Manager secret (only in durable environments)"
 }

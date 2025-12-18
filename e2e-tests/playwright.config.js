@@ -30,6 +30,7 @@ export default defineConfig({
   reporter: [
     ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
+    ...(process.env.CI ? [['junit', { outputFile: 'test-results/junit.xml' }]] : []),
     ['list']
   ],
 
@@ -37,6 +38,11 @@ export default defineConfig({
   use: {
     // Base URL for frontend tests
     baseURL: process.env.BASE_URL || 'https://localhost:3443',
+
+    // Add Origin header for CSRF protection
+    extraHTTPHeaders: {
+      'Origin': process.env.BASE_URL || 'https://localhost:3443',
+    },
 
     // Collect trace on failure
     trace: 'on-first-retry',

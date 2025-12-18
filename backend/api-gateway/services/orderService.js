@@ -99,19 +99,6 @@ class OrderService {
       throw error; // Re-throw for controller to handle
     }
   }
-
-  /**
-   * Get order statistics (placeholder for future functionality)
-   * @param {number} userId - User ID
-   * @returns {Promise<Object>} - Order statistics
-   */
-  async getOrderStatistics(userId) {
-    // Placeholder for future implementation
-    return {
-      totalOrders: 0,
-      totalSpent: 0,
-    };
-  }
 }
 
 module.exports = OrderService;

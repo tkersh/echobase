@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { info, error as logError } from '../utils/logger';
 
 const AuthContext = createContext(null);
 
@@ -17,8 +18,8 @@ function decodeJWT(token) {
         .join('')
     );
     return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Failed to decode JWT:', error);
+  } catch (err) {
+    logError('Failed to decode JWT:', err);
     return null;
   }
 }
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         // Check if token is expired
         if (isTokenExpired(storedToken)) {
-          console.log('Stored token is expired, clearing session');
+          info('Stored token is expired, clearing session');
           localStorage.removeItem('token');
           localStorage.removeItem('user');
         } else {
@@ -58,8 +59,8 @@ export const AuthProvider = ({ children }) => {
           setUser(JSON.parse(storedUser));
         }
       }
-    } catch (error) {
-      console.error('Failed to restore session from localStorage:', error);
+    } catch (err) {
+      logError('Failed to restore session from localStorage:', err);
       // Clear potentially corrupted data
       localStorage.removeItem('token');
       localStorage.removeItem('user');

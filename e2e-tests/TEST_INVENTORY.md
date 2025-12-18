@@ -210,7 +210,7 @@ Test data generators and fixtures:
 
 ### scripts/setup-tests.sh
 - Verifies Docker is running
-- Starts docker-compose services
+- Starts docker compose services
 - Waits for service health checks
 - Installs dependencies
 - Installs Playwright browsers

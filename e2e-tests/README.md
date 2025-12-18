@@ -148,7 +148,7 @@ This E2E test suite provides comprehensive testing coverage for the Echobase app
 
 - Docker and Docker Compose installed
 - Node.js 18+ installed
-- Services running via `docker-compose up`
+- Services running via `docker compose up`
 - Database initialized with schema
 
 ## Installation
@@ -182,12 +182,12 @@ npx playwright install chromium
 4. Ensure services are running:
 ```bash
 cd ..
-docker-compose up -d
+docker compose up -d
 ```
 
 5. Wait for services to be healthy (check logs):
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ## Running Tests
@@ -631,7 +631,7 @@ jobs:
           node-version: '18'
 
       - name: Start services
-        run: docker-compose up -d
+        run: docker compose up -d
 
       - name: Wait for services
         run: |
@@ -663,24 +663,24 @@ jobs:
 
 ```bash
 # Check service logs
-docker-compose logs
+docker compose logs
 
 # Restart services
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ### Database connection errors
 
 ```bash
 # Verify database is running
-docker-compose ps mariadb
+docker compose ps mariadb
 
 # Check database logs
-docker-compose logs mariadb
+docker compose logs mariadb
 
 # Test connection
-docker-compose exec mariadb mysql -u root -prootpassword -e "USE ordersdb; SELECT 1;"
+docker compose exec mariadb mysql -u root -prootpassword -e "USE ordersdb; SELECT 1;"
 ```
 
 ### SSL/TLS certificate errors
@@ -690,7 +690,7 @@ The tests use `ignoreHTTPSErrors: true` in Playwright config to handle self-sign
 ### Tests timing out
 
 - Increase timeouts in `playwright.config.js`
-- Check if order processor is running: `docker-compose logs order-processor`
+- Check if order processor is running: `docker compose logs order-processor`
 - Verify SQS is healthy in Localstack
 
 ### Cleanup test data manually

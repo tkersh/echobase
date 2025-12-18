@@ -1,5 +1,9 @@
 # Build stage
-FROM node:18-alpine AS build
+FROM echobase-node-base:latest AS build
+
+# Build metadata
+ARG GIT_SHA=unknown
+ARG BUILD_DATE=unknown
 
 WORKDIR /app
 
@@ -18,8 +22,15 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Store build metadata in dist
+RUN echo "{\"gitSha\":\"${GIT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"frontend\"}" > /app/dist/build-metadata.json
+
 # Production stage
 FROM nginx:alpine
+
+# Build metadata (pass through from build stage)
+ARG GIT_SHA=unknown
+ARG BUILD_DATE=unknown
 
 # Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
@@ -38,9 +49,21 @@ RUN chmod 644 /etc/nginx/ssl/localhost.crt && \
 # Expose ports (HTTP for redirect, HTTPS for secure traffic)
 EXPOSE 80 443
 
-# Health check (using HTTPS)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --quiet --tries=1 --spider --no-check-certificate https://localhost/ || exit 1
+# Health check (using HTTPS with IPv4 to avoid IPv6 resolution issues)
+# Start period: 90s to allow nginx and SSL to initialize (matches FRONTEND_TIMEOUT in CI)
+# Retries: 3 retries at 30s intervals = 90s additional time after start period
+HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
+  CMD wget --quiet --tries=1 --spider --no-check-certificate https://127.0.0.1/ || exit 1
+
+# Create startup script that logs build metadata
+RUN echo '#!/bin/sh' > /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo 'if [ -f /usr/share/nginx/html/build-metadata.json ]; then' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo '  echo "================================================================================"' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo '  echo "BUILD METADATA:"' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo '  cat /usr/share/nginx/html/build-metadata.json | sed "s/^/  /"' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo '  echo "================================================================================"' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    echo 'fi' >> /docker-entrypoint.d/00-log-build-metadata.sh && \
+    chmod +x /docker-entrypoint.d/00-log-build-metadata.sh
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

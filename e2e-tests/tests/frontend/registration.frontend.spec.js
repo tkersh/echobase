@@ -16,7 +16,7 @@ test.describe('User Registration Frontend Tests', () => {
     // Cleanup
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);
@@ -56,7 +56,7 @@ test.describe('User Registration Frontend Tests', () => {
     await expect(page).toHaveURL(/\/orders/, { timeout: 15000 });
 
     // Verify user exists in database
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     expect(dbUser).toBeTruthy();
     expect(dbUser.username).toBe(userData.username);
     expect(dbUser.email).toBe(userData.email);
@@ -78,7 +78,7 @@ test.describe('User Registration Frontend Tests', () => {
     await expect(page).toHaveURL(/\/orders/, { timeout: 10000 });
 
     // Verify user was created
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     expect(dbUser).toBeTruthy();
 
     // Go back to registration

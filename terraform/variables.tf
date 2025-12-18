@@ -79,3 +79,10 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+# LocalStack endpoint configuration
+variable "localstack_endpoint" {
+  description = "LocalStack endpoint URL for AWS services (use docker service name in CI)"
+  type        = string
+  default     = "http://localhost:4566"
+}

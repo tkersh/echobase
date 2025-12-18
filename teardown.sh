@@ -28,15 +28,15 @@ print_error() {
 
 # Step 0: Verify Docker services are running
 echo "Step 0: Verifying Docker services are running..."
-if ! docker-compose ps | grep -q "localstack"; then
+if ! docker compose ps | grep -q "localstack"; then
     print_warning "Docker services not running. Starting them now..."
-    if docker-compose up -d; then
+    if docker compose up -d; then
         print_status "Docker services started"
         # Wait for localstack to be healthy
         echo "Waiting for localstack to be healthy..."
         sleep 5
         RETRIES=30
-        until docker-compose exec -T localstack curl -f http://localhost:4566/_localstack/health 2>/dev/null || [ $RETRIES -eq 0 ]; do
+        until docker compose exec -T localstack curl -f http://localhost:4566/_localstack/health 2>/dev/null || [ $RETRIES -eq 0 ]; do
             echo -n "."
             sleep 2
             RETRIES=$((RETRIES-1))
@@ -74,7 +74,7 @@ if [ -d "terraform" ]; then
         export TF_VAR_db_name=$DB_NAME
     else
         print_warning ".env file not found - using default values for Terraform variables"
-        export TF_VAR_db_user=orderuser
+        export TF_VAR_db_user=app_user
         export TF_VAR_db_host=mariadb
         export TF_VAR_db_port=3306
         export TF_VAR_db_name=orders_db
@@ -95,8 +95,8 @@ echo ""
 
 # Step 2: Stop and remove Docker containers
 echo "Step 2: Stopping and removing Docker containers..."
-if docker-compose ps -q 2>/dev/null | grep -q .; then
-    if docker-compose down; then
+if docker compose ps -q 2>/dev/null | grep -q .; then
+    if docker compose down; then
         print_status "Docker containers stopped and removed"
     else
         print_error "Failed to stop Docker containers"
@@ -114,7 +114,7 @@ print_warning "This will delete all persistent data including the database!"
 read -p "Do you want to remove volumes? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    if docker-compose down -v; then
+    if docker compose down -v; then
         print_status "Docker volumes removed"
     else
         print_error "Failed to remove Docker volumes"
@@ -138,7 +138,17 @@ fi
 
 echo ""
 
-# Step 5: Summary
+# Step 5: Final shutdown of local environment
+echo "Step 5: Ensuring local environment is shut down..."
+if docker compose down 2>/dev/null; then
+    print_status "Local environment shut down successfully"
+else
+    print_warning "Local environment already shut down or not found"
+fi
+
+echo ""
+
+# Step 6: Summary
 echo "======================================"
 echo "Teardown Complete"
 echo "======================================"
@@ -147,9 +157,10 @@ print_status "Docker containers removed"
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     print_status "Docker volumes removed"
 fi
+print_status "Local environment shut down"
 echo ""
 echo "To rebuild the infrastructure, run:"
 echo "  ./generate-credentials.sh (ONLY on first run!)"
 echo "  ./setup.sh"
-#echo "  docker-compose up -d"
+#echo "  docker compose up -d"
 #echo "  cd terraform && terraform init && terraform apply -auto-approve"

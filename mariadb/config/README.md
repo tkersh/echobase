@@ -80,7 +80,7 @@ To verify that encryption is working:
 
 ```bash
 # Connect to the database
-docker-compose exec mariadb mysql -u root -p
+docker compose exec mariadb mysql -u root -p
 
 # Check encryption status
 SHOW VARIABLES LIKE 'innodb_encrypt%';
@@ -109,7 +109,7 @@ Encryption has minimal performance impact:
 
 ### MariaDB won't start
 
-Check logs: `docker-compose logs mariadb`
+Check logs: `docker compose logs mariadb`
 
 Common issues:
 - Keyfile path incorrect in encryption.cnf

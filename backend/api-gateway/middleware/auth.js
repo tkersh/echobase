@@ -1,6 +1,10 @@
 const jwt = require('jsonwebtoken');
 const { logError } = require('../../shared/logger');
 
+// Constants for JWT authentication
+const BEARER_PREFIX = 'Bearer ';
+const BEARER_PREFIX_LENGTH = 7; // Length of 'Bearer '
+
 /**
  * JWT Authentication Middleware
  * Verifies JWT token from Authorization header (Bearer token)
@@ -10,14 +14,15 @@ const authenticateJWT = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || !authHeader.startsWith(BEARER_PREFIX)) {
       return res.status(401).json({
         error: 'Authentication required',
         message: 'Missing or invalid Authorization header',
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    // Extract token by removing Bearer prefix
+    const token = authHeader.substring(BEARER_PREFIX_LENGTH);
 
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);

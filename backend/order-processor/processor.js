@@ -4,11 +4,15 @@ const { log, logError } = require('../shared/logger');
 const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
 const { validateEnvVars, ORDER_PROCESSOR_REQUIRED_VARS } = require('../shared/env-validator');
+const { logBuildMetadata } = require('../shared/build-metadata');
 
 // Validate environment variables at startup
 if (!validateEnvVars(ORDER_PROCESSOR_REQUIRED_VARS)) {
   process.exit(1);
 }
+
+// Log build metadata on startup
+logBuildMetadata();
 
 // Configure AWS clients
 const awsConfig = getAwsConfig();

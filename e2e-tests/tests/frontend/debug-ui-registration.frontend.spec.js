@@ -25,7 +25,7 @@ test.describe('Debug UI Registration Flow', () => {
   test.afterEach(async () => {
     if (testUser) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(testUser.username);
+        const dbUser = await dbHelper.waitForUser(testUser.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(testUser.username);
@@ -70,7 +70,7 @@ test.describe('Debug UI Registration Flow', () => {
 
     // Step 3: Check database
     console.log('\n=== STEP 3: Check database ===');
-    const dbUser = await dbHelper.getUserByUsername(testUser.username);
+    const dbUser = await dbHelper.waitForUser(testUser.username);
     console.log('User in database:', JSON.stringify({
       id: dbUser?.id,
       username: dbUser?.username,

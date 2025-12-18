@@ -23,7 +23,7 @@ test.describe('Authentication API Tests', () => {
     // Cleanup: Delete test users created during this test
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);
@@ -55,7 +55,7 @@ test.describe('Authentication API Tests', () => {
       expect(response.data.user).not.toHaveProperty('password_hash');
 
       // Verify user exists in database
-      const dbUser = await dbHelper.getUserByUsername(userData.username);
+      const dbUser = await dbHelper.waitForUser(userData.username);
       expect(dbUser).toBeTruthy();
       expect(dbUser.username).toBe(userData.username);
       expect(dbUser.email).toBe(userData.email);

@@ -14,8 +14,8 @@ export const TEST_CONFIG = {
   DB_HOST: process.env.DB_HOST || 'localhost',
   DB_PORT: parseInt(process.env.DB_PORT || '3306'),
   DB_NAME: process.env.DB_NAME || 'orders_db',
-  DB_USER: process.env.DB_USER || 'orderuser',
-  DB_PASSWORD: process.env.DB_PASSWORD || 'MhuoagP42ZkhSdvNo7Vi9k4kXTzKN9GJ',
+  DB_USER: process.env.DB_USER || 'app_user',
+  DB_PASSWORD: process.env.DB_PASSWORD || '',  // No default - must be provided via env
 
   // Timeout configuration (in milliseconds)
   TIMEOUTS: {

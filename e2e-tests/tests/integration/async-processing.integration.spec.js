@@ -32,7 +32,7 @@ test.describe('Async Order Processing Integration Tests', () => {
   test.afterEach(async () => {
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);
@@ -51,7 +51,7 @@ test.describe('Async Order Processing Integration Tests', () => {
 
     // Register user
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     // Get initial order count
@@ -88,7 +88,7 @@ test.describe('Async Order Processing Integration Tests', () => {
     testUsers.push(userData);
 
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     // Submit 5 orders
@@ -118,7 +118,7 @@ test.describe('Async Order Processing Integration Tests', () => {
     testUsers.push(userData);
 
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     // Submit orders with various values
@@ -153,7 +153,7 @@ test.describe('Async Order Processing Integration Tests', () => {
     testUsers.push(userData);
 
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     // Submit orders with special characters
@@ -204,9 +204,9 @@ test.describe('Async Order Processing Integration Tests', () => {
     await api2.register(user2);
     await api3.register(user3);
 
-    const dbUser1 = await dbHelper.getUserByUsername(user1.username);
-    const dbUser2 = await dbHelper.getUserByUsername(user2.username);
-    const dbUser3 = await dbHelper.getUserByUsername(user3.username);
+    const dbUser1 = await dbHelper.waitForUser(user1.username);
+    const dbUser2 = await dbHelper.waitForUser(user2.username);
+    const dbUser3 = await dbHelper.waitForUser(user3.username);
 
     // Each user submits different number of orders
     await api1.submitOrder(createValidOrder({ productName: 'User1-Order1' }));
@@ -241,7 +241,7 @@ test.describe('Async Order Processing Integration Tests', () => {
     testUsers.push(userData);
 
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     const beforeSubmit = new Date();
@@ -270,7 +270,7 @@ test.describe('Async Order Processing Integration Tests', () => {
     testUsers.push(userData);
 
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     const userId = dbUser.id;
 
     // Submit 10 orders as fast as possible

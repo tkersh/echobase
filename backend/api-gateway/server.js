@@ -9,13 +9,15 @@ const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
+const csrfProtection = require('./middleware/csrf-middleware');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const { SQSClient } = require('@aws-sdk/client-sqs');
-const { log, logError } = require('../shared/logger');
+const { log, logError, debug, info, warn, error } = require('../shared/logger');
 const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
 const { validateEnvVars, API_GATEWAY_REQUIRED_VARS } = require('../shared/env-validator');
+const { logBuildMetadata } = require('../shared/build-metadata');
 const {
   ORDER_MAX_QUANTITY,
   ORDER_MIN_PRICE,
@@ -37,6 +39,13 @@ const PORT = process.env.PORT;
 // Trust proxy - required for rate limiting to work correctly behind nginx
 // Set to 1 to trust only the first proxy (nginx), not beyond that
 app.set('trust proxy', 1);
+
+// Log build metadata on startup
+logBuildMetadata();
+
+// Log level is controlled by LOG_LEVEL environment variable (DEBUG, INFO, WARN, ERROR)
+// Default is INFO - set LOG_LEVEL=DEBUG to enable debug logging
+info('API Gateway starting with log level:', process.env.LOG_LEVEL || 'INFO');
 
 let dbPool;
 
@@ -70,8 +79,27 @@ app.use(compression());
 app.use(helmet());
 
 // Security: CORS configuration - restrict to specific origins
+// Validate and parse CORS_ORIGIN
+let allowedOrigins = [];
+if (process.env.CORS_ORIGIN) {
+  allowedOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
+
+  // Validate each origin URL format at startup
+  allowedOrigins.forEach((origin, index) => {
+    try {
+      new URL(origin);
+      log(`CORS origin ${index + 1}: ${origin}`);
+    } catch (e) {
+      logError(`Invalid CORS origin format at index ${index + 1}: ${origin}`, e);
+      logError('CORS_ORIGIN must be a comma-separated list of valid URLs (e.g., https://example.com:443)');
+      process.exit(1);
+    }
+  });
+}
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN,
+  // CORS_ORIGIN can be a comma-separated list of allowed origins
+  origin: allowedOrigins,
   methods: ['GET', 'POST'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
   credentials: true,
@@ -80,78 +108,19 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Security: CSRF Protection Middleware
-// Validates Origin header for state-changing requests
-// Note: JWT in Authorization header already provides some CSRF protection
-// as attackers cannot set custom headers cross-origin
-const csrfProtection = (req, res, next) => {
-  // Skip CSRF check in test environment or when CSRF is explicitly disabled
-  if (process.env.NODE_ENV === 'test' || process.env.CSRF_PROTECTION === 'false') {
-    return next();
-  }
-
-  // Skip CSRF check for safe methods and health check
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/health') {
-    return next();
-  }
-
-  // For state-changing requests (POST, PUT, DELETE), verify origin
-  const origin = req.get('origin') || req.get('referer');
-  const allowedOrigin = process.env.CORS_ORIGIN;
-
-  // Allow requests without origin header from localhost (for testing and local tools)
-  // In production, you may want to remove this and enforce origin headers strictly
-  if (!origin) {
-    const host = req.get('host');
-    const isLocalhost = host && (host.startsWith('localhost') || host.startsWith('127.0.0.1'));
-
-    if (isLocalhost) {
-      // Allow localhost requests without origin (useful for testing and curl)
-      return next();
-    }
-
-    log('CSRF: Rejected request without origin/referer header');
-    return res.status(403).json({
-      error: 'Forbidden',
-      message: 'Origin validation failed',
-    });
-  }
-
-  // Extract hostname from origin URL
-  try {
-    const originUrl = new URL(origin);
-    const allowedUrl = new URL(allowedOrigin);
-
-    if (originUrl.origin !== allowedUrl.origin) {
-      log(`CSRF: Rejected request from unauthorized origin: ${origin}`);
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Origin validation failed',
-      });
-    }
-  } catch (error) {
-    logError('CSRF: Error parsing origin URL:', error);
-    return res.status(403).json({
-      error: 'Forbidden',
-      message: 'Origin validation failed',
-    });
-  }
-
-  next();
-};
-
-// Apply CSRF protection to all routes
+// Extracted to middleware/csrf-middleware.js for better code organization
 app.use(csrfProtection);
 
 // Security: Request size limits (prevent large payload attacks)
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
-// DEBUG: Log all POST requests to see body after parsing
+// Debug logging for POST requests (only when LOG_LEVEL=DEBUG)
 app.use((req, res, next) => {
   if (req.method === 'POST' && req.path.includes('/orders')) {
-    console.log('[DEBUG MIDDLEWARE] POST request to:', req.path);
-    console.log('[DEBUG MIDDLEWARE] Content-Type:', req.get('content-type'));
-    console.log('[DEBUG MIDDLEWARE] Body after parsing:', JSON.stringify(req.body));
+    debug('POST request to:', req.path);
+    debug('Content-Type:', req.get('content-type'));
+    debug('Body after parsing:', JSON.stringify(req.body));
   }
   next();
 });
@@ -185,6 +154,41 @@ const sqsClient = new SQSClient(awsConfig);
 
 // Initialize Order Service
 const orderService = new OrderService(sqsClient, process.env.SQS_QUEUE_URL);
+
+/**
+ * Verify SQS connectivity with retry logic
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 10)
+ * @returns {Promise<void>}
+ */
+async function verifySQSConnectivity(maxRetries = 10) {
+  const { GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
+  const INITIAL_RETRY_DELAY = 1000; // 1 second
+  const MAX_RETRY_DELAY = 5000; // 5 seconds
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      log(`Verifying SQS connectivity (attempt ${attempt}/${maxRetries})...`);
+      const testCommand = new GetQueueAttributesCommand({
+        QueueUrl: process.env.SQS_QUEUE_URL,
+        AttributeNames: ['ApproximateNumberOfMessages']
+      });
+      await sqsClient.send(testCommand);
+      log('SQS connectivity verified successfully');
+      return;
+    } catch (error) {
+      const delay = Math.min(INITIAL_RETRY_DELAY * Math.pow(1.5, attempt - 1), MAX_RETRY_DELAY);
+      logError(`SQS connectivity check failed (attempt ${attempt}/${maxRetries}): ${error.message}`);
+
+      if (attempt < maxRetries) {
+        log(`Retrying SQS connectivity check in ${Math.round(delay/1000)}s...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        logError(`SQS connectivity verification failed after ${maxRetries} attempts`);
+        throw error;
+      }
+    }
+  }
+}
 
 // Import routes and middleware
 const authRoutes = require('./routes/auth');
@@ -370,17 +374,17 @@ const orderValidation = [
 // Order submission endpoint with authentication and validation (v1)
 app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) => {
   try {
-    // DEBUG: Log incoming request with full details
-    console.log('[DEBUG] POST /api/v1/orders - Content-Type:', req.get('content-type'));
-    console.log('[DEBUG] POST /api/v1/orders - Request body:', JSON.stringify(req.body));
-    console.log('[DEBUG] POST /api/v1/orders - Body keys:', Object.keys(req.body));
-    console.log('[DEBUG] POST /api/v1/orders - Body values:', Object.values(req.body));
-    console.log('[DEBUG] User from JWT:', req.user);
+    // Debug logging for order submission (only when LOG_LEVEL=DEBUG)
+    debug('POST /api/v1/orders - Content-Type:', req.get('content-type'));
+    debug('POST /api/v1/orders - Request body:', JSON.stringify(req.body));
+    debug('POST /api/v1/orders - Body keys:', Object.keys(req.body));
+    debug('POST /api/v1/orders - Body values:', Object.values(req.body));
+    debug('User from JWT:', req.user);
 
     // Check for validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('[DEBUG] Validation errors:', JSON.stringify(errors.array()));
+      debug('Validation errors:', JSON.stringify(errors.array()));
       return res.status(400).json({
         error: 'Validation failed',
         details: errors.array(),
@@ -520,10 +524,16 @@ if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
   server = app;
 }
 
-// Start server after initializing database
-initDatabase(awsConfig)
-  .then((pool) => {
+// Start server after initializing database and verifying SQS connectivity in parallel
+log('Initializing dependencies (database and SQS) in parallel...');
+Promise.all([
+  initDatabase(awsConfig),
+  verifySQSConnectivity()
+])
+  .then(([pool]) => {
     dbPool = pool;
+    log('All dependencies initialized successfully');
+
     if (server === app) {
       // HTTP fallback
       app.listen(PORT, () => {

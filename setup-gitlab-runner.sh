@@ -49,8 +49,8 @@ else
 fi
 
 # Check Docker Compose
-if command -v docker-compose &> /dev/null; then
-    COMPOSE_VERSION=$(docker-compose --version)
+if command -v docker compose &> /dev/null; then
+    COMPOSE_VERSION=$(docker compose --version)
     print_info "✓ Docker Compose installed: $COMPOSE_VERSION"
 else
     print_error "✗ Docker Compose not found. Please install Docker Compose first."

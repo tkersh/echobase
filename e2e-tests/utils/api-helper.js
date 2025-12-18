@@ -1,10 +1,14 @@
 import { request } from '@playwright/test';
 
+// Default URLs for local development
+const DEFAULT_API_BASE_URL = 'https://localhost:3001';
+const DEFAULT_ORIGIN_URL = 'https://localhost:3443';
+
 /**
  * API helper for making authenticated and unauthenticated requests
  */
 class ApiHelper {
-  constructor(baseURL = process.env.API_BASE_URL || 'https://localhost:3001') {
+  constructor(baseURL = process.env.API_BASE_URL || DEFAULT_API_BASE_URL) {
     this.baseURL = baseURL;
     this.token = null;
   }
@@ -13,12 +17,18 @@ class ApiHelper {
    * Create a new API context
    */
   async createContext() {
+    const headers = {
+      'Origin': process.env.BASE_URL || DEFAULT_ORIGIN_URL
+    };
+
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+
     return await request.newContext({
       baseURL: this.baseURL,
       ignoreHTTPSErrors: true,
-      extraHTTPHeaders: this.token ? {
-        'Authorization': `Bearer ${this.token}`
-      } : {}
+      extraHTTPHeaders: headers
     });
   }
 

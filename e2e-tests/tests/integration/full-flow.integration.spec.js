@@ -33,7 +33,7 @@ test.describe('Full End-to-End Integration Tests', () => {
     // Cleanup
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);
@@ -56,7 +56,7 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(regResponse.data.token).toBeTruthy();
 
     // Step 2: Verify user in database
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     expect(dbUser).toBeTruthy();
     expect(dbUser.username).toBe(userData.username);
     expect(dbUser.email).toBe(userData.email);
@@ -103,7 +103,7 @@ test.describe('Full End-to-End Integration Tests', () => {
     await expect(page).toHaveURL(/\/orders/);
 
     // Step 2: Verify user in database
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
     expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
@@ -150,7 +150,8 @@ test.describe('Full End-to-End Integration Tests', () => {
     await expect(page).toHaveURL(/\/orders/);
 
     // Step 4: Get user from DB
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
+    expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
     // Step 5: Submit order
@@ -173,7 +174,8 @@ test.describe('Full End-to-End Integration Tests', () => {
 
     // Register
     await apiHelper.register(userData);
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
+    expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
     // Submit 3 orders
@@ -211,8 +213,11 @@ test.describe('Full End-to-End Integration Tests', () => {
     await apiHelper1.register(user1);
     await apiHelper2.register(user2);
 
-    const dbUser1 = await dbHelper.getUserByUsername(user1.username);
-    const dbUser2 = await dbHelper.getUserByUsername(user2.username);
+    const dbUser1 = await dbHelper.waitForUser(user1.username);
+    const dbUser2 = await dbHelper.waitForUser(user2.username);
+
+    expect(dbUser1).toBeTruthy();
+    expect(dbUser2).toBeTruthy();
 
     // Submit orders concurrently
     const order1 = createValidOrder();

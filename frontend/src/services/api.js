@@ -1,11 +1,27 @@
 /**
  * API Client
  * Centralized API communication layer with error handling
+ *
+ * @example
+ * // Using auth API
+ * const { data } = await auth.login({ email, password });
+ * const token = data.token;
+ *
+ * // Using orders API with token
+ * await orders.create(orderData, token);
  */
 
 import { API_URL } from '../config/api';
 
+/**
+ * APIClient class for making HTTP requests
+ * Provides standardized error handling and JSON parsing
+ */
 class APIClient {
+  /**
+   * Create an API client instance
+   * @param {string} baseURL - Base URL for all API requests
+   */
   constructor(baseURL) {
     this.baseURL = baseURL;
   }
@@ -45,6 +61,9 @@ class APIClient {
 
   /**
    * GET request
+   * @param {string} endpoint - API endpoint
+   * @param {object} options - Fetch options (headers, etc.)
+   * @returns {Promise<{data: object, status: number}>} Response data and status
    */
   async get(endpoint, options = {}) {
     return this.request(endpoint, {
@@ -55,6 +74,10 @@ class APIClient {
 
   /**
    * POST request
+   * @param {string} endpoint - API endpoint
+   * @param {object} body - Request body (will be JSON stringified)
+   * @param {object} options - Fetch options (headers, etc.)
+   * @returns {Promise<{data: object, status: number}>} Response data and status
    */
   async post(endpoint, body, options = {}) {
     return this.request(endpoint, {
@@ -66,6 +89,10 @@ class APIClient {
 
   /**
    * PUT request
+   * @param {string} endpoint - API endpoint
+   * @param {object} body - Request body (will be JSON stringified)
+   * @param {object} options - Fetch options (headers, etc.)
+   * @returns {Promise<{data: object, status: number}>} Response data and status
    */
   async put(endpoint, body, options = {}) {
     return this.request(endpoint, {
@@ -77,6 +104,9 @@ class APIClient {
 
   /**
    * DELETE request
+   * @param {string} endpoint - API endpoint
+   * @param {object} options - Fetch options (headers, etc.)
+   * @returns {Promise<{data: object, status: number}>} Response data and status
    */
   async delete(endpoint, options = {}) {
     return this.request(endpoint, {
@@ -87,6 +117,9 @@ class APIClient {
 
   /**
    * Set authentication token for subsequent requests
+   * Note: Currently not used - tokens are passed manually per request
+   * Consider using this method for automatic token management
+   * @param {string} token - JWT token
    */
   setAuthToken(token) {
     this.authToken = token;
@@ -121,13 +154,6 @@ export const auth = {
 export const orders = {
   create: (orderData, token) =>
     apiClient.post('/api/v1/orders', orderData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
-
-  list: (token) =>
-    apiClient.get('/api/v1/orders', {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

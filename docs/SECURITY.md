@@ -397,7 +397,7 @@ We take security seriously and will respond to all legitimate reports within 48 
 - **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** - Detailed implementation guide for KMS, Secrets Manager, and API security
 - **[AUTHENTICATION.md](AUTHENTICATION.md)** - Complete JWT authentication guide
 - **[SECURITY_TESTING.md](SECURITY_TESTING.md)** - Automated security test suite documentation
-- **[mariadb/config/README.md](mariadb/config/README.md)** - Database encryption configuration
+- **[mariadb/config/README.md](../mariadb/config/README.md)** - Database encryption configuration
 
 ### External Resources
 

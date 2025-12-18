@@ -134,7 +134,7 @@ test_validation_stage() {
         "hashicorp/terraform:latest" \
         "Validate Terraform configuration"
 
-    run_job "validate:docker-compose" \
+    run_job "validate:docker compose" \
         "docker/compose:latest" \
         "Validate Docker Compose configuration"
 }

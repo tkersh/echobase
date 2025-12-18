@@ -22,7 +22,7 @@ Before setting up the GitLab runner, ensure you have the following installed on 
 
 - **Docker Compose** (version 2.0 or higher)
   ```bash
-  docker-compose --version
+  docker compose --version
   ```
 
 - **Terraform** (version 1.0 or higher)
@@ -204,7 +204,7 @@ The CI/CD pipeline consists of 5 stages:
 ### 1. Validate Stage
 - **`validate:env-check`** - Checks all prerequisites (Docker, Terraform, Node.js)
 - **`validate:terraform`** - Validates Terraform configuration
-- **`validate:docker-compose`** - Validates Docker Compose configuration
+- **`validate:compose`** - Validates Docker Compose configuration
 
 ### 2. Build Stage
 - **`build:dependencies`** - Installs all Node.js dependencies
@@ -216,11 +216,13 @@ The CI/CD pipeline consists of 5 stages:
 - **`test:e2e`** - Runs end-to-end Playwright tests
 
 ### 4. Deploy Stage
-- **`deploy:local`** - Automatically deploys to local environment (main/develop branches)
-- **`deploy:local-manual`** - Manual deployment trigger for feature branches
+- **`deploy:ci-blue`** - Automatically deploys to CI Blue environment (main/develop branches)
+- **`deploy:ci-blue-manual`** - Manual deployment to CI Blue for feature branches
 
 ### 5. Cleanup Stage
-- **`cleanup:local`** - Stops services and removes containers (manual)
+- **`cleanup:devlocal`** - Stops devlocal services and removes containers (manual)
+- **`cleanup:ci-blue`** - Stops CI Blue services and removes containers (manual)
+- **`cleanup:green`** - Stops green services and removes containers (manual)
 - **`cleanup:volumes`** - Removes containers and volumes (manual, destructive)
 
 ### Utility Jobs
@@ -255,7 +257,7 @@ For feature branches, deployment is manual:
 
 2. Go to **CI/CD > Pipelines** in GitLab
 3. Find your pipeline
-4. Click the play button on `deploy:local-manual`
+4. Click the play button on `deploy:ci-blue-manual`
 
 ### Viewing Logs
 
@@ -427,7 +429,7 @@ terraform force-unlock <LOCK_ID>
 **Solution:**
 ```bash
 # Stop existing containers
-docker-compose down
+docker compose down
 
 # Or kill processes using the port
 lsof -ti:3001 | xargs kill -9  # For API Gateway
@@ -441,14 +443,14 @@ lsof -ti:3443 | xargs kill -9  # For Frontend
 **Solution:**
 ```bash
 # Check logs
-docker-compose logs api-gateway
-docker-compose logs order-processor
+docker compose logs api-gateway
+docker compose logs order-processor
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # Full restart
-docker-compose down && docker-compose up -d
+docker compose down && docker compose up -d
 ```
 
 ### E2E Tests Failing
@@ -472,7 +474,7 @@ npx playwright install-deps
 **Solution:**
 ```bash
 # Manually cleanup
-docker-compose down -v
+docker compose down -v
 docker system prune -af
 
 # Reset Terraform state

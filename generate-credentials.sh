@@ -2,7 +2,7 @@
 
 # Credential Generation Script for Echobase
 # This script generates secure random credentials for the application
-# Run this script BEFORE running docker-compose up for the first time
+# Run this script BEFORE running docker compose up for the first time
 
 set -e
 
@@ -20,15 +20,22 @@ echo ""
 # Check if .env already exists
 if [ -f .env ]; then
     echo -e "${YELLOW}Warning: .env file already exists!${NC}"
-    read -p "Do you want to regenerate credentials? This will overwrite existing values (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${RED}Aborted. Keeping existing .env file.${NC}"
-        exit 0
+
+    # In CI environments, always regenerate without prompting
+    if [ -n "$CI" ]; then
+        echo "Running in CI environment, regenerating credentials..."
+        cp .env .env.backup 2>/dev/null || true
+    else
+        read -p "Do you want to regenerate credentials? This will overwrite existing values (y/N): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${RED}Aborted. Keeping existing .env file.${NC}"
+            exit 0
+        fi
+        # Backup existing .env
+        cp .env .env.backup
+        echo -e "${GREEN}Backed up existing .env to .env.backup${NC}"
     fi
-    # Backup existing .env
-    cp .env .env.backup
-    echo -e "${GREEN}Backed up existing .env to .env.backup${NC}"
 fi
 
 # Function to generate a secure random password
@@ -49,10 +56,9 @@ echo "Generating secure random credentials..."
 echo ""
 
 # Generate database credentials
-DB_ROOT_PASSWORD=$(generate_db_password 32)
-DB_USER="orderuser"
-DB_PASSWORD=$(generate_db_password 32)
-DB_NAME="orders_db"
+# Database credentials are now managed by durable/setup.sh
+# They are generated and stored in durable/.credentials.{devlocal|ci}
+# and loaded into Secrets Manager
 
 # For Localstack, we still use 'test' credentials since it's a local development mock
 # In production, you would use real AWS credentials from AWS IAM
@@ -72,16 +78,12 @@ cat > .env << EOF
 # WARNING: This file contains secrets. Never commit this to version control!
 
 # Database Configuration
-MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
-MYSQL_DATABASE=${DB_NAME}
-MYSQL_USER=${DB_USER}
-MYSQL_PASSWORD=${DB_PASSWORD}
-
-DB_HOST=mariadb
+# Database credentials are managed by durable/setup.sh and stored in Secrets Manager
+# Applications retrieve credentials from Secrets Manager at runtime
+# These environment variables are only used as fallback/reference
+DB_HOST=echobase-devlocal-durable-mariadb
 DB_PORT=3306
-DB_USER=${DB_USER}
-DB_PASSWORD=${DB_PASSWORD}
-DB_NAME=${DB_NAME}
+DB_NAME=orders_db
 
 # Secrets Manager Configuration
 # Database credentials are stored in AWS Secrets Manager (Localstack)
@@ -94,22 +96,29 @@ AWS_REGION=us-east-1
 AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
 
-# SQS Configuration
-SQS_ENDPOINT=http://localstack:4566
+# SQS Configuration (ephemeral LocalStack for queues)
+# Dev-local ephemeral LocalStack uses port 4576 (durable uses 4566)
+# Use full container name to avoid DNS conflict with durable LocalStack
+SQS_ENDPOINT=http://echobase-devlocal-localstack:4566
 SQS_QUEUE_URL=http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue
+
+# Secrets Manager Configuration (durable LocalStack for credentials)
+# Points to durable LocalStack container for persistent secrets
+SECRETS_MANAGER_ENDPOINT=http://echobase-devlocal-durable-localstack:4566
 
 # API Gateway Configuration
 PORT=3001
 CORS_ORIGIN=https://localhost:3443
 RATE_LIMIT_WINDOW_MS=900000
-RATE_LIMIT_MAX_REQUESTS=100
+RATE_LIMIT_MAX_REQUESTS=100000
 
 # Order Processor Configuration
 POLL_INTERVAL=5000
 MAX_MESSAGES=10
 
 # Frontend Configuration
-REACT_APP_API_URL=https://localhost:3443
+# Leave empty to use same-origin (nginx proxies /api/* to backend)
+REACT_APP_API_URL=
 
 # Security Configuration
 # JWT secret for future authentication implementation
@@ -162,7 +171,7 @@ fi
 
 echo -e "${GREEN}Next Steps:${NC}"
 echo "1. Review the generated .env file"
-echo "2. Run: docker-compose up -d"
+echo "2. Run: docker compose up -d"
 echo "3. Your services will use the secure credentials automatically"
 echo ""
 echo -e "${RED}IMPORTANT SECURITY NOTES:${NC}"

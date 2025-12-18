@@ -276,12 +276,12 @@ This system demonstrates strong architectural patterns with defense-in-depth sec
 - ✅ **Parameterized SQL Queries:** Protection against SQL injection
   - `INSERT INTO orders (...) VALUES (?, ?, ?, ?, ?)`
 - TCP connection with username/password authentication
-- Database user with limited privileges (orderuser)
+- Database user with limited privileges (app_user)
 - Indexes for performance (idx_order_status, idx_created_at)
 
 **Vulnerabilities:**
 - ✅ **~~Hardcoded Database Credentials:~~** **FIXED** - Credentials stored in AWS Secrets Manager, encrypted with KMS
-  - ~~DB_USER=orderuser~~ Retrieved at runtime from Secrets Manager
+  - ~~DB_USER=app_user~~ Retrieved at runtime from Secrets Manager
   - ~~DB_PASSWORD=orderpass~~ Strong random password (32 chars) in Secrets Manager
 - ⚠️ **No TLS/Encryption:** TCP connection in plaintext (acceptable for Docker internal network)
 - ✅ **~~No Encryption at Rest:~~** ~~Database files stored unencrypted~~ **FIXED** - AES-256 encryption enabled for all data
@@ -481,7 +481,7 @@ This system demonstrates strong architectural patterns with defense-in-depth sec
 
 **Security Features Implemented:**
 1. **Credential Protection** ✅
-   - ~~Weak credentials (orderuser/orderpass)~~ **FIXED** - Strong random passwords (32 characters)
+   - ~~Weak credentials (app_user/orderpass)~~ **FIXED** - Strong random passwords (32 characters)
    - ~~Credentials stored in plaintext in `.env` files~~ **FIXED** - Stored in AWS Secrets Manager, encrypted with KMS
    - Credentials retrieved at runtime, never logged
    - *Risk:* LOW - Strong credential management
@@ -683,12 +683,13 @@ This system demonstrates strong architectural patterns with defense-in-depth sec
 
 8. **Enable SQS Encryption**
    ```hcl
-   # Terraform
+   # Terraform - Use SSE-SQS (AWS managed encryption)
    resource "aws_sqs_queue" "order_queue" {
-     name                       = "order-processing-queue"
-     kms_master_key_id         = aws_kms_key.sqs_encryption.id
-     kms_data_key_reuse_period_seconds = 300
+     name                    = "order-processing-queue"
+     sqs_managed_sse_enabled = true
    }
+   # Note: SSE-SQS provides encryption at rest using AWS managed keys
+   # For production, consider SSE-KMS if you need customer-managed keys
    ```
 
 9. **Enable Database Encryption**

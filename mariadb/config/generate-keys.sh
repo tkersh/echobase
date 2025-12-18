@@ -17,8 +17,9 @@ KEY_HEX=$(openssl rand -hex 32)
 # Write the keyfile in the format: key_id;hex_key
 echo "${KEY_ID};${KEY_HEX}" > "$KEYFILE"
 
-# Set restrictive permissions
-chmod 600 "$KEYFILE"
+# Set permissions to allow container's mysql user to read it
+# 644 = owner can read/write, group and others can read
+chmod 644 "$KEYFILE"
 
 echo "✓ Encryption keyfile generated: $KEYFILE"
 echo "  Key ID: $KEY_ID"

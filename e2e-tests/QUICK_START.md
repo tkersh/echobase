@@ -22,10 +22,10 @@ cp .env.example .env
 
 ```bash
 # From project root
-docker-compose up -d
+docker compose up -d
 
 # Verify services are running
-docker-compose ps
+docker compose ps
 ```
 
 ### Step 3: Run Setup Script
@@ -77,20 +77,20 @@ npm run report            # View HTML report
 
 ```bash
 # Check service health
-docker-compose ps
+docker compose ps
 
 # Restart services
-docker-compose restart
+docker compose restart
 
 # Check logs
-docker-compose logs -f
+docker compose logs -f
 ```
 
 ### "Database connection failed"
 
 ```bash
 # Test database connection
-docker-compose exec mariadb mysql -u root -prootpassword -e "USE ordersdb; SELECT 1;"
+docker compose exec mariadb mysql -u root -prootpassword -e "USE ordersdb; SELECT 1;"
 ```
 
 ### "Playwright not installed"
@@ -139,5 +139,5 @@ Opens `playwright-report/index.html` in your browser with:
 
 1. Check the [README.md](./README.md) troubleshooting section
 2. Review existing test examples in `tests/`
-3. Check Docker logs: `docker-compose logs`
+3. Check Docker logs: `docker compose logs`
 4. Verify environment: `./scripts/setup-tests.sh`

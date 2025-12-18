@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { orders } from '../services/api';
+import { debug, error as logError } from '../utils/logger';
 
 function OrderForm() {
   const [formData, setFormData] = useState({
@@ -29,15 +30,15 @@ function OrderForm() {
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    // Debug logging
-    console.log('[OrderForm] Submitting order:', formData);
-    console.log('[OrderForm] User from context:', user);
-    console.log('[OrderForm] Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+    // Debug logging (only when VITE_LOG_LEVEL=DEBUG)
+    debug('[OrderForm] Submitting order:', formData);
+    debug('[OrderForm] User from context:', user);
+    debug('[OrderForm] Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
 
     try {
       const { data } = await orders.create(formData, token);
 
-      console.log('[OrderForm] Order submitted successfully:', data);
+      debug('[OrderForm] Order submitted successfully:', data);
       setMessage({
         type: 'success',
         text: `Order submitted successfully! Message ID: ${data.messageId}`,
@@ -47,10 +48,10 @@ function OrderForm() {
         quantity: 1,
         totalPrice: 0,
       });
-    } catch (error) {
-      console.error('[OrderForm] Order submission error:', error);
+    } catch (err) {
+      logError('[OrderForm] Order submission error:', err);
       // Handle authentication errors
-      if (error.message.includes('Authentication') || error.message.includes('Token')) {
+      if (err.message.includes('Authentication') || err.message.includes('Token')) {
         setMessage({
           type: 'error',
           text: 'Session expired. Please login again.',
@@ -62,7 +63,7 @@ function OrderForm() {
       } else {
         setMessage({
           type: 'error',
-          text: `Error: ${error.message || 'Failed to submit order'}`,
+          text: `Error: ${err.message || 'Failed to submit order'}`,
         });
       }
     } finally {

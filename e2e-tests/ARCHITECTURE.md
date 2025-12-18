@@ -204,7 +204,7 @@ const order = createValidOrder({ quantity: 100 });  // Custom fields
 ```
 setup-tests.sh
   ├─ Verify Docker running
-  ├─ Start docker-compose services
+  ├─ Start docker compose services
   ├─ Wait for database health
   ├─ Wait for API health
   ├─ Wait for frontend health
@@ -478,7 +478,7 @@ Track in reports:
 
 ## Deployment Checklist
 
-- [ ] All services running (`docker-compose ps`)
+- [ ] All services running (`docker compose ps`)
 - [ ] Database initialized (`init-db.sql`)
 - [ ] Environment variables set
 - [ ] Dependencies installed (`npm install`)

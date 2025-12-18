@@ -18,7 +18,7 @@ test.describe('Orders API Tests', () => {
     // Cleanup: Delete test users and their orders
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);

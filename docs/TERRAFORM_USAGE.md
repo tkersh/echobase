@@ -90,7 +90,7 @@ Terraform reads database credentials from environment variables with the `TF_VAR
 
 ```bash
 # Start Localstack
-docker-compose up -d localstack mariadb
+docker compose up -d localstack mariadb
 
 # Wait for services to be ready
 sleep 10
@@ -127,7 +127,7 @@ terraform apply
 
 # 3. Restart services to pick up new credentials
 cd ..
-docker-compose restart api-gateway order-processor
+docker compose restart api-gateway order-processor
 ```
 
 ### Viewing State
@@ -216,10 +216,10 @@ terraform force-unlock <LOCK_ID>
 **Solution:**
 ```bash
 # Check Localstack status
-docker-compose ps localstack
+docker compose ps localstack
 
 # Start Localstack if needed
-docker-compose up -d localstack
+docker compose up -d localstack
 
 # Wait for it to be ready
 sleep 10
@@ -246,7 +246,7 @@ terraform apply
 
 # Restart services
 cd ..
-docker-compose restart api-gateway order-processor
+docker compose restart api-gateway order-processor
 ```
 
 ## Verification
@@ -273,10 +273,10 @@ terraform state list
 
 ```bash
 # List secrets
-docker exec echobase-localstack-1 awslocal secretsmanager list-secrets
+docker exec echobase-devlocal-localstack awslocal secretsmanager list-secrets
 
 # Get secret value
-docker exec echobase-localstack-1 awslocal secretsmanager get-secret-value \
+docker exec echobase-devlocal-localstack awslocal secretsmanager get-secret-value \
   --secret-id echobase/database/credentials
 
 # Expected: JSON with username, password, host, port, dbname
@@ -286,10 +286,10 @@ docker exec echobase-localstack-1 awslocal secretsmanager get-secret-value \
 
 ```bash
 # Check API Gateway logs
-docker-compose logs api-gateway | grep "Successfully retrieved database credentials"
+docker compose logs api-gateway | grep "Successfully retrieved database credentials"
 
 # Check Order Processor logs
-docker-compose logs order-processor | grep "Connected to RDS MariaDB"
+docker compose logs order-processor | grep "Connected to RDS MariaDB"
 
 # Test API health
 curl -k https://localhost:3001/health
@@ -330,7 +330,7 @@ curl -k https://localhost:3001/health
 
 # To also remove volumes:
 ./teardown.sh
-docker-compose down -v
+docker compose down -v
 ```
 
 ### generate-credentials.sh
@@ -363,7 +363,7 @@ docker-compose down -v
 
 - Never commit `.env` file to git
 - Never hardcode passwords in `.tf` files
-- Never run `docker-compose down` before `terraform destroy`
+- Never run `docker compose down` before `terraform destroy`
 - Never share `.env` file via insecure channels
 - Never use production credentials in development
 - Never skip the plan step in production
@@ -426,5 +426,5 @@ If you encounter issues:
 1. Check the troubleshooting section above
 2. Review `terraform/README.md`
 3. Check Terraform logs: `terraform show`
-4. Check Localstack logs: `docker-compose logs localstack`
+4. Check Localstack logs: `docker compose logs localstack`
 5. Open an issue on GitHub

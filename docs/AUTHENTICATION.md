@@ -200,26 +200,32 @@ X-API-Key: a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6a7b8
 
 **Error Responses:**
 
+401 Unauthorized - No authentication provided:
 ```json
-// 401 Unauthorized - No authentication provided
 {
   "error": "Authentication required",
   "message": "Provide either Authorization header (Bearer token) or X-API-Key header"
 }
+```
 
-// 401 Unauthorized - Invalid token
+401 Unauthorized - Invalid token:
+```json
 {
   "error": "Authentication failed",
   "message": "Invalid token"
 }
+```
 
-// 401 Unauthorized - Expired token
+401 Unauthorized - Expired token:
+```json
 {
   "error": "Authentication failed",
   "message": "Token expired"
 }
+```
 
-// 401 Unauthorized - Invalid API key
+401 Unauthorized - Invalid API key:
+```json
 {
   "error": "Authentication failed",
   "message": "Invalid API key"
@@ -458,10 +464,10 @@ UPDATE api_keys SET is_active = TRUE WHERE api_key = '<your-key>';
 **Cause:** API Gateway cannot connect to MariaDB
 
 **Solutions:**
-- Verify MariaDB is running: `docker-compose ps`
+- Verify MariaDB is running: `docker compose ps`
 - Check database credentials in `.env` file
 - Ensure API Gateway has DB_* environment variables configured
-- Verify `users` and `api_keys` tables exist: `docker-compose exec mariadb mariadb -u root -p -e "USE orders_db; SHOW TABLES;"`
+- Verify `users` and `api_keys` tables exist: `docker compose exec mariadb mariadb -u root -p -e "USE orders_db; SHOW TABLES;"`
 
 ---
 
@@ -549,8 +555,8 @@ If you have an existing Echobase deployment without authentication:
 
 1. **Rebuild database** - The new schema includes `users` and `api_keys` tables
    ```bash
-   docker-compose down -v
-   docker-compose up -d
+   docker compose down -v
+   docker compose up -d
    ```
 
 2. **Update environment variables** - Ensure `JWT_SECRET` and DB_* variables are set

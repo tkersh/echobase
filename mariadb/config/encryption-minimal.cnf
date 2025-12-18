@@ -1,0 +1,13 @@
+[mysqld]
+# Minimal encryption configuration for MariaDB
+# Focuses on data-at-rest encryption with minimal overhead
+
+# Enable the file key management plugin
+plugin_load_add = file_key_management
+file_key_management_filename = /etc/mysql/encryption/keyfile.enc
+
+# Enable encryption for new InnoDB tables by default
+innodb_encrypt_tables = ON
+
+# Use minimal encryption threads to reduce startup time
+innodb_encryption_threads = 1

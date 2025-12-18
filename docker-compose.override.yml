@@ -1,0 +1,24 @@
+# Docker Compose Override File - Dev-Local Environment
+# This file is automatically loaded by Docker Compose for local development
+# Defines port mappings for the DEV-LOCAL environment
+#
+# Usage: docker compose up (automatically includes this file)
+# Note: CI environments (CI Blue, Green) use explicit -f flags and don't load this file
+#
+# IMPORTANT: Database is managed separately in durable/docker-compose.yml
+# Ensure durable infrastructure is running: ./durable/setup.sh devlocal
+
+services:
+  localstack:
+    ports:
+      - "4576:4566"  # Dev-local ephemeral LocalStack (SQS, logs) - durable uses 4566
+      - "4577:4571"
+
+  api-gateway:
+    ports:
+      - "3001:3001"
+
+  frontend:
+    ports:
+      - "3000:80"   # HTTP (redirects to HTTPS)
+      - "3443:443"  # HTTPS (secure)

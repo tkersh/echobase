@@ -27,10 +27,10 @@ backend/api-gateway/__tests__/
 1. **Running Infrastructure**
    ```bash
    # Start the full stack
-   docker-compose up -d
+   docker compose up -d
 
    # Verify services are running
-   docker-compose ps
+   docker compose ps
    ```
 
 2. **Install Test Dependencies**
@@ -332,7 +332,7 @@ jobs:
 **Problem:** `ECONNREFUSED` errors when connecting to SQS
 
 **Solution:**
-1. Ensure LocalStack is running: `docker-compose ps localstack`
+1. Ensure LocalStack is running: `docker compose ps localstack`
 2. Check endpoint configuration: `http://localhost:4566` (from host) or `http://localstack:4566` (from container)
 3. Verify queue exists: `aws --endpoint-url=http://localhost:4566 sqs list-queues`
 
@@ -341,9 +341,9 @@ jobs:
 **Problem:** `ECONNREFUSED` or authentication errors
 
 **Solution:**
-1. Ensure MariaDB is running: `docker-compose ps mariadb`
+1. Ensure MariaDB is running: `docker compose ps mariadb`
 2. Verify credentials match those in `init-db.sql` and `.env`
-3. Check tables exist: `docker-compose exec mariadb mariadb -u root -p -e "USE orders_db; SHOW TABLES;"`
+3. Check tables exist: `docker compose exec mariadb mariadb -u root -p -e "USE orders_db; SHOW TABLES;"`
 
 ### Rate Limiting Tests Fail
 

@@ -18,6 +18,14 @@ test.describe('Orders Frontend Tests', () => {
     testUsers.push(userData);
     const registrationResponse = await apiHelper.register(userData);
 
+    if (!registrationResponse.ok) {
+      throw new Error(`Registration failed: ${JSON.stringify(registrationResponse)}`);
+    }
+
+    if (!registrationResponse.data.user) {
+      throw new Error(`Registration response missing user object: ${JSON.stringify(registrationResponse.data)}`);
+    }
+
     // Set token in browser
     await page.goto('/');
     await page.evaluate((token) => {
@@ -39,7 +47,7 @@ test.describe('Orders Frontend Tests', () => {
     // Cleanup
     for (const user of testUsers) {
       try {
-        const dbUser = await dbHelper.getUserByUsername(user.username);
+        const dbUser = await dbHelper.waitForUser(user.username);
         if (dbUser) {
           await dbHelper.deleteOrdersByUserId(dbUser.id);
           await dbHelper.deleteUserByUsername(user.username);

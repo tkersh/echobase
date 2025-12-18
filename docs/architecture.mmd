@@ -3,36 +3,45 @@ graph TB
         User[User/Browser]
     end
 
-    subgraph "Frontend Layer"
-        React[React Frontend<br/>Port 3000<br/>Registration/Login/Orders UI]
+    subgraph "Ephemeral Application Layer - Dev-Local/Green"
+        subgraph "Frontend Layer"
+            React[React Frontend<br/>HTTPS Port 3443/3543<br/>Registration/Login/Orders UI]
+        end
+
+        subgraph "API Layer"
+            API[API Gateway<br/>HTTPS Port 3001/3101<br/>Express + JWT Auth]
+            Auth[Auth Routes<br/>/api/auth/register<br/>/api/auth/login]
+            Orders[Order Routes<br/>/api/orders<br/>JWT Protected]
+        end
+
+        subgraph "AWS Services - Localstack"
+            SQS[SQS Queue<br/>order-processing-queue<br/>Async Message Queue<br/>Port 4566/4666]
+            DLQ[Dead Letter Queue<br/>order-processing-dlq]
+            KMS[KMS Key<br/>Database Encryption<br/>Key Rotation Enabled]
+            Secrets[Secrets Manager<br/>DB Credentials<br/>KMS Encrypted]
+        end
+
+        subgraph "Processing Layer"
+            Processor[Order Processor<br/>Background Service<br/>Node.js Microservice]
+        end
     end
 
-    subgraph "API Layer"
-        API[API Gateway<br/>Port 3001<br/>Express + JWT Auth]
-        Auth[Auth Routes<br/>/api/auth/register<br/>/api/auth/login]
-        Orders[Order Routes<br/>/api/orders<br/>JWT Protected]
+    subgraph "Durable Infrastructure Layer - Persists Across Deployments"
+        subgraph "Data Layer"
+            MariaDBDev[(Dev-Local Database<br/>echobase-durable-mariadb<br/>Port 3306<br/>orders_db<br/>Encryption at Rest)]
+            MariaDBCI[(CI Database<br/>echobase-ci-durable-mariadb<br/>Port 3307<br/>orders_db<br/>Encryption at Rest)]
+        end
+
+        subgraph "Database Schema"
+            Users[Users Table<br/>id, username, email<br/>full_name, password_hash]
+            OrdersTable[Orders Table<br/>id, user_id, product_name<br/>quantity, total_price, status]
+        end
     end
 
-    subgraph "AWS Services - Localstack"
-        SQS[SQS Queue<br/>order-processing-queue<br/>Async Message Queue]
-        DLQ[Dead Letter Queue<br/>order-processing-dlq]
-        KMS[KMS Key<br/>Database Encryption<br/>Key Rotation Enabled]
-        Secrets[Secrets Manager<br/>DB Credentials<br/>KMS Encrypted]
-    end
-
-    subgraph "Processing Layer"
-        Processor[Order Processor<br/>Background Service<br/>Node.js Microservice]
-    end
-
-    subgraph "Data Layer"
-        MariaDB[(MariaDB<br/>Port 3306<br/>orders_db<br/>Encryption at Rest)]
-        Users[Users Table<br/>id, username, email<br/>full_name, password_hash]
-        OrdersTable[Orders Table<br/>id, user_id, product_name<br/>quantity, total_price, status]
-    end
-
-    subgraph "Infrastructure"
-        Terraform[Terraform<br/>IaC Configuration]
-        Docker[Docker Compose<br/>Localstack + MariaDB]
+    subgraph "Infrastructure Management"
+        Terraform[Terraform<br/>Provisions AWS Resources<br/>SQS, KMS, Secrets Manager]
+        DurableSetup[Durable Infrastructure<br/>./durable/setup.sh<br/>dev-local or ci]
+        AppDocker[Application Docker Compose<br/>Blue-Green Deployment<br/>Ephemeral Services]
     end
 
     User -->|1. Register/Login| React
@@ -54,17 +63,28 @@ graph TB
     Processor -->|13. INSERT Order<br/>with user_id| OrdersTable
 
     OrdersTable -.->|Foreign Key| Users
-    Users -.->|Belongs To| MariaDB
-    OrdersTable -.->|Belongs To| MariaDB
+    Users -.->|Belongs To| MariaDBDev
+    Users -.->|Belongs To| MariaDBCI
+    OrdersTable -.->|Belongs To| MariaDBDev
+    OrdersTable -.->|Belongs To| MariaDBCI
 
     Terraform -.->|Provisions| SQS
     Terraform -.->|Provisions| DLQ
     Terraform -.->|Creates| KMS
     Terraform -.->|Creates| Secrets
-    Docker -.->|Runs| SQS
-    Docker -.->|Runs| MariaDB
-    Docker -.->|Runs| KMS
-    Docker -.->|Runs| Secrets
+
+    DurableSetup -.->|Creates & Manages| MariaDBDev
+    DurableSetup -.->|Creates & Manages| MariaDBCI
+
+    AppDocker -.->|Runs Ephemeral| React
+    AppDocker -.->|Runs Ephemeral| API
+    AppDocker -.->|Runs Ephemeral| Processor
+    AppDocker -.->|Runs Ephemeral| SQS
+
+    Auth -.->|Connects via<br/>durable-network| MariaDBDev
+    Auth -.->|Connects via<br/>durable-ci-network| MariaDBCI
+    Processor -.->|Connects via<br/>durable-network| MariaDBDev
+    Processor -.->|Connects via<br/>durable-ci-network| MariaDBCI
 
     style User fill:#e1f5ff
     style React fill:#61dafb
@@ -76,8 +96,10 @@ graph TB
     style KMS fill:#ff6b6b
     style Secrets fill:#ffd93d
     style Processor fill:#68a063
-    style MariaDB fill:#003545
+    style MariaDBDev fill:#003545
+    style MariaDBCI fill:#003545
     style Users fill:#4a90e2
     style OrdersTable fill:#4a90e2
     style Terraform fill:#7b42bc
-    style Docker fill:#2496ed
+    style DurableSetup fill:#7b42bc
+    style AppDocker fill:#2496ed

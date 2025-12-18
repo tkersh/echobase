@@ -1,0 +1,65 @@
+# Green Environment Configuration
+# Extends docker-compose.yml for green environment (canary deployment)
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green up -d
+#
+# NOTE: Base docker-compose.yml has no port mappings. Port definitions are in:
+#   - docker-compose.override.yml (devlocal ports, auto-loaded locally)
+#   - docker-compose.ci-blue.yml (CI blue ports, explicit in CI)
+#   - docker-compose.green.yml (green ports, explicit in CI)
+# This allows all three environments to run simultaneously without conflicts.
+#
+# IMPORTANT: The green environment connects to the CI durable database.
+# Before starting, ensure the CI durable infrastructure is running:
+#   ./durable/setup.sh ci
+
+services:
+  localstack:
+    ports:
+      - "4666:4566"  # CI Green ephemeral LocalStack (SQS, logs)
+      - "4671:4571"
+    container_name: echobase-green-localstack
+
+  api-gateway:
+    ports:
+      - "3101:3001"  # CI Green API Gateway
+    container_name: echobase-green-api-gateway
+    environment:
+      - DEPLOYMENT_COLOR=green
+      # Include both external (localhost) and internal (container name) origins for CORS
+      - CORS_ORIGIN=https://localhost:3543,https://echobase-green-frontend:443,https://echobase-green-frontend
+      # Use green ephemeral LocalStack for SQS (created by Terraform in this environment)
+      - SQS_ENDPOINT=http://echobase-green-localstack:4566
+      # SQS Queue URL must use container name for internal container-to-container communication
+      - SQS_QUEUE_URL=http://echobase-green-localstack:4566/000000000000/order-processing-queue
+      # Use CI durable LocalStack for Secrets Manager (KMS, credentials - persist across deployments)
+      - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
+      # Use CI durable MariaDB (correct hostname for CI environment)
+      - DB_HOST=echobase-ci-durable-mariadb
+
+  frontend:
+    ports:
+      - "3100:80"    # CI Green Frontend HTTP
+      - "3543:443"   # CI Green Frontend HTTPS
+    container_name: echobase-green-frontend
+    environment:
+      - DEPLOYMENT_COLOR=green
+
+  order-processor:
+    container_name: echobase-green-order-processor
+    environment:
+      - DEPLOYMENT_COLOR=green
+      # Use green ephemeral LocalStack for SQS (created by Terraform in this environment)
+      - SQS_ENDPOINT=http://echobase-green-localstack:4566
+      # SQS Queue URL must use container name for internal container-to-container communication
+      - SQS_QUEUE_URL=http://echobase-green-localstack:4566/000000000000/order-processing-queue
+      # Use CI durable LocalStack for Secrets Manager (KMS, credentials - persist across deployments)
+      - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
+      # Use CI durable MariaDB (correct hostname for CI environment)
+      - DB_HOST=echobase-ci-durable-mariadb
+
+networks:
+  echobase-network:
+    name: echobase-green-network
+  durable-network:
+    external: true
+    name: echobase-ci-durable-network

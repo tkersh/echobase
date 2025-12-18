@@ -18,10 +18,10 @@ provider "aws" {
   skip_requesting_account_id  = true
 
   endpoints {
-    sqs            = "http://localhost:4566"
-    cloudwatchlogs = "http://localhost:4566"
-    iam            = "http://localhost:4566"
-    kms            = "http://localhost:4566"
-    secretsmanager = "http://localhost:4566"
+    sqs            = var.localstack_endpoint
+    cloudwatchlogs = var.localstack_endpoint
+    iam            = var.localstack_endpoint
+    kms            = var.localstack_endpoint
+    secretsmanager = var.localstack_endpoint
   }
 }

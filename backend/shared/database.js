@@ -5,26 +5,48 @@ const { log, logError } = require('./logger');
 /**
  * Retrieve database credentials from AWS Secrets Manager
  * @param {Object} awsConfig - AWS configuration object
+ * @param {number} maxRetries - Maximum number of retry attempts (default: 30)
  * @returns {Promise<Object>} Database credentials
  */
-async function getDbCredentials(awsConfig) {
-  try {
-    const secretName = process.env.DB_SECRET_NAME;
-    log(`Retrieving database credentials from Secrets Manager: ${secretName}`);
+async function getDbCredentials(awsConfig, maxRetries = 30) {
+  const secretName = process.env.DB_SECRET_NAME;
+  // Use secrets-specific endpoint if available
+  const { getAwsConfig } = require('./aws-config');
+  const secretsConfig = getAwsConfig('secrets');
+  const secretsClient = new SecretsManagerClient(secretsConfig);
+  const INITIAL_RETRY_DELAY = 1000; // 1 second
+  const MAX_RETRY_DELAY = 10000; // 10 seconds
 
-    const secretsClient = new SecretsManagerClient(awsConfig);
-    const command = new GetSecretValueCommand({
-      SecretId: secretName,
-    });
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      log(`Retrieving database credentials from Secrets Manager: ${secretName} (attempt ${attempt}/${maxRetries})`);
 
-    const response = await secretsClient.send(command);
-    const secret = JSON.parse(response.SecretString);
+      const command = new GetSecretValueCommand({
+        SecretId: secretName,
+      });
 
-    log('Successfully retrieved database credentials from Secrets Manager');
-    return secret;
-  } catch (error) {
-    logError('Error retrieving database credentials from Secrets Manager:', error);
-    throw error;
+      const response = await secretsClient.send(command);
+      const secret = JSON.parse(response.SecretString);
+
+      log('Successfully retrieved database credentials from Secrets Manager');
+      return secret;
+    } catch (error) {
+      if (error.name === 'ResourceNotFoundException') {
+        const delay = Math.min(INITIAL_RETRY_DELAY * Math.pow(1.5, attempt - 1), MAX_RETRY_DELAY);
+        logError(`Secret '${secretName}' not found (attempt ${attempt}/${maxRetries}), retrying in ${Math.round(delay/1000)}s...`);
+
+        if (attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          logError(`Secret '${secretName}' not found after ${maxRetries} attempts. Make sure Terraform has been applied.`);
+          throw error;
+        }
+      } else {
+        // Different error - fail immediately
+        logError('Error retrieving database credentials from Secrets Manager:', error);
+        throw error;
+      }
+    }
   }
 }
 

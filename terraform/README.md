@@ -4,9 +4,15 @@ This directory contains Terraform configuration for provisioning AWS resources i
 
 ## Resources Created
 
-1. **KMS Key** (`kms.tf`) - Encryption key for Secrets Manager
+1. **KMS Key** (`kms.tf`) - Customer-managed encryption key for database secrets in Secrets Manager
+   - Only created in durable environments (devlocal, ci)
+   - Not used for SQS encryption
 2. **Secrets Manager** (`secrets.tf`) - Secure storage for database credentials
+   - Encrypted with KMS key
+   - Only created in durable environments
 3. **SQS Queues** (`sqs.tf`) - Message queues for order processing
+   - Uses SSE-SQS (AWS managed encryption)
+   - Created in all environments (durable and ephemeral)
 4. **IAM Policies** (`secrets.tf`) - Access policies for secrets
 
 ## Security Best Practices
@@ -97,13 +103,16 @@ terraform output
 ```
 
 Available outputs:
-- `kms_key_id` - KMS key ID for encryption
-- `kms_key_arn` - KMS key ARN
-- `secret_name` - Secrets Manager secret name
-- `secret_arn` - Secrets Manager secret ARN (sensitive)
-- `sqs_queue_url` - SQS main queue URL
-- `sqs_queue_arn` - SQS main queue ARN
-- `sqs_dlq_url` - SQS dead letter queue URL
+- `kms_key_id` - KMS key ID for database secrets encryption (durable environments only)
+- `kms_key_arn` - KMS key ARN (durable environments only)
+- `secret_arn` - Secrets Manager ARN (durable environments only)
+- `secret_name` - Secrets Manager secret name (durable environments only)
+- `sqs_queue_url` - SQS queue URL (all environments)
+- `sqs_queue_arn` - SQS queue ARN (all environments)
+- `sqs_dlq_url` - Dead letter queue URL (all environments)
+- `sqs_dlq_arn` - Dead letter queue ARN (all environments)
+
+**Note**: In ephemeral environments (green, blue), KMS and Secrets outputs will show "not-created-in-ephemeral-env"
 
 ## Verifying Secrets
 
@@ -111,10 +120,10 @@ To verify the secret was created correctly:
 
 ```bash
 # List all secrets
-docker exec echobase-localstack-1 awslocal secretsmanager list-secrets
+docker exec echobase-devlocal-localstack awslocal secretsmanager list-secrets
 
 # Get secret value
-docker exec echobase-localstack-1 awslocal secretsmanager get-secret-value \
+docker exec echobase-devlocal-localstack awslocal secretsmanager get-secret-value \
   --secret-id echobase/database/credentials
 ```
 
@@ -180,12 +189,12 @@ If Terraform can't connect to Localstack:
 
 1. Verify Localstack is running:
    ```bash
-   docker-compose ps localstack
+   docker compose ps localstack
    ```
 
 2. Check Localstack logs:
    ```bash
-   docker-compose logs localstack
+   docker compose logs localstack
    ```
 
 3. Test endpoint connectivity:

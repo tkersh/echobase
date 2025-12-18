@@ -10,9 +10,9 @@ class DatabaseHelper {
     this.config = {
       host: process.env.DB_HOST || 'localhost',
       port: process.env.DB_PORT || 3306,
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || 'rootpassword',
-      database: process.env.DB_NAME || 'ordersdb'
+      user: process.env.DB_USER || 'app_user',
+      password: process.env.DB_PASSWORD || '',  // No default - must be provided
+      database: process.env.DB_NAME || 'orders_db'
     };
   }
 
@@ -148,6 +148,27 @@ class DatabaseHelper {
       [userId]
     );
     return result.affectedRows;
+  }
+
+  /**
+   * Wait for a user to appear in the database (for async registration tests)
+   * @param {string} username - Username to look for
+   * @param {number} maxWaitMs - Maximum time to wait in milliseconds
+   * @param {number} checkIntervalMs - Interval between checks in milliseconds
+   * @returns {Promise<Object|null>} The user if found, null if timeout
+   */
+  async waitForUser(username, maxWaitMs = 5000, checkIntervalMs = 500) {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      const user = await this.getUserByUsername(username);
+      if (user) {
+        return user;
+      }
+      await new Promise(resolve => setTimeout(resolve, checkIntervalMs));
+    }
+
+    return null;
   }
 
   /**

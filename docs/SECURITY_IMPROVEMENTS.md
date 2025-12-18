@@ -659,8 +659,8 @@ aws secretsmanager describe-secret \
 
 #### 3. Verify Service Logs
 ```bash
-docker-compose logs api-gateway | grep "Secrets Manager"
-docker-compose logs order-processor | grep "Secrets Manager"
+docker compose logs api-gateway | grep "Secrets Manager"
+docker compose logs order-processor | grep "Secrets Manager"
 # Both show: "Successfully retrieved database credentials from Secrets Manager"
 # Both show: "Connected to RDS MariaDB database at mariadb:3306"
 ```
@@ -925,7 +925,7 @@ SQS_ENDPOINT=http://localstack:4566
 kms_key_id    = "e075f0e4-8ab1-42aa-9f99-aff90539236c"
 kms_key_arn   = "arn:aws:kms:us-east-1:000000000000:key/e075f0e4-8ab1-42aa-9f99-aff90539236c"
 secret_name   = "echobase/database/credentials"
-secret_arn    = <sensitive>
+secret_arn    = "<sensitive>"
 sqs_queue_url = "http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue"
 ```
 

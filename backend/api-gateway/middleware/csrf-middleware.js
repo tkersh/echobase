@@ -1,0 +1,149 @@
+/**
+ * CSRF Protection Middleware
+ * Validates Origin header for state-changing requests
+ *
+ * Note: JWT in Authorization header already provides some CSRF protection
+ * as attackers cannot set custom headers cross-origin
+ */
+
+const { debug, info, warn, error: logError } = require('../../shared/logger');
+
+/**
+ * CSRF Protection Middleware
+ * Validates that requests come from allowed origins
+ */
+function csrfProtection(req, res, next) {
+  // Skip CSRF check in test environment or when CSRF is explicitly disabled
+  if (process.env.NODE_ENV === 'test' || process.env.CSRF_PROTECTION === 'false') {
+    return next();
+  }
+
+  // Skip CSRF check for safe methods and health check
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method) || req.path === '/health') {
+    return next();
+  }
+
+  // For state-changing requests (POST, PUT, DELETE), verify origin
+  const originHeader = req.get('origin');
+  const referer = req.get('referer');
+  const host = req.get('host');
+  const allowedOrigin = process.env.CORS_ORIGIN;
+
+  // Debug logging for CSRF validation
+  debug(`CSRF - Method: ${req.method}, Path: ${req.path}`);
+  debug(`  Origin header: ${originHeader || '(not set)'}`);
+  debug(`  Referer header: ${referer || '(not set)'}`);
+  debug(`  Host header: ${host || '(not set)'}`);
+  debug(`  X-Forwarded-Proto: ${req.get('x-forwarded-proto') || '(not set)'}`);
+  debug(`  req.secure: ${req.secure}`);
+
+  let origin = originHeader;
+  let originSource = 'origin-header';
+
+  // If no origin header, try to extract origin from referer
+  if (!origin && referer) {
+    try {
+      // Try to parse referer as a full URL
+      const refererUrl = new URL(referer);
+      origin = refererUrl.origin;
+      originSource = 'referer-parsed';
+      debug(`  Origin extracted from referer: ${origin}`);
+    } catch (e) {
+      // Referer is not a valid URL (might be a relative path)
+      // Use the host header to construct the origin
+      const protocol = req.secure || req.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
+      origin = `${protocol}://${host}`;
+      originSource = 'host-constructed';
+      debug(`  Origin constructed from host: ${origin}`);
+    }
+  }
+
+  // Allow requests without origin header from localhost and internal Docker network
+  if (!origin) {
+    const isLocalhost = host && (host.startsWith('localhost') || host.startsWith('127.0.0.1'));
+    // Allow internal Docker network requests (container names start with echobase-)
+    const isInternalDocker = host && host.startsWith('echobase-');
+    // Allow service name references within Docker network
+    const isServiceName = host && (host.startsWith('api-gateway') || host.startsWith('frontend'));
+
+    if (isLocalhost || isInternalDocker || isServiceName) {
+      // Allow requests without origin from trusted internal sources
+      debug(`  CSRF: Allowing request without origin from trusted host: ${host}`);
+      return next();
+    }
+
+    warn('CSRF: Rejected request without origin/referer header');
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Origin validation failed',
+    });
+  }
+
+  // Validate that CORS_ORIGIN is configured
+  if (!allowedOrigin) {
+    logError('CSRF: CORS_ORIGIN environment variable not set');
+    return res.status(500).json({
+      error: 'Server configuration error',
+      message: 'CORS configuration missing',
+    });
+  }
+
+  // Validate that origin doesn't contain commas (which would indicate it's incorrectly set)
+  if (origin.includes(',')) {
+    logError(`CSRF: Origin contains comma (may be misconfigured)`);
+    logError(`  Origin value: ${origin}`);
+    logError(`  Origin source: ${originSource}`);
+    logError(`  Origin header: ${originHeader || '(not set)'}`);
+    logError(`  Referer header: ${referer || '(not set)'}`);
+    logError(`  Host header: ${host || '(not set)'}`);
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Invalid origin format',
+    });
+  }
+
+  debug(`  Origin to validate: ${origin} (source: ${originSource})`);
+
+  // Extract hostname from origin URL and check against allowed origins
+  try {
+    const originUrl = new URL(origin);
+    // CORS_ORIGIN can be a comma-separated list of allowed origins
+    const allowedOrigins = allowedOrigin.split(',').map(o => o.trim());
+
+    // Check if the origin matches any of the allowed origins
+    const isAllowed = allowedOrigins.some(allowed => {
+      try {
+        const allowedUrl = new URL(allowed);
+        const matches = originUrl.origin === allowedUrl.origin;
+        if (matches) {
+          debug(`  Origin matches allowed: ${allowed}`);
+        }
+        return matches;
+      } catch (e) {
+        logError(`CSRF: Invalid allowed origin format: ${allowed}`, e);
+        return false;
+      }
+    });
+
+    if (!isAllowed) {
+      debug(`CSRF: Rejected request from unauthorized origin: ${origin}`);
+      debug(`  Allowed origins: ${allowedOrigins.join(', ')}`);
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Origin validation failed',
+      });
+    }
+
+    debug(`  CSRF validation passed for origin: ${origin}`);
+  } catch (err) {
+    logError(`CSRF: Error parsing origin URL (origin="${origin}"):`, err);
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Origin validation failed',
+    });
+  }
+
+  next();
+}
+
+module.exports = csrfProtection;

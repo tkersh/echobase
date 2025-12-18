@@ -15,7 +15,7 @@ test.describe('SQL Injection Protection', () => {
       if (response.status === 201) {
         // If accepted, verify username was sanitized/escaped
         testUsers.push(userData);
-        const dbUser = await dbHelper.getUserByUsername(payload);
+        const dbUser = await dbHelper.waitForUser(payload);
         // SQL injection should not have affected database
         const userCount = await dbHelper.getUserCount();
         expect(userCount).toBeGreaterThan(0); // DB still functioning
@@ -47,7 +47,7 @@ test.describe('SQL Injection Protection', () => {
     testUsers.push(userData);
     await apiHelper.register(userData);
 
-    const dbUser = await dbHelper.getUserByUsername(userData.username);
+    const dbUser = await dbHelper.waitForUser(userData.username);
 
     for (const payload of sqlInjectionPayloads) {
       const response = await apiHelper.submitOrder({

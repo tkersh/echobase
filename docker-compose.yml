@@ -1,9 +1,12 @@
+# IMPORTANT: This docker-compose.yml is for ephemeral blue-green deployments.
+# The database is managed separately in durable/docker-compose.yml
+# Before using this file, ensure the durable infrastructure is running:
+#   ./durable/setup.sh devlocal
+
 services:
   localstack:
+    container_name: echobase-devlocal-localstack
     image: localstack/localstack:latest
-    ports:
-      - "4566:4566"
-      - "4571:4571"
     environment:
       - SERVICES=sqs,logs,iam,kms,secretsmanager
       - DEBUG=0
@@ -16,39 +19,21 @@ services:
     networks:
       - echobase-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:4566/_localstack/health"]
+      interval: 5s
       timeout: 10s
-      retries: 3
-
-  mariadb:
-    image: mariadb:latest
-    ports:
-      - "3306:3306"
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    volumes:
-      - mariadb-data:/var/lib/mysql
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-      - ./mariadb/config/encryption.cnf:/etc/mysql/conf.d/encryption.cnf:ro
-      - ./mariadb/config/keyfile.enc:/etc/mysql/encryption/keyfile.enc:ro
-    networks:
-      - echobase-network
-    healthcheck:
-      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      retries: 30
+      start_period: 20s
 
   api-gateway:
+    container_name: echobase-devlocal-api-gateway
     build:
       context: ./backend
       dockerfile: api-gateway/Dockerfile
-    ports:
-      - "3001:3001"
+      args:
+        - GIT_SHA=${GIT_SHA:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-unknown}
+    image: echobase-api-gateway:latest
     environment:
       - PORT=${PORT}
       - AWS_REGION=${AWS_REGION}
@@ -56,6 +41,7 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - SECRETS_MANAGER_ENDPOINT=${SECRETS_MANAGER_ENDPOINT}
       - DB_SECRET_NAME=${DB_SECRET_NAME}
       - JWT_SECRET=${JWT_SECRET}
       - CORS_ORIGIN=${CORS_ORIGIN}
@@ -64,22 +50,28 @@ services:
     depends_on:
       localstack:
         condition: service_healthy
-      mariadb:
-        condition: service_healthy
     networks:
       - echobase-network
+      - durable-network
     restart: unless-stopped
+    # Healthcheck defined in Dockerfile (uses Node.js, more reliable)
 
   order-processor:
+    container_name: echobase-devlocal-order-processor
     build:
       context: ./backend
       dockerfile: order-processor/Dockerfile
+      args:
+        - GIT_SHA=${GIT_SHA:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-unknown}
+    image: echobase-order-processor:latest
     environment:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - SQS_ENDPOINT=${SQS_ENDPOINT}
       - SQS_QUEUE_URL=${SQS_QUEUE_URL}
+      - SECRETS_MANAGER_ENDPOINT=${SECRETS_MANAGER_ENDPOINT}
       - DB_SECRET_NAME=${DB_SECRET_NAME}
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -89,31 +81,42 @@ services:
     depends_on:
       localstack:
         condition: service_healthy
-      mariadb:
+    networks:
+      - echobase-network
+      - durable-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "node"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  frontend:
+    container_name: echobase-devlocal-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - GIT_SHA=${GIT_SHA:-unknown}
+        - BUILD_DATE=${BUILD_DATE:-unknown}
+    image: echobase-frontend:latest
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
+    depends_on:
+      api-gateway:
         condition: service_healthy
     networks:
       - echobase-network
     restart: unless-stopped
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "3000:80"   # HTTP (redirects to HTTPS)
-      - "3443:443"  # HTTPS (secure)
-    environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
-    depends_on:
-      - api-gateway
-    networks:
-      - echobase-network
-    restart: unless-stopped
+    # Healthcheck defined in Dockerfile (uses wget, more reliable)
 
 volumes:
-  mariadb-data:
   localstack-data:
 
 networks:
   echobase-network:
     driver: bridge
+  durable-network:
+    external: true
+    name: echobase-devlocal-durable-network

@@ -12,7 +12,7 @@ echo ""
 
 # Check if Docker containers are running
 echo "[1/8] Checking if infrastructure is running..."
-if ! docker-compose ps | grep -q "Up"; then
+if ! docker compose ps | grep -q "Up"; then
     echo "❌ Error: Docker containers are not running."
     echo "   Please start the infrastructure first:"
     echo "   ./start.sh"
@@ -118,17 +118,17 @@ echo ""
 echo "[6/8] Verifying services use Secrets Manager..."
 
 # Check API Gateway logs
-if ! docker logs echobase-api-gateway-1 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
+if ! docker logs echobase-devlocal-api-gateway 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
     echo "❌ Error: API Gateway not retrieving credentials from Secrets Manager"
-    echo "   Check logs: docker logs echobase-api-gateway-1"
+    echo "   Check logs: docker logs echobase-devlocal-api-gateway"
     exit 1
 fi
 echo "✅ API Gateway retrieves credentials from Secrets Manager"
 
 # Check Order Processor logs
-if ! docker logs echobase-order-processor-1 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
+if ! docker logs echobase-devlocal-order-processor 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
     echo "❌ Error: Order Processor not retrieving credentials from Secrets Manager"
-    echo "   Check logs: docker logs echobase-order-processor-1"
+    echo "   Check logs: docker logs echobase-devlocal-order-processor"
     exit 1
 fi
 echo "✅ Order Processor retrieves credentials from Secrets Manager"
@@ -138,8 +138,8 @@ echo ""
 echo "[7/8] Verifying credentials not exposed in logs..."
 # Check that password is not in logs (sample last 500 lines)
 DB_PASSWORD_FROM_SECRET=$(echo "$SECRET_VALUE" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
-API_RECENT_LOGS=$(docker logs echobase-api-gateway-1 2>&1 | tail -500)
-PROCESSOR_RECENT_LOGS=$(docker logs echobase-order-processor-1 2>&1 | tail -500)
+API_RECENT_LOGS=$(docker logs echobase-devlocal-api-gateway 2>&1 | tail -500)
+PROCESSOR_RECENT_LOGS=$(docker logs echobase-devlocal-order-processor 2>&1 | tail -500)
 
 if echo "$API_RECENT_LOGS" | grep -q "$DB_PASSWORD_FROM_SECRET"; then
     echo "⚠️  Warning: Database password found in API Gateway logs"

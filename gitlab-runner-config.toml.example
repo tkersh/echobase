@@ -1,14 +1,24 @@
-# Sample GitLab Runner Configuration for Docker Executor
+# GitLab Runner Configuration for Blue-Green Deployment
 #
-# This is an example configuration file for the GitLab Runner.
-# After running ./setup-gitlab-runner.sh, your actual config will be at:
+# This configuration enables PERSISTENT CONTAINERS across CI jobs,
+# which is required for blue-green deployment where:
+#   1. deploy:green creates the green environment
+#   2. test:green-e2e tests it (containers must still be running)
+#   3. promote:green switches traffic (green becomes production)
+#
+# CRITICAL: Uses host Docker socket instead of Docker-in-Docker (DinD)
+# so containers persist across jobs on the same runner.
+#
+# Configuration file locations:
 #   - macOS: ~/.gitlab-runner/config.toml
 #   - Linux: /etc/gitlab-runner/config.toml
 #
-# Copy relevant sections from this file if you need to manually configure your runner.
+# After editing, restart the runner:
+#   - macOS: gitlab-runner restart
+#   - Linux: sudo gitlab-runner restart
 
 concurrent = 1  # Number of jobs that can run concurrently
-check_interval = 0  # How often to check for new jobs (0 = use default)
+check_interval = 3  # How often to check for new jobs (seconds)
 
 # Session server for interactive debugging (optional)
 [session_server]
@@ -18,16 +28,28 @@ check_interval = 0  # How often to check for new jobs (0 = use default)
 [[runners]]
   name = "Local Development Runner"  # Your runner name
   url = "https://gitlab.com"  # Your GitLab instance URL
-  token = "YOUR_RUNNER_TOKEN_HERE"  # Token from registration
+  token = "YOUR_RUNNER_TOKEN_HERE"  # Token from registration (auto-generated)
   executor = "docker"  # Use Docker executor
+
+  # IMPORTANT: Tags must match jobs in .gitlab-ci.yml
+  # Jobs with tags: [docker-local] will run on this runner
+  tags = ["docker-local"]
+
+  # Only run jobs with matching tags (recommended for blue-green)
+  run_untagged = false
+
+  # Number of concurrent jobs this runner can handle
+  request_concurrency = 2
 
   # Docker executor configuration
   [runners.docker]
     # Default image for jobs (can be overridden in .gitlab-ci.yml)
-    image = "docker:24-dind"
+    # NOTE: Using docker:24 (not docker:24-dind) because we mount host socket
+    image = "docker:24"
 
-    # IMPORTANT: Privileged mode required for Docker-in-Docker
-    privileged = true
+    # IMPORTANT: privileged = false for blue-green deployment
+    # We use host Docker socket, not Docker-in-Docker, so don't need privileged
+    privileged = false
 
     # Disable TLS verification for local development
     tls_verify = false
@@ -41,13 +63,12 @@ check_interval = 0  # How often to check for new jobs (0 = use default)
     # Enable caching
     disable_cache = false
 
-    # Volumes to mount
-    # - Mount Docker socket from host for better performance
-    # - Mount /certs/client for Docker TLS
-    # - Mount /cache for GitLab Runner cache
+    # CRITICAL: Volumes configuration for persistent containers
+    # This is the KEY to making blue-green deployment work!
     volumes = [
+      # Mount host Docker socket - containers persist across jobs
       "/var/run/docker.sock:/var/run/docker.sock",
-      "/certs/client",
+      # Cache directory for GitLab Runner
       "/cache"
     ]
 
@@ -105,16 +126,28 @@ check_interval = 0  # How often to check for new jobs (0 = use default)
 #    - Keep this file secure (permissions: 600)
 #    - Never commit config.toml to version control
 #
-# 2. Privileged Mode:
-#    - Required for Docker-in-Docker (building images in CI)
-#    - Provides container access to host's kernel features
-#    - Required for docker-compose operations
+# 2. Privileged Mode (FALSE for blue-green):
+#    - NOT required when using host Docker socket
+#    - privileged = true is only needed for true Docker-in-Docker
+#    - Blue-green deployment uses host socket, so privileged = false
+#    - This is more secure and performs better
 #
-# 3. Docker Socket Mounting:
+# 3. Docker Socket Mounting (CRITICAL for blue-green):
 #    - Mounts host Docker daemon socket into containers
-#    - Provides better performance than true Docker-in-Docker
+#    - All jobs share the SAME Docker daemon on the host
+#    - Containers created in deploy:green persist for test:green-e2e
+#    - This enables the blue-green deployment pattern
 #    - Called "Docker-out-of-Docker" (DooD)
-#    - Jobs use host's Docker daemon
+#
+# 4. Why This Matters for Blue-Green:
+#    - deploy:green creates green environment → containers run on host
+#    - test:green-e2e tests green → same containers still running
+#    - promote:green switches traffic → green becomes production
+#    - cleanup:blue removes old blue → manual cleanup when safe
+#
+#    Without socket mount, each job gets isolated DinD daemon:
+#    - deploy:green: DinD #1 → containers created → job ends → containers DESTROYED
+#    - test:green-e2e: DinD #2 → NEW daemon → NO CONTAINERS → FAILS!
 #
 # 4. Volume Mounting:
 #    - Format: "host-path:container-path:options"
@@ -131,10 +164,12 @@ check_interval = 0  # How often to check for new jobs (0 = use default)
 #    - Each job runs in a separate container
 #    - Be mindful of host resources
 #
-# 7. Tags:
+# 7. Tags (IMPORTANT):
 #    - Jobs with matching tags will run on this runner
-#    - Multiple runners can have same tags
-#    - Use specific tags for different environments
+#    - deploy:green and test:green-e2e MUST use same tag (e.g., "docker-local")
+#    - This ensures they run on same runner = same Docker daemon = containers persist
+#    - Multiple runners can have same tags (jobs distributed)
+#    - Use specific tags for different environments (dev, staging, prod)
 
 # Troubleshooting:
 #

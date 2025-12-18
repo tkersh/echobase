@@ -11,26 +11,47 @@ A cloud-native, asynchronous order processing application built with React, Node
 
 ![Architecture Diagram](docs/architecture.jpg)
 
-### Components
+### Durable Infrastructure (Database Layer)
 
-1. **Frontend (React + Vite)** - Port 3000
+The database infrastructure is managed separately from application deployments to enable true blue-green deployments:
+
+- **Dev-Local Database** (`echobase-devlocal-durable-mariadb`) - Port 3306
+  - Persists across blue-green application deployments
+  - Network: `echobase-devlocal-durable-network`
+  - Volume: `echobase-devlocal-durable-mariadb-data`
+
+- **CI Database** (`echobase-ci-durable-mariadb`) - Port 3307
+  - Separate database for CI/CD testing
+  - Network: `echobase-ci-durable-network`
+  - Volume: `echobase-ci-durable-mariadb-data`
+
+See [durable/README.md](durable/README.md) for complete durable infrastructure documentation.
+
+### Application Components (Ephemeral - Blue/Green Deployable)
+
+1. **Frontend (React + Vite)** - HTTPS Port 3443
    - User interface for order placement and user registration
    - Built with React 18 and Vite
    - Modern CSS with responsive design
    - JWT-based authentication
-   - Communicates with API Gateway
+   - **Secure HTTPS communication** with self-signed certificates
+   - Communicates with API Gateway over HTTPS
+   - Ports: Dev-Local 3443, CI-Blue 3444, Green 3543
 
-2. **API Gateway (Express)** - Port 3001
+2. **API Gateway (Express)** - HTTPS Port 3001
    - REST API for order submission and authentication
    - JWT authentication with secure user sessions
+   - **HTTPS-only API endpoints** with TLS encryption
    - Retrieves database credentials from AWS Secrets Manager
    - Places orders into SQS queue
    - Health check endpoint
+   - Ports: Dev-Local 3001, CI-Blue 3002, Green 3101
 
 3. **Processing Queue (SQS)**
    - AWS SQS queue running on Localstack
    - Asynchronous message processing
    - Dead letter queue for failed messages
+   - Blue: 4566, Green: 4666
 
 4. **Order Processor (Node.js Microservice)**
    - Background service polling SQS
@@ -38,11 +59,14 @@ A cloud-native, asynchronous order processing application built with React, Node
    - Processes orders and stores in database
    - Automatic message deletion after processing
 
-5. **Data Store (MariaDB)** - Port 3306
+5. **Data Store (MariaDB)** - Durable Infrastructure
+   - **Managed separately** from application deployments (see `durable/` directory)
    - Persistent storage for orders with encryption at rest
    - AES-256 encryption for all data, logs, and temporary files
    - User authentication and order history tracking
    - Foreign key relationships enforcing data integrity
+   - Dev-Local: `echobase-devlocal-durable-mariadb` (port 3306)
+   - CI: `echobase-ci-durable-mariadb` (port 3307)
 
 6. **Security Services (AWS - Localstack)**
    - **KMS (Key Management Service)** - Encryption key management
@@ -55,8 +79,11 @@ A cloud-native, asynchronous order processing application built with React, Node
      - Runtime credential retrieval
 
 7. **Infrastructure (Terraform + Docker)**
+   - **Durable Infrastructure**: Separate database layer that persists across deployments (`durable/`)
+   - **Ephemeral Infrastructure**: Application services for blue-green deployments
    - Terraform for AWS resource provisioning (SQS, KMS, Secrets Manager)
-   - Docker Compose for Localstack and MariaDB
+   - Docker Compose for container orchestration
+   - True blue-green deployment with separated database layer
    - Infrastructure as Code for reproducible deployments
 
 ## Prerequisites
@@ -68,9 +95,29 @@ A cloud-native, asynchronous order processing application built with React, Node
 
 ## Quick Start
 
-### 1. Generate Secure Credentials
+### One-Command Setup
 
-**IMPORTANT:** Before starting the application, generate secure credentials:
+The easiest way to get started:
+
+```bash
+./setup.sh
+```
+
+This **single command** will:
+1. Prompt to generate credentials if missing (or run `./generate-credentials.sh` first)
+2. Install Node.js dependencies for all services
+3. **Set up durable database infrastructure** (persistent, idempotent)
+4. Start LocalStack (AWS service simulation)
+5. Initialize Terraform and provision AWS resources (SQS, KMS, Secrets Manager)
+6. Build and start all application containers
+
+**Note:** The setup is **idempotent** - safe to run multiple times. The durable database won't be recreated if it already exists.
+
+### Alternative: Step-by-Step Setup
+
+If you prefer manual control:
+
+#### 1. Generate Secure Credentials
 
 ```bash
 ./generate-credentials.sh
@@ -85,19 +132,18 @@ This script will:
 
 **Note:** Database encryption at rest is enabled by default. All data stored in MariaDB is encrypted using AES-256.
 
-### 2. Setup
-
-Run the setup script to install dependencies and configure the environment:
+#### 2. Run Setup
 
 ```bash
 ./setup.sh
 ```
 
 This script will:
-- Check for root `.env` file (warns if missing)
-- Start Docker containers (all services)
+- Install Node.js dependencies for all services
+- **Set up durable database infrastructure** (persistent layer, idempotent)
+- Start Docker containers (LocalStack and application services)
 - Initialize Terraform and provision SQS queues
-- Install Node.js dependencies for building Docker images
+- Build Docker images with updated dependencies
 
 ### 3. Start the Application
 
@@ -124,70 +170,82 @@ Open your browser and navigate to:
 https://localhost:3443
 ```
 
-## Manual Setup
+**Note:** The database runs in durable infrastructure (`echobase-devlocal-durable-mariadb`) and persists across application deployments.
 
-If you prefer to set up manually instead of using the scripts:
+**Tip:** You can run `./setup.sh` multiple times safely - it's idempotent and won't recreate existing infrastructure.
 
-### 1. Generate Secure Credentials
+To manage durable infrastructure separately, see [durable/README.md](durable/README.md).
 
-**IMPORTANT:** First, generate secure credentials:
+## Daily Development Workflow
+
+Since the durable infrastructure (database) persists across sessions:
 
 ```bash
-./generate-credentials.sh
+# Start your day
+./start.sh              # Start application services (database already running)
+
+# Develop, test, iterate...
+
+# End your day
+docker compose down     # Stop application services (database keeps running)
+
+# Next day
+./start.sh              # Database is already there, just start app services
 ```
 
-This creates a root `.env` file with strong random passwords. Docker Compose will automatically use these credentials.
+**Database is always ready!** The durable infrastructure persists, so you only need to start/stop application services.
 
-### 2. Install Node.js Dependencies
+## Advanced: Manual Component Management
 
-Install dependencies for building Docker images:
+If you need fine-grained control over individual components:
+
+### Manage Durable Infrastructure
 
 ```bash
-# API Gateway
-cd backend/api-gateway
-npm install
-cd ../..
+# Setup durable database (idempotent)
+./durable/setup.sh devlocal
 
-# Order Processor
-cd backend/order-processor
-npm install
-cd ../..
+# Check database status
+docker ps --filter "name=echobase-durable"
 
-# Frontend
-cd frontend
-npm install
-cd ..
+# Teardown database (preserves data)
+./durable/teardown.sh devlocal
+
+# Teardown and delete all data
+./durable/teardown.sh devlocal --volumes
 ```
 
-### 3. Start Docker Infrastructure
+### Manage Application Services
 
 ```bash
-docker-compose up -d
+# Start application services only
+docker compose up -d
+
+# Stop application services
+docker compose down
+
+# View logs
+docker compose logs -f
+
+# Rebuild and restart
+docker compose up -d --build
 ```
 
-This starts all services: Localstack, MariaDB, API Gateway, Order Processor, and Frontend.
-
-### 4. Provision SQS Queue with Terraform
+### Manage Infrastructure Components
 
 ```bash
+# Terraform (AWS resources)
 cd terraform
 terraform init
 terraform apply -auto-approve
+terraform destroy -auto-approve
 cd ..
+
+# Individual services
+docker compose up -d localstack        # Just LocalStack
+docker compose up -d api-gateway       # Just API Gateway
+docker compose logs -f order-processor # View processor logs
 ```
-
-### 5. View Logs
-
-```bash
-# View all services
-docker-compose logs -f
-
-# Or view specific services
-docker-compose logs -f api-gateway
-docker-compose logs -f order-processor
-```
-
-All services run in Docker containers using the root `.env` file for credentials.
 
 ## Project Structure
 
@@ -215,6 +273,13 @@ echobase/
 │   ├── vite.config.js
 │   ├── package.json
 │   └── .env.example
+├── durable/                  # **DURABLE INFRASTRUCTURE LAYER**
+│   ├── docker-compose.yml    # Database infrastructure (parameterized)
+│   ├── .env.devlocal       # Dev-local database config
+│   ├── .env.ci              # CI database config
+│   ├── setup.sh             # Setup durable infrastructure
+│   ├── teardown.sh          # Teardown durable infrastructure
+│   └── README.md            # Durable infrastructure documentation
 ├── terraform/                # Infrastructure as Code
 │   ├── main.tf               # Provider configuration
 │   ├── sqs.tf                # SQS queue resources
@@ -223,20 +288,74 @@ echobase/
 ├── docs/                       # Documentation
 │   ├── architecture.mmd        # Mermaid diagram source
 │   ├── architecture.png        # PNG diagram
-│   └── architecture.jpg        # JPEG diagram
+│   ├── architecture.jpg        # JPEG diagram
+│   ├── BLUE-GREEN-DEPLOYMENT.md # Blue-green deployment guide
+│   └── TERRAFORM_USAGE.md      # Terraform usage guide
 ├── mariadb/                    # MariaDB configuration
+│   ├── Dockerfile              # MariaDB image with init script
 │   └── config/                 # Database encryption config
 │       └── README.md           # Encryption configuration guide
-├── docker-compose.yml          # Docker services
+├── docker-compose.yml          # Ephemeral app services (no mariadb, no ports)
+├── docker-compose.override.yml # Dev-local environment ports (auto-loaded)
+├── docker-compose.green.yml    # Green environment ports (CI)
 ├── init-db.sql                # Database schema
-├── setup.sh                   # Setup script
-├── start.sh                   # Start script
+├── setup.sh                   # Setup script (includes durable setup)
+├── start.sh                   # Start script (devlocal environment)
+├── teardown.sh                # Teardown script
+├── .gitlab-ci.yml             # GitLab CI/CD pipeline
 ├── SECURITY.md                # Security overview and best practices
 ├── SECURITY_IMPROVEMENTS.md   # KMS & Secrets Manager implementation guide
 ├── SECURITY_TESTING.md        # Security test documentation
 ├── AUTHENTICATION.md          # JWT authentication guide
 └── README.md                  # This file
 ```
+
+### Docker Compose File Structure
+
+The project uses a modular Docker Compose setup with **separated durable and ephemeral infrastructure**:
+
+#### Durable Infrastructure (Database Layer)
+- **durable/docker-compose.yml** - Persistent database infrastructure
+  - Parameterized for devlocal and CI environments
+  - Persists across blue-green deployments
+  - Dev-Local: `echobase-durable` project, port 3306
+  - CI: `echobase-ci-durable` project, port 3307
+
+#### Ephemeral Infrastructure (Application Layer)
+- **docker-compose.yml** - Base application configuration
+  - Contains NO port mappings and NO database service
+  - Defines all application services (API, frontend, order-processor, localstack)
+  - Connects to external durable database network
+
+- **docker-compose.override.yml** - Local development (auto-loaded)
+  - Automatically loaded by `docker compose up` and `start.sh`
+  - Ports: LocalStack 4566, API 3001, Frontend 3443
+  - Connects to `echobase-devlocal-durable-network`
+
+- **docker-compose.green.yml** - CI Green environment (canary)
+  - Explicitly loaded in GitLab CI with `-f` flag
+  - Ports: LocalStack 4666, API 3101, Frontend 3543
+  - Connects to `echobase-ci-durable-network`
+
+**Port Allocation Summary:**
+
+| Service | Protocol | Dev-Local | CI Green | Notes |
+|---------|----------|-----------|----------|-------|
+| **Frontend** | **HTTPS** | **3443** | **3543** | Application (ephemeral) |
+| Frontend HTTP | HTTP (redirects) | 3000 | 3100 | Application (ephemeral) |
+| **API Gateway** | **HTTPS** | **3001** | **3101** | Application (ephemeral) |
+| **MariaDB (Durable)** | TCP | **3306** | **3307** | **Durable (persists)** |
+| LocalStack | HTTP | 4566 | 4666 | Application (ephemeral) |
+
+**Security Note:** Frontend and API Gateway use **HTTPS exclusively** with self-signed certificates for encryption in transit. HTTP ports redirect to HTTPS.
+
+**Key Architecture Benefits:**
+- **Durable Database**: Database persists across blue-green deployments
+- **Data Consistency**: Application environments share the same database (or use separate databases for isolation)
+- **True Blue-Green**: Deploy new application versions without database migration downtime
+- **Easy Rollback**: Roll back application without affecting database
+
+See [docs/BLUE-GREEN-DEPLOYMENT.md](docs/BLUE-GREEN-DEPLOYMENT.md) and [durable/README.md](durable/README.md) for detailed architecture documentation.
 
 ## Database Schema
 
@@ -255,10 +374,14 @@ CREATE TABLE orders (
 
 ## API Endpoints
 
-### API Gateway (Port 3001 - HTTPS)
+### API Gateway - HTTPS Only (Port 3001)
 
-- **GET /health** - Health check
-- **POST /api/orders** - Submit a new order
+All API endpoints use **HTTPS exclusively** for secure communication:
+
+- **GET https://localhost:3001/health** - Health check
+- **POST https://localhost:3001/api/auth/register** - Register new user
+- **POST https://localhost:3001/api/auth/login** - User login (returns JWT)
+- **POST https://localhost:3001/api/orders** - Submit a new order (requires JWT)
   ```json
   {
     "customerName": "John Doe",
@@ -267,6 +390,8 @@ CREATE TABLE orders (
     "totalPrice": 99.99
   }
   ```
+
+**Note:** All requests require HTTPS. Self-signed certificates are used in development.
 
 ## Testing the Application
 
@@ -291,7 +416,7 @@ CREATE TABLE orders (
 source .env
 
 # Then query the database using environment variables
-docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders;"
+docker exec -it echobase-devlocal-durable-mariadb mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders;"
 ```
 
 ### Security Testing
@@ -331,25 +456,25 @@ aws --endpoint-url=http://localhost:4566 sqs receive-message --queue-url http://
 source .env
 
 # Query database with environment variables
-docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
+docker exec -it echobase-devlocal-durable-mariadb mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE -e "SELECT * FROM orders ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### View Application Logs
 
 ```bash
 # View all Docker container logs
-docker-compose logs -f
+docker compose logs -f
 
 # View specific service logs
-docker-compose logs -f api-gateway
-docker-compose logs -f order-processor
-docker-compose logs -f frontend
+docker compose logs -f api-gateway
+docker compose logs -f order-processor
+docker compose logs -f frontend
 
 # View Localstack logs (includes SQS operations)
-docker-compose logs -f localstack
+docker compose logs -f localstack
 
 # View MariaDB logs
-docker-compose logs -f mariadb
+docker compose logs -f mariadb
 ```
 
 ### View Localstack Activity
@@ -358,10 +483,10 @@ Localstack logs all AWS API operations in DEBUG mode. You can monitor SQS activi
 
 ```bash
 # Watch Localstack logs for SQS operations
-docker-compose logs -f localstack | grep -i sqs
+docker compose logs -f localstack | grep -i sqs
 
 # Filter for specific operations
-docker-compose logs -f localstack | grep "SendMessage\|ReceiveMessage\|DeleteMessage"
+docker compose logs -f localstack | grep "SendMessage\|ReceiveMessage\|DeleteMessage"
 ```
 
 ## Troubleshooting
@@ -370,14 +495,14 @@ docker-compose logs -f localstack | grep "SendMessage\|ReceiveMessage\|DeleteMes
 
 If you can't connect to Localstack:
 ```bash
-docker-compose restart localstack
+docker compose restart localstack
 ```
 
 ### Database Connection Issues
 
 Verify MariaDB is running:
 ```bash
-docker-compose ps mariadb
+docker compose ps mariadb
 ```
 
 Connect to database:
@@ -386,7 +511,7 @@ Connect to database:
 source .env
 
 # Connect with environment variables
-docker exec -it echobase-mariadb-1 mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE
+docker exec -it echobase-devlocal-durable-mariadb mariadb -u $MYSQL_USER -p$MYSQL_PASSWORD $MYSQL_DATABASE
 ```
 
 ### SQS Queue Not Found
@@ -444,13 +569,13 @@ terraform destroy -auto-approve
 cd ..
 
 # 3. Stop Docker containers
-docker-compose down
+docker compose down
 
 # 4. Remove volumes (WARNING: This deletes all data)
-docker-compose down -v
+docker compose down -v
 ```
 
-**Important:** Always run `terraform destroy` BEFORE `docker-compose down` because Terraform needs to connect to Localstack (running in Docker) to properly clean up the AWS resources.
+**Important:** Always run `terraform destroy` BEFORE `docker compose down` because Terraform needs to connect to Localstack (running in Docker) to properly clean up the AWS resources.
 
 **Note:** Terraform variables must be exported before running `terraform destroy` to avoid "No value for required variable" errors.
 
@@ -468,8 +593,8 @@ To modify the database schema:
 1. Update `init-db.sql`
 2. Restart the MariaDB container with volumes removed:
    ```bash
-   docker-compose down -v
-   docker-compose up -d mariadb
+   docker compose down -v
+   docker compose up -d mariadb
    ```
 
 ## Security
@@ -496,10 +621,10 @@ To modify the database schema:
 
 For comprehensive security information:
 
-- **[SECURITY.md](SECURITY.md)** - **START HERE!** Complete security overview, architecture, and best practices
-- **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** - Detailed implementation guide for KMS, Secrets Manager, and API security hardening
-- **[AUTHENTICATION.md](AUTHENTICATION.md)** - JWT authentication guide with examples
-- **[SECURITY_TESTING.md](SECURITY_TESTING.md)** - Automated security test suite (42+ tests)
+- **[SECURITY.md](docs/SECURITY.md)** - **START HERE!** Complete security overview, architecture, and best practices
+- **[SECURITY_IMPROVEMENTS.md](docs/SECURITY_IMPROVEMENTS.md)** - Detailed implementation guide for KMS, Secrets Manager, and API security hardening
+- **[AUTHENTICATION.md](docs/AUTHENTICATION.md)** - JWT authentication guide with examples
+- **[SECURITY_TESTING.md](docs/SECURITY_TESTING.md)** - Automated security test suite (42+ tests)
 - **`TrustBoundaries.md`** - Detailed trust boundary and attack surface analysis
 
 ### Quick Security Checklist
@@ -510,9 +635,9 @@ Before deploying to production, review `SECURITY.md` and `SECURITY_IMPROVEMENTS.
 - [x] ~~Enable database encryption at rest~~ - **DONE!** (AES-256 with KMS)
 - [x] ~~Implement authentication and authorization~~ - **DONE!** (JWT + API Keys)
 - [x] ~~Implement rate limiting and input validation~~ - **DONE!**
+- [x] ~~Enable HTTPS/TLS for all endpoints~~ - **DONE!** (Frontend:3443, API:3001)
+- [x] ~~Configure CORS for specific origins only~~ - **DONE!** (CORS_ORIGIN env var)
 - [ ] Replace hardcoded AWS credentials with IAM roles (for production AWS)
-- [ ] Enable HTTPS/TLS for all endpoints
-- [ ] Configure CORS for specific origins only
 - [ ] Set up monitoring and audit logging
 - [ ] Enable automatic secret rotation in Secrets Manager
 - [ ] Use RDS instead of MariaDB container (production AWS)

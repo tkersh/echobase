@@ -77,7 +77,7 @@ test_validate_env() {
         apk add --no-cache bash curl git terraform nodejs npm > /dev/null 2>&1 &&
         echo "Checking versions:" &&
         echo "  Docker: $(docker --version)" &&
-        echo "  Docker Compose: $(docker-compose --version)" &&
+        echo "  Docker Compose: $(docker compose --version)" &&
         echo "  Terraform: $(terraform --version | head -1)" &&
         echo "  Node.js: $(node --version)" &&
         echo "  npm: $(npm --version)" &&
@@ -152,23 +152,23 @@ test_validate_terraform() {
 test_validate_docker_compose() {
     print_header "Test 3: Docker Compose Validation"
 
-    print_info "Testing: ${YELLOW}validate:docker-compose${NC}"
+    print_info "Testing: ${YELLOW}validate:docker compose${NC}"
     print_info "Description: Validate Docker Compose configuration"
     echo ""
 
     echo "Validating docker-compose.yml..."
-    if docker-compose config > /dev/null 2>&1; then
+    if docker compose config > /dev/null 2>&1; then
         echo "✓ Docker Compose configuration is valid!"
         echo ""
-        print_success "✓ validate:docker-compose passed"
+        print_success "✓ validate:docker compose passed"
         ((PASSED++))
         return 0
     else
         echo ""
         print_fail "✗ Docker Compose validation failed"
         echo ""
-        echo "Running docker-compose config to show errors:"
-        docker-compose config 2>&1 | head -20
+        echo "Running docker compose config to show errors:"
+        docker compose config 2>&1 | head -20
         ((FAILED++))
         return 1
     fi
@@ -216,7 +216,7 @@ test_build_dependencies() {
 test_docker_compose_build() {
     print_header "Test 5: Docker Compose Build"
 
-    print_info "Building Docker images with docker-compose..."
+    print_info "Building Docker images with Docker Compose..."
     print_info "This may take a few minutes..."
     echo ""
 
@@ -224,7 +224,7 @@ test_docker_compose_build() {
         source .env
     fi
 
-    if docker-compose build --quiet 2>&1 | grep -v "^$"; then
+    if docker compose build --quiet 2>&1 | grep -v "^$"; then
         print_success "✓ Docker images built successfully"
         ((PASSED++))
     else
