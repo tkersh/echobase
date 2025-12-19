@@ -280,20 +280,16 @@ build:docker-images:
 
     # Load base image
     - echo "Loading base image..."
+    - echo "Base image artifact size:"
+    - ls -lh docker-images/base.tar
+    - echo "Loading base image from artifact..."
     - |
-      if docker image inspect echobase-node-base:latest >/dev/null 2>&1; then
-        echo "Base image already exists, skipping load"
-      else
-        echo "Base image artifact size:"
-        ls -lh docker-images/base.tar
-        echo "Loading base image from artifact..."
-        timeout 300 docker load -i docker-images/base.tar || {
-          echo "ERROR: docker load timed out or failed after 5 minutes"
-          echo "Checking Docker daemon status..."
-          docker info || true
-          exit 1
-        }
-      fi
+      timeout 300 docker load -i docker-images/base.tar || {
+        echo "ERROR: docker load timed out or failed after 5 minutes"
+        echo "Checking Docker daemon status..."
+        docker info || true
+        exit 1
+      }
 
     # Build images without starting services (build args will be picked up from env vars)
     - docker compose build --parallel
