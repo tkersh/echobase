@@ -267,12 +267,8 @@ build:docker-images:
     # Verify build metadata was included in images
     - scripts/verify-build-metadata.sh images
 
-    # Save images as tar files for use in other jobs
-    - scripts/save-docker-images.sh docker-images
-  artifacts:
-    paths:
-      - docker-images/
-    expire_in: 1 day
+    # Images remain in Docker daemon for deploy:green to use (same runner, same daemon)
+    - echo "Images built and ready in Docker daemon for deployment"
   only:
     - branches
     - merge_requests
@@ -587,7 +583,6 @@ deploy:green:
     - *install_terraform
     - *setup_scripts
   dependencies:
-    - build:docker-images
     - durable:setup-ci
   needs:
     - build:docker-images
@@ -606,14 +601,14 @@ deploy:green:
       
       echo "Note: Database is managed separately in durable infrastructure"
 
-      echo "Removing old Docker images to ensure fresh deployment..."
-      scripts/remove-old-images.sh
-
-      # Load application images from artifacts (base image not needed - it was only used at build time)
-      scripts/load-docker-images.sh app
+      # Images are already in Docker daemon from build:docker-images (same runner)
+      echo "Verifying images are available in Docker daemon..."
+      docker images | grep echobase
       scripts/verify-build-metadata.sh images
+
+      echo "Images ready for deployment (built in build:docker-images job)"
       
-      echo "Starting green environment (without database)..."
+      echo "Starting green environment..."
       docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green up -d localstack
       
       scripts/wait-for-services.sh echobase-green localstack
