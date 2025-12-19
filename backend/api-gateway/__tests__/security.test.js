@@ -346,7 +346,8 @@ describe('API Gateway Security Tests', () => {
     });
 
     test('should allow configured origin', async () => {
-      const response = await request('https://localhost:3001')
+      // Use the running server instance (app) instead of external URL
+      const response = await request(app)
         .options('/api/v1/orders')
         .set('Origin', 'https://localhost:3443');
 

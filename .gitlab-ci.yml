@@ -356,18 +356,19 @@ test:green-api-gateway:
     - docker compose -p echobase-green ps
     - scripts/wait-for-services.sh echobase-green api-gateway
     - docker compose -p echobase-green exec -T api-gateway npm test -- --coverage --ci
-    - mkdir -p backend/api-gateway/test-results
-    - docker compose -p echobase-green cp api-gateway:/app/test-results/. backend/api-gateway/test-results/ || true
-    - docker compose -p echobase-green cp api-gateway:/app/coverage/. backend/api-gateway/coverage/ || true
+    - mkdir -p backend/api-gateway/coverage backend/api-gateway/test-results
+    - echo "Copying test results and coverage from container..."
+    - docker compose -p echobase-green cp api-gateway:/app/coverage/. backend/api-gateway/coverage/ 2>/dev/null || echo "No coverage files found in container"
+    - docker compose -p echobase-green cp api-gateway:/app/junit.xml backend/api-gateway/junit.xml 2>/dev/null || echo "No junit.xml found in container"
   artifacts:
     reports:
-      junit: backend/api-gateway/test-results/junit.xml
+      junit: backend/api-gateway/junit.xml
       coverage_report:
         coverage_format: cobertura
         path: backend/api-gateway/coverage/cobertura-coverage.xml
     paths:
-      - backend/api-gateway/test-results/
       - backend/api-gateway/coverage/
+      - backend/api-gateway/junit.xml
     expire_in: 1 week
     when: always
   after_script:
