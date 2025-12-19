@@ -274,40 +274,6 @@ build:docker-images:
     - merge_requests
 
 # ============================================================================
-# TEST STAGE
-# ============================================================================
-
-test:api-gateway-unit:
-  stage: test
-  <<: *cache_node_modules
-  dependencies:
-    - build:dependencies
-  script:
-    - echo "Running API Gateway unit tests..."
-    - cd backend/api-gateway
-    - |
-      if [ -d "__tests__" ] || [ -d "tests" ] || grep -q "jest" package.json; then
-        echo "Running unit tests..."
-        npm test -- --coverage --ci
-      else
-        echo "No unit tests found, skipping..."
-      fi
-    - cd ../..
-  artifacts:
-    reports:
-      junit: backend/api-gateway/junit.xml
-      coverage_report:
-        coverage_format: cobertura
-        path: backend/api-gateway/coverage/cobertura-coverage.xml
-    paths:
-      - backend/api-gateway/coverage/
-    expire_in: 1 week
-    when: always
-  only:
-    - branches
-    - merge_requests
-
-# ============================================================================
 # DURABLE INFRASTRUCTURE STAGE
 # ============================================================================
 
@@ -368,7 +334,7 @@ durable:setup-ci:
 # GREEN ENVIRONMENT TESTS (run against deployed green environment)
 # ============================================================================
 
-test:green-security:
+test:green-api-gateway:
   stage: test
   tags:
     - docker-local
@@ -384,17 +350,24 @@ test:green-security:
     - validate:env-check
     - deploy:green
   script:
-    - echo "Running security tests against GREEN environment..."
+    - echo "Running all API Gateway tests (unit + security) against GREEN environment..."
     - source .env
     - echo "Checking green environment status..."
     - docker compose -p echobase-green ps
     - scripts/wait-for-services.sh echobase-green api-gateway
-    - docker compose -p echobase-green exec -T api-gateway npm run test:security
+    - docker compose -p echobase-green exec -T api-gateway npm test -- --coverage --ci
     - mkdir -p backend/api-gateway/test-results
     - docker compose -p echobase-green cp api-gateway:/app/test-results/. backend/api-gateway/test-results/ || true
+    - docker compose -p echobase-green cp api-gateway:/app/coverage/. backend/api-gateway/coverage/ || true
   artifacts:
+    reports:
+      junit: backend/api-gateway/test-results/junit.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: backend/api-gateway/coverage/cobertura-coverage.xml
     paths:
       - backend/api-gateway/test-results/
+      - backend/api-gateway/coverage/
     expire_in: 1 week
     when: always
   after_script:
