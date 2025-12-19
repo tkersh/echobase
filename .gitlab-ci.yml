@@ -51,7 +51,7 @@ variables:
   DEV_LOCAL_DB_PORT: "3306"
   DEV_LOCAL_LOCALSTACK_PORT: "4566"
 
-  # Green Environment Ports (docker-compose.green.yml) - Staging/Canary
+  # Green Environment Ports (docker-compose.green.yml) - Staging
   # Can coexist with devlocal
   GREEN_API_PORT: "3101"
   GREEN_FRONTEND_PORT: "3543"
@@ -199,27 +199,6 @@ validate:compose:
 # BUILD STAGE
 # ============================================================================
 
-build:base-image:
-  stage: build
-  tags:
-    - docker-local
-  before_script:
-    - apk add --no-cache docker-cli-compose
-  script:
-    - |
-      echo "Building base image with latest LTS Node.js (22.x)..."
-      docker build -t echobase-node-base:latest docker/base/
-      mkdir -p docker-images
-      docker save echobase-node-base:latest -o docker-images/base.tar
-      echo "Base image saved successfully (size: $(du -h docker-images/base.tar | cut -f1))"
-  artifacts:
-    paths:
-      - docker-images/base.tar
-    expire_in: 1 day
-  only:
-    - branches
-    - merge_requests
-
 build:dependencies:
   stage: build
   <<: *cache_node_modules
@@ -255,11 +234,9 @@ build:docker-images:
     - *setup_scripts
     - docker info
   dependencies:
-    - build:base-image
     - build:dependencies
     - validate:env-check
   needs:
-    - build:base-image
     - build:dependencies
     - validate:env-check
   script:
@@ -278,18 +255,8 @@ build:docker-images:
     - echo "Cleaning BuildKit cache..."
     - docker builder prune -f --filter "until=24h" || true
 
-    # Load base image
-    - echo "Loading base image..."
-    - echo "Base image artifact size:"
-    - ls -lh docker-images/base.tar
-    - echo "Loading base image from artifact..."
-    - |
-      timeout 300 docker load -i docker-images/base.tar || {
-        echo "ERROR: docker load timed out or failed after 5 minutes"
-        echo "Checking Docker daemon status..."
-        docker info || true
-        exit 1
-      }
+    - echo "Building base image..."
+    - docker build -t echobase-node-base:latest docker/base/
 
     # Build images without starting services (build args will be picked up from env vars)
     - docker compose build --parallel
@@ -620,16 +587,14 @@ deploy:green:
     - *install_terraform
     - *setup_scripts
   dependencies:
-    - build:base-image
     - build:docker-images
     - durable:setup-ci
   needs:
-    - build:base-image
     - build:docker-images
     - durable:setup-ci
   script:
     - |
-      echo "Deploying to GREEN environment (canary)..."
+      echo "Deploying to GREEN environment..."
       source .env
       
       echo "Verifying durable infrastructure is running..."
@@ -640,10 +605,12 @@ deploy:green:
       docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green down || true
       
       echo "Note: Database is managed separately in durable infrastructure"
-      
+
       echo "Removing old Docker images to ensure fresh deployment..."
       scripts/remove-old-images.sh
-      scripts/load-docker-images.sh
+
+      # Load application images from artifacts (base image not needed - it was only used at build time)
+      scripts/load-docker-images.sh app
       scripts/verify-build-metadata.sh images
       
       echo "Starting green environment (without database)..."

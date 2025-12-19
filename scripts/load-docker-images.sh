@@ -41,7 +41,11 @@ load_app() {
     for image in api-gateway frontend order-processor; do
         if [ -f "${ARTIFACTS_DIR}/${image}.tar" ]; then
             echo "Loading echobase-${image}:latest..."
-            docker load -i "${ARTIFACTS_DIR}/${image}.tar"
+            echo "  Size: $(ls -lh "${ARTIFACTS_DIR}/${image}.tar" | awk '{print $5}')"
+            timeout 300 docker load -i "${ARTIFACTS_DIR}/${image}.tar" || {
+                echo "ERROR: Failed to load ${image} image (timeout after 5 minutes)"
+                exit 1
+            }
         else
             echo "WARNING: ${ARTIFACTS_DIR}/${image}.tar not found, skipping..."
         fi
