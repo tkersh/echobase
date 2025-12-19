@@ -206,9 +206,12 @@ build:base-image:
   before_script:
     - apk add --no-cache docker-cli-compose
   script:
-    - echo "Building base image with latest LTS Node.js (22.x)..."
-    - docker build -t echobase-node-base:latest docker/base/
-    - docker save echobase-node-base:latest -o docker-images/base.tar || mkdir -p docker-images && docker save echobase-node-base:latest -o docker-images/base.tar
+    - |
+      echo "Building base image with latest LTS Node.js (22.x)..."
+      docker build -t echobase-node-base:latest docker/base/
+      mkdir -p docker-images
+      docker save echobase-node-base:latest -o docker-images/base.tar
+      echo "Base image saved successfully (size: $(du -h docker-images/base.tar | cut -f1))"
   artifacts:
     paths:
       - docker-images/base.tar
@@ -277,7 +280,20 @@ build:docker-images:
 
     # Load base image
     - echo "Loading base image..."
-    - docker load -i docker-images/base.tar
+    - |
+      if docker image inspect echobase-node-base:latest >/dev/null 2>&1; then
+        echo "Base image already exists, skipping load"
+      else
+        echo "Base image artifact size:"
+        ls -lh docker-images/base.tar
+        echo "Loading base image from artifact..."
+        timeout 300 docker load -i docker-images/base.tar || {
+          echo "ERROR: docker load timed out or failed after 5 minutes"
+          echo "Checking Docker daemon status..."
+          docker info || true
+          exit 1
+        }
+      fi
 
     # Build images without starting services (build args will be picked up from env vars)
     - docker compose build --parallel
@@ -310,8 +326,13 @@ test:api-gateway-unit:
   script:
     - echo "Running API Gateway unit tests..."
     - cd backend/api-gateway
-
-    - ([ -d "__tests__" ] || [ -d "tests" ] || grep -q "jest" package.json) && (npm test -- --coverage --ci || true) || echo "No unit tests found, skipping..."
+    - |
+      if [ -d "__tests__" ] || [ -d "tests" ] || grep -q "jest" package.json; then
+        echo "Running unit tests..."
+        npm test -- --coverage --ci
+      else
+        echo "No unit tests found, skipping..."
+      fi
     - cd ../..
   artifacts:
     reports:
@@ -409,7 +430,7 @@ test:green-security:
     - echo "Checking green environment status..."
     - docker compose -p echobase-green ps
     - scripts/wait-for-services.sh echobase-green api-gateway
-    - docker compose -p echobase-green exec -T api-gateway npm run test:security || true
+    - docker compose -p echobase-green exec -T api-gateway npm run test:security
     - mkdir -p backend/api-gateway/test-results
     - docker compose -p echobase-green cp api-gateway:/app/test-results/. backend/api-gateway/test-results/ || true
   artifacts:
