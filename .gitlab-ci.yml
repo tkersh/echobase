@@ -285,13 +285,14 @@ durable:setup-ci:
     - apk add --no-cache bash curl docker-cli-compose unzip
     - *install_terraform
     - *setup_scripts
-  # NOTE: Durable infrastructure is independent of build stage
-  # It can run in parallel with builds since it only sets up database & LocalStack
-  # deploy:green will wait for both this and build:docker-images to complete
+  # NOTE: Durable infrastructure is independent of Docker image builds
+  # It can run in parallel with build:docker-images since it only sets up database & LocalStack
+  # But it must wait for build:dependencies to succeed to ensure the pipeline is valid
   dependencies:
     - validate:env-check
   needs:
     - validate:env-check
+    - build:dependencies
   script:
     - |
       echo "=========================================="
