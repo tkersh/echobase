@@ -1,15 +1,18 @@
 import { request } from '@playwright/test';
-
-// Default URLs for local development
-const DEFAULT_API_BASE_URL = 'https://localhost:3001';
-const DEFAULT_ORIGIN_URL = 'https://localhost:3443';
+import { validateRequiredEnv } from './env-validator.js';
 
 /**
  * API helper for making authenticated and unauthenticated requests
+ * Connects to the API Gateway (API_BASE_URL), not the frontend
  */
 class ApiHelper {
-  constructor(baseURL = process.env.API_BASE_URL || DEFAULT_API_BASE_URL) {
-    this.baseURL = baseURL;
+  constructor() {
+    // Validate required environment variables
+    validateRequiredEnv(['WEB_BASE_URL', 'API_BASE_URL'], 'API helper');
+
+    this.apiBaseURL = process.env.API_BASE_URL;
+    this.frontendOrigin = process.env.WEB_BASE_URL;
+
     this.token = null;
   }
 
@@ -18,7 +21,7 @@ class ApiHelper {
    */
   async createContext() {
     const headers = {
-      'Origin': process.env.BASE_URL || DEFAULT_ORIGIN_URL
+      'Origin': this.frontendOrigin
     };
 
     if (this.token) {
@@ -26,7 +29,7 @@ class ApiHelper {
     }
 
     return await request.newContext({
-      baseURL: this.baseURL,
+      baseURL: this.apiBaseURL,
       ignoreHTTPSErrors: true,
       extraHTTPHeaders: headers
     });

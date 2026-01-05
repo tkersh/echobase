@@ -16,7 +16,7 @@ const { SQSClient } = require('@aws-sdk/client-sqs');
 const { log, logError, debug, info, warn, error } = require('../shared/logger');
 const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
-const { validateEnvVars, API_GATEWAY_REQUIRED_VARS } = require('../shared/env-validator');
+const { validateRequiredEnv, API_GATEWAY_REQUIRED_VARS } = require('../shared/env-validator');
 const { logBuildMetadata } = require('../shared/build-metadata');
 const {
   ORDER_MAX_QUANTITY,
@@ -29,9 +29,7 @@ const {
 const OrderService = require('./services/orderService');
 
 // Validate environment variables at startup
-if (!validateEnvVars(API_GATEWAY_REQUIRED_VARS)) {
-  process.exit(1);
-}
+validateRequiredEnv(API_GATEWAY_REQUIRED_VARS, 'API Gateway');
 
 const app = express();
 const PORT = process.env.PORT;

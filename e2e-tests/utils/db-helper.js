@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import { validateRequiredEnv } from './env-validator.js';
 
 /**
  * Database helper for E2E test verification
@@ -6,13 +7,19 @@ import mysql from 'mysql2/promise';
  */
 class DatabaseHelper {
   constructor() {
+    // Validate required environment variables
+    validateRequiredEnv(
+      ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'],
+      'database connection'
+    );
+
     this.connection = null;
     this.config = {
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 3306,
-      user: process.env.DB_USER || 'app_user',
-      password: process.env.DB_PASSWORD || '',  // No default - must be provided
-      database: process.env.DB_NAME || 'orders_db'
+      host: process.env.DB_HOST,
+      port: parseInt(process.env.DB_PORT),
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
     };
   }
 

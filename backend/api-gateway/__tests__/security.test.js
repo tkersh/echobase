@@ -3,9 +3,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
-const express = require('express');
-const mysql = require('mysql2/promise');
-const https = require('https');
+const { validateRequiredEnv } = require('../../shared/env-validator');
 
 // Load environment variables from .env file
 require('dotenv').config({ path: require('path').join(__dirname, '../../../.env') });
@@ -26,50 +24,24 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../../.env'
 const TEST_JWT_SECRET = process.env.JWT_SECRET;
 const TEST_PORT = 3099; // Use a different port for testing
 
+// Validate required environment variables
+validateRequiredEnv(['GREEN_FRONTEND_PORT'], 'security tests');
+
 // API Gateway URL - use 127.0.0.1 instead of localhost to avoid IPv6 issues
 const API_GATEWAY_URL = 'https://127.0.0.1:3001';
 
-// Mock database connection
-let mockDb;
-let app;
-let server;
+// CORS origin for testing - uses GREEN_FRONTEND_PORT from environment
+const CORS_TEST_ORIGIN = `https://localhost:${process.env.GREEN_FRONTEND_PORT}`;
 
 // Setup before all tests
 beforeAll(async () => {
   // Allow self-signed certificates for testing HTTPS
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
-  // Set environment variables for testing
-  process.env.JWT_SECRET = TEST_JWT_SECRET;
-  process.env.PORT = TEST_PORT;
-  process.env.SQS_QUEUE_URL = 'http://localhost:4566/000000000000/test-queue';
-  process.env.SQS_ENDPOINT = 'http://localhost:4566';
-  process.env.AWS_REGION = 'us-east-1';
-  process.env.AWS_ACCESS_KEY_ID = 'test';
-  process.env.AWS_SECRET_ACCESS_KEY = 'test';
-  process.env.DB_HOST = 'localhost';
-  process.env.DB_PORT = '3306';
-  process.env.DB_USER = 'test';
-  process.env.DB_PASSWORD = 'test';
-  process.env.DB_NAME = 'test_db';
-  process.env.CORS_ORIGIN = 'https://localhost:3443';
-
-  // Increase rate limit for testing to avoid 429 errors
-  process.env.RATE_LIMIT_MAX_REQUESTS = '10000';
-  process.env.RATE_LIMIT_WINDOW_MS = '900000'; // 15 minutes
-
-  // Create a mock database pool
-  mockDb = {
-    execute: jest.fn(),
-    getConnection: jest.fn().mockResolvedValue({
-      release: jest.fn(),
-    }),
-  };
-
-  // Mock mysql2/promise
-  jest.mock('mysql2/promise', () => ({
-    createPool: jest.fn(() => mockDb),
-  }));
+  // Note: When tests run via 'docker compose exec' in CI, the API Gateway server
+  // is already running in the same container. These environment variables only
+  // affect the Jest test process, not the running server.
+  // The test connects to the already-running server at API_GATEWAY_URL
 
   // Purge SQS queue to avoid processing old test messages
   console.log('Purging SQS queue...');
@@ -130,10 +102,6 @@ beforeAll(async () => {
 
 // Cleanup after all tests
 afterAll(async () => {
-  if (server) {
-    await new Promise((resolve) => server.close(resolve));
-  }
-
   // Wait a moment for any pending SQS messages to be processed
   console.log('Waiting for pending orders to process...');
   await new Promise(resolve => setTimeout(resolve, 3000));
@@ -350,9 +318,10 @@ describe('API Gateway Security Tests', () => {
 
     test('should allow configured origin', async () => {
       // Test against the running server (which is already started when tests run in container)
+      // Uses CORS_TEST_ORIGIN which matches the server's configured CORS origin
       const response = await request(API_GATEWAY_URL)
         .options('/api/v1/orders')
-        .set('Origin', 'https://localhost:3443');
+        .set('Origin', CORS_TEST_ORIGIN);
 
       // CORS headers should be present for configured origin
       expect(response.headers['access-control-allow-origin']).toBeDefined();

@@ -1,21 +1,27 @@
 // Centralized test configuration
 // This file contains all hardcoded values used across e2e tests
 
+import { validateRequiredEnv } from '../utils/env-validator.js';
+
+// Validate all required environment variables upfront
+// Note: API_BASE_URL and BASE_URL are validated in their respective modules
+// (api-helper.js and playwright.config.js)
+validateRequiredEnv(
+  ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'],
+  'E2E test configuration'
+);
+
 export const TEST_CONFIG = {
   // AWS/LocalStack configuration
   LOCALSTACK_CONTAINER_NAME: 'echobase-localstack-1',
   SQS_QUEUE_URL: 'http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue',
 
-  // Service URLs
-  API_URL: process.env.API_URL || 'https://localhost:3001',
-  FRONTEND_URL: process.env.FRONTEND_URL || 'https://localhost:3443',
-
-  // Database configuration
-  DB_HOST: process.env.DB_HOST || 'localhost',
-  DB_PORT: parseInt(process.env.DB_PORT || '3306'),
-  DB_NAME: process.env.DB_NAME || 'orders_db',
-  DB_USER: process.env.DB_USER || 'app_user',
-  DB_PASSWORD: process.env.DB_PASSWORD || '',  // No default - must be provided via env
+  // Database configuration - required from environment
+  DB_HOST: process.env.DB_HOST,
+  DB_PORT: parseInt(process.env.DB_PORT),
+  DB_NAME: process.env.DB_NAME,
+  DB_USER: process.env.DB_USER,
+  DB_PASSWORD: process.env.DB_PASSWORD,
 
   // Timeout configuration (in milliseconds)
   TIMEOUTS: {

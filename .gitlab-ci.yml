@@ -355,7 +355,7 @@ test:green-api-gateway:
     - echo "Checking green environment status..."
     - docker compose -p echobase-green ps
     - scripts/wait-for-services.sh echobase-green api-gateway
-    - docker compose -p echobase-green exec -T api-gateway npm test -- --coverage --ci
+    - docker compose -p echobase-green exec -T -e GREEN_FRONTEND_PORT=${GREEN_FRONTEND_PORT} api-gateway npm test -- --coverage --ci
     - mkdir -p backend/api-gateway/coverage backend/api-gateway/test-results
     - echo "Copying test results and coverage from container..."
     - docker compose -p echobase-green cp api-gateway:/app/coverage/. backend/api-gateway/coverage/ 2>/dev/null || echo "No coverage files found in container"
@@ -462,7 +462,7 @@ test:green-e2e:
         -e DB_USER=$DB_USER \
         -e DB_PASSWORD=$DB_PASSWORD \
         -e API_BASE_URL=https://echobase-green-api-gateway:3001 \
-        -e BASE_URL=https://echobase-green-frontend:443 \
+        -e WEB_BASE_URL=https://echobase-green-frontend:443 \
         -e AWS_REGION=us-east-1 \
         -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
         -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
@@ -646,6 +646,7 @@ promote:green:
 
 rollback:to-blue:
   stage: deploy
+  needs: []
   script:
     - echo "Rolling back to BLUE environment..."
     - chmod +x scripts/switch-environment.sh
@@ -665,6 +666,7 @@ rollback:to-blue:
 
 teardown:blue:
   stage: teardown
+  needs: []
   <<: *terraform_job_setup
   script:
     - echo "Removing old BLUE environment..."
@@ -677,6 +679,7 @@ teardown:blue:
 
 teardown:green:
   stage: teardown
+  needs: []
   script:
     - |
       echo "Removing GREEN environment..."
@@ -692,6 +695,7 @@ teardown:green:
 
 teardown:durable-ci:
   stage: teardown
+  needs: []
   before_script:
     - apk add --no-cache bash docker-cli-compose
     - *setup_scripts
@@ -708,6 +712,7 @@ teardown:durable-ci:
 
 teardown:devlocal:
   stage: teardown
+  needs: []
   <<: *terraform_job_setup
   script:
     - echo "Cleaning up devlocal environment..."
@@ -725,6 +730,7 @@ teardown:devlocal:
 
 teardown:volumes:
   stage: teardown
+  needs: []
   <<: *terraform_job_setup
   script:
     - echo "WARNING - This will remove all Docker volumes and data!"

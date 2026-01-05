@@ -1,34 +1,29 @@
 /**
  * Environment Variable Validator
  * Validates that all required environment variables are present at startup
+ * Enforces fail-fast principle - throws error if any required variable is missing
  */
 
 const { logError } = require('./logger');
 
 /**
- * Validate required environment variables
+ * Validate required environment variables - throws error if any are missing
  * @param {string[]} requiredVars - Array of required environment variable names
- * @returns {boolean} True if all required vars are present, false otherwise
+ * @param {string} context - Context description for error messages (e.g., "API Gateway", "Order Processor")
+ * @throws {Error} If any required variable is missing
  */
-function validateEnvVars(requiredVars) {
-  const missingVars = [];
+function validateRequiredEnv(requiredVars, context = 'application') {
+  const missing = requiredVars.filter(varName => !process.env[varName]);
 
-  for (const varName of requiredVars) {
-    if (!process.env[varName]) {
-      missingVars.push(varName);
-    }
-  }
-
-  if (missingVars.length > 0) {
-    logError('ERROR: Missing required environment variables:');
-    missingVars.forEach(varName => {
-      logError(`  - ${varName}`);
-    });
+  if (missing.length > 0) {
+    const varList = missing.join(', ');
+    const error = new Error(
+      `Missing required environment variable${missing.length > 1 ? 's' : ''} for ${context}: ${varList}`
+    );
+    logError(error.message);
     logError('Please ensure all required environment variables are set in your .env file or environment.');
-    return false;
+    throw error;
   }
-
-  return true;
 }
 
 // Common environment variables needed by API Gateway
@@ -62,7 +57,7 @@ const ORDER_PROCESSOR_REQUIRED_VARS = [
 ];
 
 module.exports = {
-  validateEnvVars,
+  validateRequiredEnv,
   API_GATEWAY_REQUIRED_VARS,
   ORDER_PROCESSOR_REQUIRED_VARS,
 };

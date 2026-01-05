@@ -62,7 +62,7 @@ echo "Step 1: Destroying Terraform infrastructure..."
 if [ -d "terraform" ]; then
     cd terraform
 
-    # Export database credentials as Terraform variables
+    # Export database credentials and LocalStack endpoint as Terraform variables
     # These are needed for terraform destroy to work properly
     if [ -f ../.env ]; then
         print_status "Loading database credentials from .env file..."
@@ -79,6 +79,10 @@ if [ -d "terraform" ]; then
         export TF_VAR_db_port=3306
         export TF_VAR_db_name=orders_db
     fi
+
+    # Set LocalStack endpoint to ephemeral instance (port 4576) which has SQS enabled
+    # Durable LocalStack (port 4566) only has secretsmanager and KMS
+    export TF_VAR_localstack_endpoint=http://localhost:4576
 
     if terraform destroy -auto-approve; then
         print_status "Terraform infrastructure destroyed successfully"

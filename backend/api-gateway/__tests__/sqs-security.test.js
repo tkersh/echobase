@@ -1,5 +1,6 @@
 const { SQSClient, SendMessageCommand, ReceiveMessageCommand, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
 const path = require('path');
+const { validateRequiredEnv } = require('../../shared/env-validator');
 
 // Load environment variables from root .env file
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
@@ -16,10 +17,18 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
  */
 
 describe('SQS Security Tests', () => {
-  const QUEUE_URL = process.env.SQS_QUEUE_URL || 'http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue';
+  // Validate required environment variables - no silent defaults
+  validateRequiredEnv(
+    ['SQS_QUEUE_URL', 'AWS_REGION', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
+    'SQS security tests'
+  );
+
+  const QUEUE_URL = process.env.SQS_QUEUE_URL;
   // Force localhost for tests running outside Docker
   const SQS_ENDPOINT = 'http://localhost:4566';
-  const AWS_REGION = process.env.AWS_REGION || 'us-east-1';
+  const AWS_REGION = process.env.AWS_REGION;
+  const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
+  const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 
   describe('1. Invalid Credentials', () => {
     test('should reject access with invalid AWS credentials', async () => {
@@ -129,8 +138,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -147,8 +156,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -172,8 +181,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -201,8 +210,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -242,8 +251,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -277,8 +286,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -328,8 +337,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -376,8 +385,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -409,8 +418,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -436,8 +445,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 
@@ -507,8 +516,8 @@ describe('SQS Security Tests', () => {
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
-          accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'test',
-          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'test',
+          accessKeyId: AWS_ACCESS_KEY_ID,
+          secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
 

@@ -18,4 +18,15 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  reporters: [
+    'default',
+    ['jest-junit', {
+      outputDirectory: '.',
+      outputName: 'junit.xml',
+      classNameTemplate: '{classname}',
+      titleTemplate: '{title}',
+      ancestorSeparator: ' › ',
+      usePathForSuiteName: true,
+    }],
+  ],
 };

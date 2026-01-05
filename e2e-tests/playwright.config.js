@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { validateRequiredEnv } from './utils/env-validator.js';
 
 // Load environment variables from project root .env file
 const __filename = fileURLToPath(import.meta.url);
@@ -9,6 +10,8 @@ const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 // Load e2e-tests specific overrides (e.g., DB_HOST=localhost for host machine)
 dotenv.config({ path: path.resolve(__dirname, '.env'), override: true, quiet: true });
+
+validateRequiredEnv(['WEB_BASE_URL'], 'Playwright configuration');
 
 /**
  * Playwright configuration for Echobase E2E tests
@@ -37,11 +40,11 @@ export default defineConfig({
   // Shared settings for all projects
   use: {
     // Base URL for frontend tests
-    baseURL: process.env.BASE_URL || 'https://localhost:3443',
+    baseURL: process.env.WEB_BASE_URL,
 
     // Add Origin header for CSRF protection
     extraHTTPHeaders: {
-      'Origin': process.env.BASE_URL || 'https://localhost:3443',
+      'Origin': process.env.WEB_BASE_URL,
     },
 
     // Collect trace on failure

@@ -718,7 +718,7 @@ Create a `.env` file in the `e2e-tests` directory if you need custom configurati
 ```env
 # API Configuration
 API_BASE_URL=https://localhost:3001
-BASE_URL=https://localhost:3443
+WEB_BASE_URL=https://localhost:3443
 
 # Database Configuration
 DB_HOST=localhost
