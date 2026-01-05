@@ -103,6 +103,7 @@ if command -v terraform &> /dev/null; then
     export TF_VAR_db_host=$DB_HOST
     export TF_VAR_db_port=$DB_PORT
     export TF_VAR_db_name=$DB_NAME
+    export TF_VAR_localstack_endpoint=http://localhost:4576
   else
     echo "Warning: .env file not found!"
     echo "Database credentials will not be available to Terraform."
@@ -116,7 +117,7 @@ else
   echo ""
   echo "Skipping Terraform setup (not installed)"
   echo "You can manually create the SQS queue using AWS CLI:"
-  echo "aws --endpoint-url=http://localhost:4566 sqs create-queue --queue-name order-processing-queue"
+  echo "aws --endpoint-url=http://localhost:4576 sqs create-queue --queue-name order-processing-queue"
 fi
 
 # Build and start application containers

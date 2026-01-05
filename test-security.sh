@@ -37,28 +37,28 @@ source .env
 
 # Test KMS Key Configuration
 echo "[3/8] Verifying KMS encryption key..."
-cd terraform
+cd durable/terraform
 KMS_KEY_ID=$(terraform output -raw kms_key_id 2>/dev/null || echo "")
 if [ -z "$KMS_KEY_ID" ]; then
     echo "❌ Error: KMS key not found in Terraform state"
-    cd ..
+    cd ../..
     exit 1
 fi
 echo "   KMS Key ID: $KMS_KEY_ID"
 
-# Verify KMS key exists in localstack
+# Verify KMS key exists in durable localstack
 if ! aws kms describe-key --key-id "$KMS_KEY_ID" --endpoint-url http://localhost:4566 --region us-east-1 &>/dev/null; then
     echo "❌ Error: KMS key not found in localstack"
-    cd ..
+    cd ../..
     exit 1
 fi
 echo "✅ KMS key configured and accessible"
-cd ..
+cd ../..
 echo ""
 
 # Test Secrets Manager Configuration
 echo "[4/8] Verifying Secrets Manager secret..."
-SECRET_NAME=$(cd terraform && terraform output -raw secret_name 2>/dev/null || echo "")
+SECRET_NAME=$(cd durable/terraform && terraform output -raw secret_name 2>/dev/null || echo "")
 if [ -z "$SECRET_NAME" ]; then
     echo "❌ Error: Secret name not found in Terraform state"
     exit 1

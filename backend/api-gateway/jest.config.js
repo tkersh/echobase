@@ -18,6 +18,12 @@ module.exports = {
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  coverageReporters: [
+    'text',
+    'lcov',
+    'cobertura',
+    'html',
+  ],
   reporters: [
     'default',
     ['jest-junit', {
