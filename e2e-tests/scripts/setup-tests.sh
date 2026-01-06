@@ -9,11 +9,17 @@ echo "========================================="
 echo "Setting up E2E Test Environment"
 echo "========================================="
 
+# Constants
+readonly MAX_SERVICE_RETRIES=30
+readonly HEALTH_CHECK_INTERVAL_SECS=2
+readonly DEFAULT_WEB_URL="https://localhost:3443"
+readonly DEFAULT_API_URL="https://localhost:3001"
+
 # Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly RED='\033[0;31m'
+readonly NC='\033[0m' # No Color
 
 # Function to print colored output
 print_success() {
@@ -26,6 +32,33 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}✗ $1${NC}"
+}
+
+# Function to parse JSON (uses jq if available, falls back to grep)
+parse_json_field() {
+    local json="$1"
+    local field="$2"
+
+    if command -v jq &> /dev/null; then
+        echo "$json" | jq -r ".$field" 2>/dev/null || echo ""
+    else
+        # Fallback to grep for systems without jq
+        echo "$json" | grep -o "\"$field\":\"[^\"]*\"" | cut -d'"' -f4
+    fi
+}
+
+# Function to handle service health check failures
+fail_service_health_check() {
+    local service_name="$1"
+    local container_name="${2:-}"
+
+    print_error "$service_name failed to become healthy after ${MAX_SERVICE_RETRIES} attempts"
+
+    if [ -n "$container_name" ]; then
+        print_error "Check logs: docker logs $container_name"
+    fi
+
+    exit 1
 }
 
 # Check if Docker is running
@@ -73,12 +106,19 @@ if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localst
         --output text 2>/dev/null)
 
     if [ -n "$SECRET_JSON" ]; then
-        MYSQL_USER=$(echo "$SECRET_JSON" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+        MYSQL_USER=$(parse_json_field "$SECRET_JSON" "username")
         export MYSQL_USER
-        MYSQL_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
+        MYSQL_PASSWORD=$(parse_json_field "$SECRET_JSON" "password")
         export MYSQL_PASSWORD
-        MYSQL_DATABASE=$(echo "$SECRET_JSON" | grep -o '"dbname":"[^"]*"' | cut -d'"' -f4)
+        MYSQL_DATABASE=$(parse_json_field "$SECRET_JSON" "dbname")
         export MYSQL_DATABASE
+
+        # Validate extracted credentials
+        if [ -z "$MYSQL_USER" ] || [ -z "$MYSQL_PASSWORD" ] || [ -z "$MYSQL_DATABASE" ]; then
+            print_error "Failed to parse credentials from Secrets Manager"
+            exit 1
+        fi
+
         # For root access, fall back to credentials file
         if [ -f "durable/.credentials.devlocal" ]; then
             MYSQL_ROOT_PASSWORD=$(grep MYSQL_ROOT_PASSWORD durable/.credentials.devlocal | cut -d'=' -f2)
@@ -86,6 +126,13 @@ if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localst
         fi
         print_success "Retrieved database credentials from Secrets Manager"
     else
+        # In CI environment, Secrets Manager is required
+        if [ "${CI:-false}" = "true" ]; then
+            print_error "Secrets Manager is required in CI environment"
+            print_error "Cannot fall back to credentials file in CI"
+            exit 1
+        fi
+
         print_warning "Could not retrieve credentials from Secrets Manager, falling back to credentials file"
         if [ -f "durable/.credentials.devlocal" ]; then
             set -a
@@ -94,6 +141,12 @@ if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localst
         fi
     fi
 else
+    # In CI environment, durable LocalStack must be running
+    if [ "${CI:-false}" = "true" ]; then
+        print_error "Durable LocalStack is required in CI environment"
+        exit 1
+    fi
+
     print_warning "Durable LocalStack not running, falling back to credentials file"
     if [ -f "durable/.credentials.devlocal" ]; then
         set -a
@@ -128,45 +181,43 @@ print_success "Application services started"
 echo ""
 echo "Waiting for services to be healthy..."
 
+# Configure service URLs (can be overridden by environment)
+API_URL="${API_BASE_URL:-$DEFAULT_API_URL}"
+WEB_URL="${WEB_BASE_URL:-$DEFAULT_WEB_URL}"
+
 # Wait for database (in durable infrastructure)
 echo "Waiting for database..."
 RETRY_COUNT=0
-MAX_RETRIES=30
 until docker exec echobase-devlocal-durable-mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        print_error "Database failed to become healthy after ${MAX_RETRIES} attempts"
-        print_error "Container: echobase-devlocal-durable-mariadb"
-        docker ps --filter "name=echobase-durable"
-        exit 1
+    if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
+        fail_service_health_check "Database" "echobase-devlocal-durable-mariadb"
     fi
-    sleep 2
+    sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
 print_success "Database is ready"
 
 # Wait for API Gateway
-echo "Waiting for API Gateway..."
+echo "Waiting for API Gateway (${API_URL})..."
 RETRY_COUNT=0
-until curl -k -s https://localhost:3001/health > /dev/null 2>&1; do
+until curl -k -s "${API_URL}/health" > /dev/null 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        print_error "API Gateway failed to become healthy after ${MAX_RETRIES} attempts"
-        exit 1
+    if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
+        fail_service_health_check "API Gateway" "echobase-devlocal-api-gateway"
     fi
-    sleep 2
+    sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
 print_success "API Gateway is ready"
 
 # Wait for Frontend
-echo "Waiting for Frontend..."
+echo "Waiting for Frontend (${WEB_URL})..."
 RETRY_COUNT=0
-until curl -k -s https://localhost:3443 > /dev/null 2>&1; do
+until curl -k -s "${WEB_URL}" > /dev/null 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-        print_error "Frontend failed to become healthy after ${MAX_RETRIES} attempts"
-        exit 1
+    if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
+        fail_service_health_check "Frontend" "echobase-devlocal-frontend"
     fi
-    sleep 2
+    sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
 print_success "Frontend is ready"
 
@@ -208,10 +259,13 @@ echo "Exporting test configuration for Playwright tests..."
 
 # Read existing .env and preserve non-DB variables
 if [ -f ".env" ]; then
-    # Create a backup
-    cp .env .env.backup
-    # Remove old auto-generated variables if they exist
-    grep -v "^DB_USER=" .env | grep -v "^DB_PASSWORD=" | grep -v "^WEB_BASE_URL=" > .env.tmp
+    # Create timestamped backup to avoid overwriting previous backups
+    BACKUP_FILE=".env.backup.$(date +%s)"
+    cp .env "$BACKUP_FILE"
+    echo "Created backup: $BACKUP_FILE"
+
+    # Remove old auto-generated variables if they exist (including deprecated FRONTEND_BASE_URL)
+    grep -v "^DB_USER=" .env | grep -v "^DB_PASSWORD=" | grep -v "^WEB_BASE_URL=" | grep -v "^FRONTEND_BASE_URL=" > .env.tmp
     mv .env.tmp .env
 fi
 
@@ -222,7 +276,7 @@ echo "DB_USER=${MYSQL_USER}" >> .env
 echo "DB_PASSWORD=${MYSQL_PASSWORD}" >> .env
 echo "" >> .env
 echo "# Test URLs (auto-generated by setup-tests.sh)" >> .env
-echo "WEB_BASE_URL=https://localhost:3443" >> .env
+echo "WEB_BASE_URL=${WEB_URL}" >> .env
 
 print_success "Test configuration exported to e2e-tests/.env"
 cd ..
@@ -232,8 +286,8 @@ echo ""
 echo "========================================="
 echo "Environment Ready!"
 echo "========================================="
-echo "Frontend:     https://localhost:3443"
-echo "API Gateway:  https://localhost:3001"
+echo "Frontend:     ${WEB_URL}"
+echo "API Gateway:  ${API_URL}"
 echo "Database:     localhost:3306"
 echo ""
 echo "Run tests with:"

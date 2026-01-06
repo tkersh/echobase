@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="15" failures="4" errors="0" time="3.87">
+  <testsuite name="SQS Security Tests" errors="0" failures="4" skipped="0" timestamp="2026-01-05T23:18:16" time="3.418" tests="15">
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with invalid AWS credentials" time="0.075">
+      <failure>Error: expect(received).toMatch(expected)
+
+Expected pattern: /AccessDenied|InvalidClientTokenId|SignatureDoesNotMatch|QueueDoesNotExist|Error/
+Received string:  &quot;InternalFailure&quot;
+    at Object.toMatch (/Users/tadk/work/echobase/backend/api-gateway/__tests__/sqs-security.test.js:65:28)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with missing credentials" time="0.043">
+      <failure>Error: expect(received).toMatch(expected)
+
+Expected pattern: /MissingCredentials|AccessDenied|InvalidClientTokenId|QueueDoesNotExist|Error/
+Received string:  &quot;InternalFailure&quot;
+    at Object.toMatch (/Users/tadk/work/echobase/backend/api-gateway/__tests__/sqs-security.test.js:97:28)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with expired credentials" time="0.035">
+      <failure>Error: expect(received).toMatch(expected)
+
+Expected pattern: /ExpiredToken|AccessDenied|QueueDoesNotExist|Error/
+Received string:  &quot;InternalFailure&quot;
+    at Object.toMatch (/Users/tadk/work/echobase/backend/api-gateway/__tests__/sqs-security.test.js:128:28)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to non-existent queue" time="0.018">
+    </testcase>
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to queue in different account" time="0.014">
+    </testcase>
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject malformed queue URLs" time="0.055">
+    </testcase>
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should handle malicious message content safely" time="0.057">
+    </testcase>
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should reject oversized messages" time="0.039">
+      <failure>Error: expect(received).toMatch(expected)
+
+Expected pattern: /MessageTooLong|InvalidParameterValue|QueueDoesNotExist|Error/
+Received string:  &quot;InternalFailure&quot;
+    at Object.toMatch (/Users/tadk/work/echobase/backend/api-gateway/__tests__/sqs-security.test.js:278:28)
+    at processTicksAndRejections (node:internal/process/task_queues:105:5)</failure>
+    </testcase>
+    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should verify queue exists and is accessible with valid credentials" time="0.035">
+    </testcase>
+    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should not allow unauthorized actions" time="0.021">
+    </testcase>
+    <testcase classname="SQS Security Tests › 5. Rate Limiting and Throttling" name="should handle burst of messages without data loss" time="2.259">
+    </testcase>
+    <testcase classname="SQS Security Tests › 6. Dead Letter Queue (DLQ) Security" name="should verify DLQ configuration for failed messages" time="0.082">
+    </testcase>
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow deletion of messages without proper receipt handle" time="0.013">
+    </testcase>
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow message tampering via visibility timeout" time="0.019">
+    </testcase>
+    <testcase classname="SQS Security Tests › 8. Encryption and Data Protection" name="should verify queue encryption settings" time="0.017">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -12,17 +12,18 @@ module.exports = {
     '/coverage/',
     '/__tests__/',
   ],
-  testTimeout: 10000, // 10 seconds default timeout
+  // Test timeout configurable via JEST_TIMEOUT env var (default: 15s for network operations)
+  testTimeout: process.env.JEST_TIMEOUT ? parseInt(process.env.JEST_TIMEOUT, 10) : 15000,
   verbose: true,
   forceExit: true,
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+  // Coverage reporters: text for console, lcov for CI/codecov integration
+  // Note: html and cobertura removed to speed up tests - add back if needed
   coverageReporters: [
     'text',
     'lcov',
-    'cobertura',
-    'html',
   ],
   reporters: [
     'default',
