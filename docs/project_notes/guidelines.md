@@ -18,3 +18,11 @@ Lessons learned from past bugs - check these before modifying related code.
 - **Single-quote arguments passed through `sh -c`**: When building commands for `docker exec ... sh -c "cmd $args"`, single-quote each argument to prevent shell interpretation of special characters like `\n`, `$`, backticks.
 - **Use `"$@"` not `$*`**: `"$@"` preserves argument boundaries; `$*` joins them with spaces, losing structure.
 - **Test escape sequences end-to-end**: If using curl's `-w "\n%{http_code}"` or similar, verify the newline actually appears in output when run through the full command pipeline.
+
+---
+
+## Logging and Diagnostics
+
+- **Always add logging for failure diagnostics**: When adding anything to core code or supporting infrastructure (scripts, CI jobs, services), include appropriate logging that will help diagnose failures. This includes: input values, intermediate states, error messages with context, and exit codes.
+- **Log before and after critical operations**: For operations that can fail (API calls, database operations, file operations), log what you're about to do and whether it succeeded or failed.
+- **Include context in error messages**: Don't just log "failed" - include what was being attempted, what values were involved, and any error details returned.

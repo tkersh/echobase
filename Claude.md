@@ -583,6 +583,10 @@ This project maintains institutional knowledge in `docs/project_notes/` for cons
 - Read `docs/project_notes/guidelines.md` first
 - These capture lessons learned about endpoint routing, network modes, shell escaping, and Origin header requirements
 
+**When adding new code or infrastructure:**
+- Always include appropriate logging for failure diagnostics
+- See `docs/project_notes/guidelines.md` "Logging and Diagnostics" section
+
 **When encountering errors or bugs:**
 - Search `docs/project_notes/bugs.md` for similar issues
 - Apply known solutions if found
