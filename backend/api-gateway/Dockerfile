@@ -1,7 +1,7 @@
 FROM echobase-node-base:latest
 
 # Build metadata
-ARG GIT_SHA=unknown
+ARG GIT_SHORT_SHA=unknown
 ARG BUILD_DATE=unknown
 
 WORKDIR /app
@@ -10,7 +10,7 @@ WORKDIR /app
 COPY api-gateway/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Run security audit
 RUN npm audit --omit=dev --audit-level=high
@@ -20,7 +20,7 @@ COPY api-gateway/ ./
 COPY shared/ ../shared/
 
 # Store build metadata
-RUN echo "{\"gitSha\":\"${GIT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"api-gateway\"}" > /app/build-metadata.json
+RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"api-gateway\"}" > /app/build-metadata.json
 
 # Ensure SSL certificates are present (will be copied from api-gateway/)
 # Certificates should be in api-gateway/ssl/ directory

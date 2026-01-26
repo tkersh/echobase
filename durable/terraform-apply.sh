@@ -50,21 +50,34 @@ else
     exit 1
 fi
 
-# Load database credentials from credentials file
-CREDENTIALS_FILE="durable/.credentials.${ENVIRONMENT}"
-if [ ! -f "$CREDENTIALS_FILE" ]; then
-    echo "ERROR: Credentials file not found: $CREDENTIALS_FILE"
+# Check if credentials are provided via environment variables (from setup.sh)
+if [ -z "$MYSQL_USER" ] || [ -z "$MYSQL_PASSWORD" ] || [ -z "$MYSQL_DATABASE" ] || [ -z "$MYSQL_ROOT_PASSWORD" ]; then
+    echo "ERROR: Database credentials not provided"
+    echo "Required environment variables: MYSQL_USER, MYSQL_PASSWORD, MYSQL_DATABASE, MYSQL_ROOT_PASSWORD"
     echo "Please run: ./durable/setup.sh ${ENVIRONMENT}"
     exit 1
 fi
 
-echo "Loading database credentials from ${CREDENTIALS_FILE}..."
-# shellcheck source=/dev/null
-source "$CREDENTIALS_FILE"
+# Check if encryption key is provided
+if [ -z "$DB_ENCRYPTION_KEY" ]; then
+    echo "ERROR: Database encryption key not provided"
+    echo "Required environment variable: DB_ENCRYPTION_KEY"
+    echo "Please run: ./durable/setup.sh ${ENVIRONMENT}"
+    exit 1
+fi
+
+echo ""
+echo "DEBUG: terraform-apply.sh received credentials:"
+echo "  MYSQL_USER=$MYSQL_USER"
+echo "  MYSQL_DATABASE=$MYSQL_DATABASE"
+echo "  MYSQL_PASSWORD (first 8 chars)=${MYSQL_PASSWORD:0:8}..."
+echo "  MYSQL_ROOT_PASSWORD (first 8 chars)=${MYSQL_ROOT_PASSWORD:0:8}..."
+echo ""
 
 DB_USER=$MYSQL_USER
 DB_PASSWORD=$MYSQL_PASSWORD
 DB_NAME=$MYSQL_DATABASE
+DB_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
 
 echo "Database credentials loaded successfully"
 
@@ -128,6 +141,11 @@ done
 
 cd durable/terraform
 
+# Use environment-specific state file to prevent cross-contamination
+# This ensures devlocal and ci maintain separate Terraform state
+STATE_FILE="terraform.tfstate.${ENVIRONMENT}"
+echo "Using environment-specific state file: ${STATE_FILE}"
+
 echo "Initializing Terraform..."
 terraform init
 
@@ -156,10 +174,21 @@ export TF_VAR_aws_secret_access_key=${AWS_SECRET_ACCESS_KEY}
 export TF_VAR_localstack_endpoint=${LOCALSTACK_ENDPOINT}
 export TF_VAR_db_user=${DB_USER}
 export TF_VAR_db_password=${DB_PASSWORD}
+export TF_VAR_db_root_password=${DB_ROOT_PASSWORD}
 export TF_VAR_db_host=${DURABLE_CONTAINER_PREFIX}-mariadb
 export TF_VAR_db_port=3306
 export TF_VAR_db_name=${DB_NAME}
 export TF_VAR_environment=${ENVIRONMENT}
+export TF_VAR_db_encryption_key=${DB_ENCRYPTION_KEY}
+
+echo ""
+echo "DEBUG: Terraform variables being passed:"
+echo "  TF_VAR_db_user=${TF_VAR_db_user}"
+echo "  TF_VAR_db_name=${TF_VAR_db_name}"
+echo "  TF_VAR_db_password (first 8 chars)=${TF_VAR_db_password:0:8}..."
+echo "  TF_VAR_db_root_password (first 8 chars)=${TF_VAR_db_root_password:0:8}..."
+echo "  TF_VAR_db_encryption_key (first 8 chars)=${TF_VAR_db_encryption_key:0:8}..."
+echo ""
 
 echo ""
 echo "=== Terraform Variable Check ==="
@@ -173,7 +202,7 @@ echo "================================"
 echo ""
 
 echo "Applying Terraform configuration..."
-terraform apply -auto-approve
+terraform apply -auto-approve -state="${STATE_FILE}"
 
 cd ../..
 

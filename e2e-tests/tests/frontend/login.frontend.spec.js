@@ -48,7 +48,12 @@ test.describe('User Login Frontend Tests', () => {
     // Now login via UI
     await page.fill('input[name="username"]', userData.username);
     await page.fill('input[name="password"]', userData.password);
-    await page.click('button[type="submit"]');
+
+    // Wait for navigation after clicking submit
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 10000 }),
+      page.click('button[type="submit"]')
+    ]);
 
     // Should redirect to orders page
     await expect(page).toHaveURL(/\/orders/);
@@ -95,7 +100,12 @@ test.describe('User Login Frontend Tests', () => {
     // Login
     await page.fill('input[name="username"]', userData.username);
     await page.fill('input[name="password"]', userData.password);
-    await page.click('button[type="submit"]');
+
+    // Wait for navigation after clicking submit
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 10000 }),
+      page.click('button[type="submit"]')
+    ]);
 
     await expect(page).toHaveURL(/\/orders/);
 
@@ -139,7 +149,12 @@ test.describe('User Login Frontend Tests', () => {
 
     await page.fill('input[name="username"]', userData.username);
     await page.fill('input[name="password"]', userData.password);
-    await page.click('button[type="submit"]');
+
+    // Wait for navigation after clicking submit
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 10000 }),
+      page.click('button[type="submit"]')
+    ]);
 
     await expect(page).toHaveURL(/\/orders/);
 

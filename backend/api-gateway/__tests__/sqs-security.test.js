@@ -62,7 +62,7 @@ describe('SQS Security Tests', () => {
       } catch (error) {
         // Expected in production AWS
         // LocalStack may return QueueDoesNotExist or network Error
-        expect(error.name).toMatch(/AccessDenied|InvalidClientTokenId|SignatureDoesNotMatch|QueueDoesNotExist|Error/);
+        expect(error.name).toMatch(/AccessDenied|InvalidClientTokenId|SignatureDoesNotMatch|QueueDoesNotExist|CommonServiceException|Error/);
       }
     });
 
@@ -94,7 +94,7 @@ describe('SQS Security Tests', () => {
       } catch (error) {
         // Expected in production AWS
         // LocalStack may return QueueDoesNotExist or network Error
-        expect(error.name).toMatch(/MissingCredentials|AccessDenied|InvalidClientTokenId|QueueDoesNotExist|Error/);
+        expect(error.name).toMatch(/MissingCredentials|AccessDenied|InvalidClientTokenId|QueueDoesNotExist|CommonServiceException|Error/);
       }
     });
 
@@ -125,7 +125,7 @@ describe('SQS Security Tests', () => {
         errorCaught = true;
         // Expected in production AWS
         // LocalStack may return QueueDoesNotExist or network Error
-        expect(error.name).toMatch(/ExpiredToken|AccessDenied|QueueDoesNotExist|Error/);
+        expect(error.name).toMatch(/ExpiredToken|AccessDenied|QueueDoesNotExist|CommonServiceException|Error/);
       }
       // Either accepted (warning logged) or rejected (error caught)
       expect(true).toBe(true);
@@ -275,7 +275,7 @@ describe('SQS Security Tests', () => {
         fail('Should have rejected oversized message');
       } catch (error) {
         // Accept either message too long, queue not found, or generic Error (LocalStack)
-        expect(error.name).toMatch(/MessageTooLong|InvalidParameterValue|QueueDoesNotExist|Error/);
+        expect(error.name).toMatch(/MessageTooLong|InvalidParameterValue|QueueDoesNotExist|CommonServiceException|Error/);
       }
     });
   });

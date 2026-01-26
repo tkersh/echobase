@@ -1,5 +1,6 @@
-# Blue-Green Deployment Configuration
-# This file is managed by CI/CD - do not edit manually
+# Blue-Green Deployment Configuration Template
+# This template is processed by generate-nginx-config.sh
+# Variables: {{ACTIVE_BACKEND}}, {{ACTIVE_FRONTEND}}
 
 # DNS resolver for dynamic upstream resolution
 # This allows nginx to start even if upstreams don't exist yet
@@ -7,7 +8,7 @@ resolver 127.0.0.11 valid=10s ipv6=off;
 resolver_timeout 5s;
 
 # Active environment marker (updated by CI/CD)
-# ACTIVE_ENVIRONMENT=blue
+# ACTIVE_ENVIRONMENT={{ACTIVE_ENV}}
 
 # Main frontend proxy (port 443)
 server {
@@ -16,24 +17,22 @@ server {
     server_name localhost;
 
     # Enable dynamic upstream resolution
-    set $backend_blue "echobase-blue-api-gateway:3001";
-    set $frontend_blue "echobase-blue-frontend:443";
+    set $backend_{{ACTIVE_ENV}} "echobase-{{ACTIVE_ENV}}-api-gateway:3001";
+    set $frontend_{{ACTIVE_ENV}} "echobase-{{ACTIVE_ENV}}-frontend:443";
 
     ssl_certificate /etc/ssl/localhost.crt;
     ssl_certificate_key /etc/ssl/localhost.key;
 
     # Active environment endpoint - returns which environment is currently active
-    # Returns "none" in bootstrap state (no environment promoted yet)
-    # Updated by CI/CD when traffic is switched
+    # Used by CI/CD scripts to query nginx as the source of truth
     location = /.active-env {
         default_type text/plain;
-        return 200 "none";
+        return 200 "{{ACTIVE_ENV}}";
     }
 
-    # Route to active environment (blue by default)
-    # This will be updated by CI/CD automation
+    # Route to active environment
     location / {
-        proxy_pass https://$frontend_blue;
+        proxy_pass https://$frontend_{{ACTIVE_ENV}};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -45,7 +44,7 @@ server {
     }
 
     location /api/ {
-        proxy_pass https://$backend_blue;
+        proxy_pass https://$backend_{{ACTIVE_ENV}};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -56,7 +55,7 @@ server {
 
     # Health check endpoint
     location /health {
-        proxy_pass https://$backend_blue/health;
+        proxy_pass https://$backend_{{ACTIVE_ENV}}/health;
         proxy_ssl_verify off;
     }
 }

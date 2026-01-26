@@ -28,6 +28,11 @@ services:
       - durable-network
     ports:
       - "${DURABLE_LOCALSTACK_PORT:-4566}:4566"  # Dev-local: 4566, CI: 4567
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=localstack"
+      - "echobase.port=${DURABLE_LOCALSTACK_PORT:-4566}"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
       interval: 5s
@@ -47,12 +52,26 @@ services:
       - MYSQL_DATABASE=${MYSQL_DATABASE}
       - MYSQL_USER=${MYSQL_USER}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      # AWS credentials for fetching encryption key from Secrets Manager
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # Secrets Manager endpoint (durable LocalStack)
+      - SECRETS_MANAGER_ENDPOINT=http://${DURABLE_CONTAINER_PREFIX:-echobase-durable}-localstack:4566
     volumes:
       - mariadb-data:/var/lib/mysql
     networks:
       - durable-network
     ports:
       - "${DURABLE_DB_PORT:-3306}:3306"
+    depends_on:
+      localstack:
+        condition: service_healthy
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=mariadb"
+      - "echobase.port=${DURABLE_DB_PORT:-3306}"
     healthcheck:
       test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       interval: 3s
@@ -61,11 +80,45 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  nginx:
+    build:
+      context: ..
+      dockerfile: durable/nginx/Dockerfile
+    image: echobase-nginx:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-nginx
+    volumes:
+      - nginx-config:/etc/nginx/conf.d  # Persist nginx config across restarts
+    networks:
+      - durable-network  # Blue and green connect to durable-network, so nginx can reach them
+    ports:
+      - "${DURABLE_NGINX_HTTP_PORT:-80}:80"      # Dev-local: 80, CI: 180
+      - "${DURABLE_NGINX_HTTPS_PORT:-443}:443"   # Dev-local: 443, CI: 1443
+      - "${DURABLE_NGINX_BLUE_PORT:-8080}:8080"  # Dev-local: 8080, CI: 8180
+      - "${DURABLE_NGINX_GREEN_PORT:-8081}:8081" # Dev-local: 8081, CI: 8181
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=nginx"
+      - "echobase.nginx.http_port=${DURABLE_NGINX_HTTP_PORT:-80}"
+      - "echobase.nginx.https_port=${DURABLE_NGINX_HTTPS_PORT:-443}"
+      - "echobase.nginx.blue_port=${DURABLE_NGINX_BLUE_PORT:-8080}"
+      - "echobase.nginx.green_port=${DURABLE_NGINX_GREEN_PORT:-8081}"
+    depends_on:
+      - localstack
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
 volumes:
   localstack-data:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-localstack-data
   mariadb-data:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-mariadb-data
+  nginx-config:
+    name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-nginx-config
 
 networks:
   durable-network:

@@ -1,82 +1,82 @@
-# Green Environment Configuration
-# Extends docker-compose.yml for green environment (canary deployment)
-# Usage: docker-compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green up -d
+# Blue Environment Configuration
+# Extends docker-compose.yml for blue environment (production/staging deployment)
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.blue.yml -p echobase-blue up -d
 #
 # NOTE: Base docker-compose.yml has no port mappings. Port definitions are in:
 #   - docker-compose.override.yml (devlocal ports, auto-loaded locally)
-#   - docker-compose.ci-blue.yml (CI blue ports, explicit in CI)
+#   - docker-compose.blue.yml (CI blue ports, explicit in CI)
 #   - docker-compose.green.yml (green ports, explicit in CI)
 # This allows all three environments to run simultaneously without conflicts.
 #
-# IMPORTANT: The green environment connects to the CI durable database.
+# IMPORTANT: The blue environment connects to the CI durable database.
 # Before starting, ensure the CI durable infrastructure is running:
 #   ./durable/setup.sh ci
 
 services:
   localstack:
     ports:
-      - "4666:4566"  # CI Green ephemeral LocalStack (SQS, logs)
-      - "4671:4571"
-    container_name: echobase-green-localstack
+      - "4667:4566"  # CI Blue ephemeral LocalStack (SQS, logs)
+      - "4672:4571"
+    container_name: echobase-blue-localstack
     labels:
       - "echobase.role=ephemeral"
-      - "echobase.env=green"
+      - "echobase.env=blue"
       - "echobase.service=localstack"
 
   api-gateway:
     ports:
-      - "3101:3001"  # CI Green API Gateway
-    container_name: echobase-green-api-gateway
+      - "3102:3001"  # CI Blue API Gateway
+    container_name: echobase-blue-api-gateway
     environment:
-      - DEPLOYMENT_COLOR=green
+      - DEPLOYMENT_COLOR=blue
       # Include both external (localhost) and internal (container name) origins for CORS
-      # Include nginx LB ports (1443 HTTPS, 8181 green direct), direct frontend port (3543), and internal container names
-      - CORS_ORIGIN=https://localhost:1443,http://localhost:8181,https://localhost:3543,https://echobase-green-frontend:443,https://echobase-green-frontend
-      # Use green ephemeral LocalStack for SQS (created by Terraform in this environment)
-      - SQS_ENDPOINT=http://echobase-green-localstack:4566
+      # Include nginx LB ports (1443 HTTPS, 8180 blue direct), direct frontend port (3544), and internal container names
+      - CORS_ORIGIN=https://localhost:1443,http://localhost:8180,https://localhost:3544,https://echobase-blue-frontend:443,https://echobase-blue-frontend
+      # Use blue ephemeral LocalStack for SQS (created by Terraform in this environment)
+      - SQS_ENDPOINT=http://echobase-blue-localstack:4566
       # SQS Queue URL must use container name for internal container-to-container communication
-      - SQS_QUEUE_URL=http://echobase-green-localstack:4566/000000000000/order-processing-queue
+      - SQS_QUEUE_URL=http://echobase-blue-localstack:4566/000000000000/order-processing-queue
       # Use CI durable LocalStack for Secrets Manager (KMS, credentials - persist across deployments)
       - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
       # Use CI durable MariaDB (correct hostname for CI environment)
       - DB_HOST=echobase-ci-durable-mariadb
     labels:
       - "echobase.role=ephemeral"
-      - "echobase.env=green"
+      - "echobase.env=blue"
       - "echobase.service=api-gateway"
 
   frontend:
     ports:
-      - "3100:80"    # CI Green Frontend HTTP
-      - "3543:443"   # CI Green Frontend HTTPS
-    container_name: echobase-green-frontend
+      - "3200:80"    # CI Blue Frontend HTTP
+      - "3544:443"   # CI Blue Frontend HTTPS
+    container_name: echobase-blue-frontend
     environment:
-      - DEPLOYMENT_COLOR=green
+      - DEPLOYMENT_COLOR=blue
     labels:
       - "echobase.role=ephemeral"
-      - "echobase.env=green"
+      - "echobase.env=blue"
       - "echobase.service=frontend"
 
   order-processor:
-    container_name: echobase-green-order-processor
+    container_name: echobase-blue-order-processor
     environment:
-      - DEPLOYMENT_COLOR=green
-      # Use green ephemeral LocalStack for SQS (created by Terraform in this environment)
-      - SQS_ENDPOINT=http://echobase-green-localstack:4566
+      - DEPLOYMENT_COLOR=blue
+      # Use blue ephemeral LocalStack for SQS (created by Terraform in this environment)
+      - SQS_ENDPOINT=http://echobase-blue-localstack:4566
       # SQS Queue URL must use container name for internal container-to-container communication
-      - SQS_QUEUE_URL=http://echobase-green-localstack:4566/000000000000/order-processing-queue
+      - SQS_QUEUE_URL=http://echobase-blue-localstack:4566/000000000000/order-processing-queue
       # Use CI durable LocalStack for Secrets Manager (KMS, credentials - persist across deployments)
       - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
       # Use CI durable MariaDB (correct hostname for CI environment)
       - DB_HOST=echobase-ci-durable-mariadb
     labels:
       - "echobase.role=ephemeral"
-      - "echobase.env=green"
+      - "echobase.env=blue"
       - "echobase.service=order-processor"
 
 networks:
   echobase-network:
-    name: echobase-green-network
+    name: echobase-blue-network
   durable-network:
     external: true
     name: echobase-ci-durable-network

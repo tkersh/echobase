@@ -2,7 +2,7 @@
 FROM echobase-node-base:latest AS build
 
 # Build metadata
-ARG GIT_SHA=unknown
+ARG GIT_SHORT_SHA=unknown
 ARG BUILD_DATE=unknown
 
 WORKDIR /app
@@ -22,14 +22,17 @@ COPY . .
 # Build the application
 RUN npm run build
 
+# Inject git SHA into HTML comment for version identification
+RUN sed -i "s/__GIT_SHORT_SHA__/${GIT_SHORT_SHA}/g" /app/dist/index.html
+
 # Store build metadata in dist
-RUN echo "{\"gitSha\":\"${GIT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"frontend\"}" > /app/dist/build-metadata.json
+RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"frontend\"}" > /app/dist/build-metadata.json
 
 # Production stage
 FROM nginx:alpine
 
 # Build metadata (pass through from build stage)
-ARG GIT_SHA=unknown
+ARG GIT_SHORT_SHA=unknown
 ARG BUILD_DATE=unknown
 
 # Copy built assets from build stage

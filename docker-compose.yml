@@ -18,6 +18,10 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
     networks:
       - echobase-network
+    labels:
+      - "echobase.role=ephemeral"
+      - "echobase.env=devlocal"
+      - "echobase.service=localstack"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:4566/_localstack/health"]
       interval: 5s
@@ -31,7 +35,7 @@ services:
       context: ./backend
       dockerfile: api-gateway/Dockerfile
       args:
-        - GIT_SHA=${GIT_SHA:-unknown}
+        - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-api-gateway:latest
     environment:
@@ -53,6 +57,10 @@ services:
     networks:
       - echobase-network
       - durable-network
+    labels:
+      - "echobase.role=ephemeral"
+      - "echobase.env=devlocal"
+      - "echobase.service=api-gateway"
     restart: unless-stopped
     # Healthcheck defined in Dockerfile (uses Node.js, more reliable)
 
@@ -62,7 +70,7 @@ services:
       context: ./backend
       dockerfile: order-processor/Dockerfile
       args:
-        - GIT_SHA=${GIT_SHA:-unknown}
+        - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-order-processor:latest
     environment:
@@ -84,6 +92,10 @@ services:
     networks:
       - echobase-network
       - durable-network
+    labels:
+      - "echobase.role=ephemeral"
+      - "echobase.env=devlocal"
+      - "echobase.service=order-processor"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "pgrep", "-f", "node"]
@@ -98,7 +110,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - GIT_SHA=${GIT_SHA:-unknown}
+        - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-frontend:latest
     environment:
@@ -108,6 +120,11 @@ services:
         condition: service_healthy
     networks:
       - echobase-network
+      - durable-network  # Required for nginx load balancer to reach frontend
+    labels:
+      - "echobase.role=ephemeral"
+      - "echobase.env=devlocal"
+      - "echobase.service=frontend"
     restart: unless-stopped
     # Healthcheck defined in Dockerfile (uses wget, more reliable)
 

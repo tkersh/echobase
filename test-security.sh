@@ -2,12 +2,27 @@
 
 # Security Test Runner for Echobase
 # This script runs all security tests to verify no unauthorized access
+#
+# Usage: ./test-security.sh [devlocal|ci]
+#   If no environment specified, auto-detects which is running.
 
 set -e
 
 echo "======================================"
 echo "Echobase Security Test Suite"
 echo "======================================"
+echo ""
+
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Detect environment
+echo "[0/8] Detecting environment..."
+# shellcheck source=scripts/detect-env.sh
+if ! source "$SCRIPT_DIR/scripts/detect-env.sh" "${1:-}"; then
+    exit 1
+fi
+echo "Using environment: $DURABLE_ENV"
 echo ""
 
 # Check if Docker containers are running
@@ -37,15 +52,17 @@ source .env
 
 # Test KMS Key Configuration
 echo "[3/8] Verifying KMS encryption key..."
-KMS_KEY_ID=$(cd durable/terraform && terraform output -raw kms_key_id 2>/dev/null || echo "")
+# Use environment-specific state file
+TF_STATE_FILE="terraform.tfstate.${DURABLE_ENV}"
+KMS_KEY_ID=$(cd durable/terraform && terraform output -state="$TF_STATE_FILE" -raw kms_key_id 2>/dev/null || echo "")
 if [ -z "$KMS_KEY_ID" ]; then
-    echo "❌ Error: KMS key not found in Terraform state"
+    echo "❌ Error: KMS key not found in Terraform state ($TF_STATE_FILE)"
     exit 1
 fi
 echo "   KMS Key ID: $KMS_KEY_ID"
 
 # Verify KMS key exists in durable localstack
-if ! aws kms describe-key --key-id "$KMS_KEY_ID" --endpoint-url http://localhost:4566 --region us-east-1 &>/dev/null; then
+if ! aws kms describe-key --key-id "$KMS_KEY_ID" --endpoint-url "http://localhost:${DURABLE_LOCALSTACK_PORT}" --region us-east-1 &>/dev/null; then
     echo "❌ Error: KMS key not found in localstack"
     exit 1
 fi
@@ -54,7 +71,7 @@ echo ""
 
 # Test Secrets Manager Configuration
 echo "[4/8] Verifying Secrets Manager secret..."
-SECRET_NAME=$(cd durable/terraform && terraform output -raw secret_name 2>/dev/null || echo "")
+SECRET_NAME=$(cd durable/terraform && terraform output -state="$TF_STATE_FILE" -raw secret_name 2>/dev/null || echo "")
 if [ -z "$SECRET_NAME" ]; then
     echo "❌ Error: Secret name not found in Terraform state"
     exit 1
@@ -62,7 +79,7 @@ fi
 echo "   Secret Name: $SECRET_NAME"
 
 # Verify secret exists and is encrypted with KMS
-SECRET_INFO=$(aws secretsmanager describe-secret --secret-id "$SECRET_NAME" --endpoint-url http://localhost:4566 --region us-east-1 2>/dev/null || echo "")
+SECRET_INFO=$(aws secretsmanager describe-secret --secret-id "$SECRET_NAME" --endpoint-url "http://localhost:${DURABLE_LOCALSTACK_PORT}" --region us-east-1 2>/dev/null || echo "")
 if [ -z "$SECRET_INFO" ]; then
     echo "❌ Error: Secret not found in Secrets Manager"
     exit 1
@@ -80,7 +97,7 @@ echo ""
 
 # Test Secret Contents
 echo "[5/8] Verifying secret contains database credentials..."
-SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --endpoint-url http://localhost:4566 --region us-east-1 --query SecretString --output text 2>/dev/null || echo "")
+SECRET_VALUE=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --endpoint-url "http://localhost:${DURABLE_LOCALSTACK_PORT}" --region us-east-1 --query SecretString --output text 2>/dev/null || echo "")
 if [ -z "$SECRET_VALUE" ]; then
     echo "❌ Error: Could not retrieve secret value"
     exit 1
@@ -113,18 +130,36 @@ echo ""
 # Test that services retrieve credentials from Secrets Manager
 echo "[6/8] Verifying services use Secrets Manager..."
 
+# Determine which containers to check based on environment
+if [ "$DURABLE_ENV" = "devlocal" ]; then
+    API_GATEWAY_CONTAINER="$EPHEMERAL_API_GATEWAY"
+    ORDER_PROCESSOR_CONTAINER="$EPHEMERAL_ORDER_PROCESSOR"
+else
+    # In CI, try to find blue or green containers
+    if docker inspect "echobase-green-api-gateway" >/dev/null 2>&1; then
+        API_GATEWAY_CONTAINER="echobase-green-api-gateway"
+        ORDER_PROCESSOR_CONTAINER="echobase-green-order-processor"
+    elif docker inspect "echobase-blue-api-gateway" >/dev/null 2>&1; then
+        API_GATEWAY_CONTAINER="echobase-blue-api-gateway"
+        ORDER_PROCESSOR_CONTAINER="echobase-blue-order-processor"
+    else
+        echo "❌ Error: No API Gateway container found (tried green and blue)"
+        exit 1
+    fi
+fi
+
 # Check API Gateway logs
-if ! docker logs echobase-devlocal-api-gateway 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
+if ! docker logs "$API_GATEWAY_CONTAINER" 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
     echo "❌ Error: API Gateway not retrieving credentials from Secrets Manager"
-    echo "   Check logs: docker logs echobase-devlocal-api-gateway"
+    echo "   Check logs: docker logs $API_GATEWAY_CONTAINER"
     exit 1
 fi
 echo "✅ API Gateway retrieves credentials from Secrets Manager"
 
 # Check Order Processor logs
-if ! docker logs echobase-devlocal-order-processor 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
+if ! docker logs "$ORDER_PROCESSOR_CONTAINER" 2>&1 | grep -q "Successfully retrieved database credentials from Secrets Manager"; then
     echo "❌ Error: Order Processor not retrieving credentials from Secrets Manager"
-    echo "   Check logs: docker logs echobase-devlocal-order-processor"
+    echo "   Check logs: docker logs $ORDER_PROCESSOR_CONTAINER"
     exit 1
 fi
 echo "✅ Order Processor retrieves credentials from Secrets Manager"
@@ -134,8 +169,8 @@ echo ""
 echo "[7/8] Verifying credentials not exposed in logs..."
 # Check that password is not in logs (sample last 500 lines)
 DB_PASSWORD_FROM_SECRET=$(echo "$SECRET_VALUE" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
-API_RECENT_LOGS=$(docker logs echobase-devlocal-api-gateway 2>&1 | tail -500)
-PROCESSOR_RECENT_LOGS=$(docker logs echobase-devlocal-order-processor 2>&1 | tail -500)
+API_RECENT_LOGS=$(docker logs "$API_GATEWAY_CONTAINER" 2>&1 | tail -500)
+PROCESSOR_RECENT_LOGS=$(docker logs "$ORDER_PROCESSOR_CONTAINER" 2>&1 | tail -500)
 
 if echo "$API_RECENT_LOGS" | grep -q "$DB_PASSWORD_FROM_SECRET"; then
     echo "⚠️  Warning: Database password found in API Gateway logs"
@@ -170,6 +205,8 @@ echo "======================================"
 echo ""
 echo "✅ All security tests passed!"
 echo ""
+echo "Environment: $DURABLE_ENV"
+echo ""
 echo "Security features verified:"
 echo "  ✓ KMS encryption key configured"
 echo "  ✓ Secrets Manager secret encrypted with KMS"
@@ -191,11 +228,11 @@ echo "  npm run test:security       # Security tests only"
 echo ""
 echo "To verify infrastructure manually:"
 echo "  # KMS Key"
-echo "  cd terraform && terraform output kms_key_id"
+echo "  cd durable/terraform && terraform output -state=terraform.tfstate.${DURABLE_ENV} kms_key_id"
 echo ""
 echo "  # Secrets Manager"
 echo "  aws secretsmanager describe-secret \\"
 echo "    --secret-id echobase/database/credentials \\"
-echo "    --endpoint-url http://localhost:4566 \\"
+echo "    --endpoint-url http://localhost:${DURABLE_LOCALSTACK_PORT} \\"
 echo "    --region us-east-1"
 echo ""

@@ -45,7 +45,7 @@ function Login() {
 
   return (
     <div className={styles.container}>
-      <h1 className={styles.title}>Login</h1>
+      <h1 className={styles.title}>Login to Echobase</h1>
       <p className={styles.subtitle}>
         Welcome back! Please enter your credentials to continue.
       </p>

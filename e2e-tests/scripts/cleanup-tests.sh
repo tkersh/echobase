@@ -2,6 +2,9 @@
 
 # E2E Test Cleanup Script
 # Cleans up test data from the database
+#
+# Usage: ./e2e-tests/scripts/cleanup-tests.sh [devlocal|ci]
+#   If no environment specified, auto-detects which is running.
 
 set -e
 
@@ -29,6 +32,15 @@ print_error() {
 
 # Navigate to project root
 cd "$(dirname "$0")/../.." || exit
+PROJECT_ROOT="$(pwd)"
+
+# Detect environment
+echo "Detecting environment..."
+# shellcheck source=scripts/detect-env.sh
+if ! source "$PROJECT_ROOT/scripts/detect-env.sh" "${1:-}"; then
+    exit 1
+fi
+print_success "Using durable environment: $DURABLE_ENV"
 
 # Load environment variables from .env
 if [ -f ".env" ]; then
@@ -42,8 +54,8 @@ fi
 
 # Retrieve database credentials from Secrets Manager (same as CI system)
 echo "Retrieving database credentials from Secrets Manager..."
-if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localstack$"; then
-    SECRET_JSON=$(docker exec echobase-devlocal-durable-localstack awslocal secretsmanager get-secret-value \
+if docker ps --format '{{.Names}}' | grep -q "^${DURABLE_LOCALSTACK}$"; then
+    SECRET_JSON=$(docker exec "$DURABLE_LOCALSTACK" awslocal secretsmanager get-secret-value \
         --secret-id echobase/database/credentials \
         --query SecretString \
         --output text 2>/dev/null)
@@ -55,36 +67,37 @@ if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localst
         export MYSQL_PASSWORD
         MYSQL_DATABASE=$(echo "$SECRET_JSON" | grep -o '"dbname":"[^"]*"' | cut -d'"' -f4)
         export MYSQL_DATABASE
-        # For root access, fall back to credentials file
-        if [ -f "durable/.credentials.devlocal" ]; then
-            MYSQL_ROOT_PASSWORD=$(grep MYSQL_ROOT_PASSWORD durable/.credentials.devlocal | cut -d'=' -f2)
-            export MYSQL_ROOT_PASSWORD
-        fi
+
+        # Get root password from Secrets Manager
+        MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"root_password":"[^"]*"' | cut -d'"' -f4)
+        export MYSQL_ROOT_PASSWORD
+
         print_success "Retrieved database credentials from Secrets Manager"
     else
         print_error "Could not retrieve credentials from Secrets Manager"
-        echo "Please ensure durable infrastructure is running: ./durable/setup.sh devlocal"
+        echo "Please ensure durable infrastructure is running: ./durable/setup.sh $DURABLE_ENV"
         exit 1
     fi
 else
-    print_error "Durable LocalStack not running"
-    echo "Please ensure durable infrastructure is running: ./durable/setup.sh devlocal"
+    print_error "Durable LocalStack not running ($DURABLE_LOCALSTACK)"
+    echo "Please ensure durable infrastructure is running: ./durable/setup.sh $DURABLE_ENV"
     exit 1
 fi
 
 # Check if durable MariaDB service is running and healthy
 echo "Checking database service..."
-if ! docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-mariadb$"; then
-    print_error "Database service is not running. Please start it with: ./durable/setup.sh devlocal"
+if ! docker ps --format '{{.Names}}' | grep -q "^${DURABLE_MARIADB}$"; then
+    print_error "Database service is not running ($DURABLE_MARIADB)"
+    echo "Please start it with: ./durable/setup.sh $DURABLE_ENV"
     exit 1
 fi
 
 # Wait for database to be ready (idempotent check)
-if ! docker exec echobase-devlocal-durable-mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; then
+if ! docker exec "$DURABLE_MARIADB" mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; then
     print_warning "Database is not responding. Waiting for it to become healthy..."
     RETRY_COUNT=0
     MAX_RETRIES=15
-    until docker exec echobase-devlocal-durable-mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
+    until docker exec "$DURABLE_MARIADB" mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
         RETRY_COUNT=$((RETRY_COUNT + 1))
         if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
             print_error "Database failed to become healthy after ${MAX_RETRIES} attempts"
@@ -97,7 +110,7 @@ print_success "Database is ready"
 
 # Clean up test users
 echo "Cleaning up test users..."
-docker exec echobase-devlocal-durable-mariadb mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" ${MYSQL_DATABASE} <<EOF
+docker exec "$DURABLE_MARIADB" mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" ${MYSQL_DATABASE} <<EOF
 -- Delete test users and their orders
 DELETE o FROM orders o
 INNER JOIN users u ON o.user_id = u.id
@@ -122,16 +135,21 @@ else
     exit 1
 fi
 
-# Purge SQS queue
+# Purge SQS queue (ephemeral LocalStack)
 echo ""
 echo "Purging SQS queue..."
-if docker exec echobase-devlocal-localstack awslocal sqs purge-queue --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue > /dev/null 2>&1; then
-    print_success "SQS queue purged"
+if [ -n "$EPHEMERAL_LOCALSTACK" ]; then
+    if docker exec "$EPHEMERAL_LOCALSTACK" awslocal sqs purge-queue --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue > /dev/null 2>&1; then
+        print_success "SQS queue purged"
+    else
+        print_warning "Could not purge SQS queue (queue may not exist or already be empty)"
+    fi
 else
-    print_warning "Could not purge SQS queue (queue may not exist or already be empty)"
+    print_warning "Ephemeral LocalStack not configured (CI uses blue/green environments)"
 fi
 
 echo ""
 echo "========================================="
 echo "Cleanup complete!"
 echo "========================================="
+echo "Environment: $DURABLE_ENV"

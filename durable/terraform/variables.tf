@@ -33,6 +33,12 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "db_root_password" {
+  description = "Database root password"
+  type        = string
+  sensitive   = true
+}
+
 variable "db_host" {
   description = "Database host"
   type        = string
@@ -63,4 +69,10 @@ variable "secrets_recovery_window_days" {
 variable "environment" {
   description = "Environment name (dev-local or ci)"
   type        = string
+}
+
+variable "db_encryption_key" {
+  description = "MariaDB data-at-rest encryption key (hex-encoded 256-bit key)"
+  type        = string
+  sensitive   = true
 }

@@ -24,14 +24,18 @@ require('dotenv').config({ path: require('path').join(__dirname, '../../../.env'
 const TEST_JWT_SECRET = process.env.JWT_SECRET;
 const TEST_PORT = 3099; // Use a different port for testing
 
-// Validate required environment variables
-validateRequiredEnv(['GREEN_FRONTEND_PORT'], 'security tests');
+// Determine frontend port based on environment (devlocal vs CI blue/green)
+// DevLocal: 3443, CI Green: 3543, CI Blue: 3544
+const FRONTEND_PORT = process.env.GREEN_FRONTEND_PORT
+  || process.env.BLUE_FRONTEND_PORT
+  || process.env.DEV_LOCAL_FRONTEND_PORT
+  || '3443';  // Default to devlocal
 
 // API Gateway URL - use 127.0.0.1 instead of localhost to avoid IPv6 issues
 const API_GATEWAY_URL = 'https://127.0.0.1:3001';
 
-// CORS origin for testing - uses GREEN_FRONTEND_PORT from environment
-const CORS_TEST_ORIGIN = `https://localhost:${process.env.GREEN_FRONTEND_PORT}`;
+// CORS origin for testing
+const CORS_TEST_ORIGIN = `https://localhost:${FRONTEND_PORT}`;
 
 // Setup before all tests
 beforeAll(async () => {

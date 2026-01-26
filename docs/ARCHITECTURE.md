@@ -245,7 +245,7 @@ Application connects to existing `echobase-devlocal-durable-mariadb`.
 
 ```bash
 # Application rollback
-./scripts/switch-environment.sh blue
+./scripts/switch-traffic.sh blue
 
 # Database rollback NOT needed
 # Database was never modified during green deployment

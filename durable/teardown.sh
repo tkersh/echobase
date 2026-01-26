@@ -55,31 +55,60 @@ if ! docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_PREFIX}"; then
 fi
 
 # Stop and remove containers
-echo "Stopping containers..."
-docker stop ${CONTAINER_PREFIX}-mariadb ${CONTAINER_PREFIX}-localstack 2>/dev/null || true
-docker rm ${CONTAINER_PREFIX}-mariadb ${CONTAINER_PREFIX}-localstack 2>/dev/null || true
+echo "Stopping and removing containers..."
+for container in mariadb localstack nginx; do
+    container_name="${CONTAINER_PREFIX}-${container}"
+    if docker inspect "$container_name" >/dev/null 2>&1; then
+        echo "  Removing: $container_name"
+        docker stop "$container_name" 2>/dev/null || true
+        docker rm "$container_name" 2>/dev/null || true
+    else
+        echo "  Skipping: $container_name (not found)"
+    fi
+done
 
-# Remove network
+echo ""
 echo "Removing network..."
-docker network rm ${NETWORK_NAME} 2>/dev/null || true
+if docker network inspect ${NETWORK_NAME} >/dev/null 2>&1; then
+    docker network rm ${NETWORK_NAME} 2>/dev/null || true
+    echo "  ✓ Removed network: ${NETWORK_NAME}"
+else
+    echo "  Network already removed: ${NETWORK_NAME}"
+fi
 
 # Optionally remove volumes
 if [ "$REMOVE_VOLUMES" = true ]; then
+    echo ""
     echo "Removing data volumes..."
-    docker volume rm ${VOLUME_PREFIX}-mariadb-data ${VOLUME_PREFIX}-localstack-data 2>/dev/null || true
+    for volume in mariadb-data localstack-data; do
+        volume_name="${VOLUME_PREFIX}-${volume}"
+        if docker volume inspect "$volume_name" >/dev/null 2>&1; then
+            docker volume rm "$volume_name" 2>/dev/null || true
+            echo "  ✓ Removed volume: $volume_name"
+        else
+            echo "  Skipping: $volume_name (not found)"
+        fi
+    done
     echo ""
+    echo "=========================================="
     echo "✓ Durable infrastructure removed (including data volumes)"
-    echo ""
-    echo "NOTE: Credentials file still exists at: durable/.credentials.${DURABLE_ENV}"
-    echo "      If you want to start fresh, delete it: rm durable/.credentials.${DURABLE_ENV}"
+    echo "=========================================="
 else
     echo ""
-    echo "✓ Durable infrastructure stopped (data volumes preserved)"
-    echo "  Data volumes:"
-    echo "    - ${VOLUME_PREFIX}-mariadb-data"
-    echo "    - ${VOLUME_PREFIX}-localstack-data"
+    echo "=========================================="
+    echo "✓ Durable infrastructure stopped"
+    echo "=========================================="
     echo ""
-    echo "  To remove data volumes, run: $0 $DURABLE_ENV --volumes"
+    echo "Data volumes preserved:"
+    for volume in mariadb-data localstack-data; do
+        volume_name="${VOLUME_PREFIX}-${volume}"
+        if docker volume inspect "$volume_name" >/dev/null 2>&1; then
+            size=$(docker volume inspect "$volume_name" --format '{{.Mountpoint}}' | xargs du -sh 2>/dev/null | cut -f1 || echo "unknown")
+            echo "  - ${volume_name} (size: ${size})"
+        fi
+    done
+    echo ""
+    echo "To remove data volumes, run: $0 $DURABLE_ENV --volumes"
 fi
 
 echo ""

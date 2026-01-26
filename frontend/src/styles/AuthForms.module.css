@@ -11,7 +11,7 @@
 }
 
 .title {
-  font-size: 32px;
+  font-size: 24px;
   margin-bottom: 12px;
   color: #1a1a1a;
   font-weight: 700;
@@ -20,7 +20,7 @@
 }
 
 .subtitle {
-  font-size: 18px;
+  font-size: 14px;
   color: #4a4a4a;
   margin-bottom: 32px;
   line-height: 1.6;
@@ -33,7 +33,7 @@
 .label {
   display: block;
   margin-bottom: 8px;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
   line-height: 1.5;
@@ -42,7 +42,7 @@
 .input {
   width: 100%;
   padding: 14px;
-  font-size: 18px;
+  font-size: 14px;
   box-sizing: border-box;
   border: 2px solid #d0d0d0;
   border-radius: 4px;
@@ -53,7 +53,7 @@
 
 .helpText {
   margin-top: 8px;
-  font-size: 16px;
+  font-size: 14px;
   color: #4a4a4a;
   line-height: 1.6;
 }
@@ -65,7 +65,7 @@
   border: 2px solid #f5c6cb;
   border-radius: 4px;
   margin-bottom: 24px;
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.6;
 }
@@ -77,7 +77,7 @@
   color: #ffffff;
   border: none;
   border-radius: 4px;
-  font-size: 20px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -101,7 +101,7 @@
 }
 
 .footerText {
-  font-size: 17px;
+  font-size: 14px;
   color: #1a1a1a;
   line-height: 1.6;
 }
@@ -122,7 +122,7 @@
 }
 
 .requirementsTitle {
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
   margin-bottom: 16px;
@@ -137,7 +137,7 @@
 
 .requirementItem {
   margin-bottom: 12px;
-  font-size: 17px;
+  font-size: 14px;
   display: flex;
   align-items: center;
   color: #1a1a1a;
@@ -152,8 +152,8 @@
   display: inline-block;
   margin-right: 12px;
   font-weight: bold;
-  font-size: 20px;
-  min-width: 20px;
+  font-size: 14px;
+  min-width: 14px;
 }
 
 .checkIcon.valid {

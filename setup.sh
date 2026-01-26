@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Fail fast on any error
+set -e
+set -o pipefail
+
 echo "=========================================="
 echo "Echobase Setup Script"
 echo "=========================================="
@@ -42,19 +46,44 @@ fi
 # This ensures package.json is up-to-date before Docker copies it
 echo ""
 echo "Installing Node.js dependencies..."
+
 echo "Installing API Gateway dependencies..."
-cd backend/api-gateway || exit
-npm install
+cd backend/api-gateway || exit 1
+# Clean node_modules if corrupted
+if [ -d "node_modules" ]; then
+  echo "Cleaning existing node_modules..."
+  rm -rf node_modules package-lock.json
+fi
+npm install || {
+  echo "ERROR: Failed to install API Gateway dependencies"
+  exit 1
+}
 cd ../..
 
 echo "Installing Order Processor dependencies..."
-cd backend/order-processor || exit
-npm install
+cd backend/order-processor || exit 1
+# Clean node_modules if corrupted
+if [ -d "node_modules" ]; then
+  echo "Cleaning existing node_modules..."
+  rm -rf node_modules package-lock.json
+fi
+npm install || {
+  echo "ERROR: Failed to install Order Processor dependencies"
+  exit 1
+}
 cd ../..
 
 echo "Installing Frontend dependencies..."
-cd frontend || exit
-npm install
+cd frontend || exit 1
+# Clean node_modules if corrupted
+if [ -d "node_modules" ]; then
+  echo "Cleaning existing node_modules..."
+  rm -rf node_modules package-lock.json
+fi
+npm install || {
+  echo "ERROR: Failed to install Frontend dependencies"
+  exit 1
+}
 cd ..
 
 # Setup durable infrastructure (database)

@@ -43,19 +43,23 @@ source .env
 if [ "$DURABLE_ENV" = "devlocal" ]; then
     PROJECT_NAME="echobase-devlocal-durable"
     CONTAINER_PREFIX="echobase-devlocal-durable"
-    CREDENTIALS_FILE="durable/.credentials.devlocal"
 else
     PROJECT_NAME="echobase-ci-durable"
     CONTAINER_PREFIX="echobase-ci-durable"
-    CREDENTIALS_FILE="durable/.credentials.ci"
 fi
 
 CONTAINER_NAME="${CONTAINER_PREFIX}-mariadb"
 LOCALSTACK_CONTAINER="${CONTAINER_PREFIX}-localstack"
+NGINX_CONTAINER="${CONTAINER_PREFIX}-nginx"
 
 # Function to generate secure random password
 generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-32
+}
+
+# Function to generate MariaDB encryption key (256-bit hex)
+generate_encryption_key() {
+    openssl rand -hex 32
 }
 
 # Function to print infrastructure details
@@ -64,54 +68,141 @@ print_infrastructure_details() {
     if [ "$DURABLE_ENV" = "devlocal" ]; then
         echo "  Database Container: echobase-devlocal-durable-mariadb"
         echo "  LocalStack Container: echobase-devlocal-durable-localstack"
+        echo "  Nginx Container: echobase-devlocal-durable-nginx"
         echo "  Network: echobase-devlocal-durable-network"
         echo "  Database Port: 3306"
         echo "  LocalStack Port: 4566"
+        echo "  Load Balancer: https://localhost (ports 443, 8080, 8081)"
     else
         echo "  Database Container: echobase-ci-durable-mariadb"
         echo "  LocalStack Container: echobase-ci-durable-localstack"
+        echo "  Nginx Container: echobase-ci-durable-nginx"
         echo "  Network: echobase-ci-durable-network"
         echo "  Database Port: 3307"
         echo "  LocalStack Port: 4567"
+        echo "  Load Balancer: https://localhost:1443 (ports 180, 1443, 8180, 8181)"
     fi
     echo ""
-    echo "Credentials stored in: $CREDENTIALS_FILE"
-    echo "Secrets Manager: echobase/database/credentials"
+    echo "Credentials: Stored in AWS Secrets Manager (source of truth)"
+    echo "  Secret Name: echobase/database/credentials"
+    echo "  Location: Durable LocalStack container"
     echo ""
     echo "This infrastructure persists across blue-green deployments."
     echo "To tear down: ./durable/teardown.sh $DURABLE_ENV"
     echo ""
 }
 
-# Check if credentials file already exists
-if [ -f "$CREDENTIALS_FILE" ]; then
-    echo "✓ Found existing credentials file: $CREDENTIALS_FILE"
-    echo "  Loading existing database credentials..."
-    # shellcheck source=/dev/null
-    source "$CREDENTIALS_FILE"
-else
-    echo "Generating new database credentials..."
+# ==========================================
+# TRANSACTIONAL SETUP: Secrets Manager FIRST, then Database
+# ==========================================
+# This ensures Secrets Manager (source of truth) is populated BEFORE
+# database is created, preventing orphaned credentials if Terraform fails.
 
-    # Generate secure credentials
+# Step 1: Ensure LocalStack is running (needed to check/store credentials)
+LS_STATUS=$(docker inspect -f '{{.State.Status}}' "$LOCALSTACK_CONTAINER" 2>/dev/null || echo "not-found")
+
+if [ "$LS_STATUS" != "running" ]; then
+    echo "Starting LocalStack (required for Secrets Manager)..."
+
+    # Create minimal env file for LocalStack only
+    TEMP_ENV_FILE=$(mktemp)
+    cat "durable/.env.${DURABLE_ENV}" > "$TEMP_ENV_FILE"
+    echo "" >> "$TEMP_ENV_FILE"
+    echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> "$TEMP_ENV_FILE"
+    echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> "$TEMP_ENV_FILE"
+    echo "AWS_REGION=${AWS_REGION:-us-east-1}" >> "$TEMP_ENV_FILE"
+
+    # Start only LocalStack
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d localstack
+    rm "$TEMP_ENV_FILE"
+
+    # Wait for LocalStack to be ready
+    echo "Waiting for LocalStack to be ready..."
+    MAX_WAIT=60
+    SLEEP_INTERVAL=2
+    MAX_ITERATIONS=$((MAX_WAIT / SLEEP_INTERVAL))
+    for i in $(seq 1 $MAX_ITERATIONS); do
+        if docker exec "$LOCALSTACK_CONTAINER" curl -sf http://localhost:4566/_localstack/health > /dev/null 2>&1; then
+            echo "✓ LocalStack is ready"
+            break
+        fi
+        if [ $i -eq $MAX_ITERATIONS ]; then
+            echo "ERROR: LocalStack did not become ready in time"
+            exit 1
+        fi
+        echo "Waiting for LocalStack... ($i/$MAX_ITERATIONS)"
+        sleep $SLEEP_INTERVAL
+    done
+fi
+
+# Step 2: Check if credentials exist in Secrets Manager
+echo "Checking Secrets Manager for existing credentials..."
+if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/credentials > /dev/null 2>&1; then
+    echo "✓ Found credentials in Secrets Manager (source of truth)"
+
+    # Retrieve credentials from Secrets Manager
+    SECRET_JSON=$(docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/credentials --query SecretString --output text)
+
+    MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"root_password":"[^"]*"' | cut -d'"' -f4)
+    MYSQL_USER=$(echo "$SECRET_JSON" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+    MYSQL_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
+    MYSQL_DATABASE=$(echo "$SECRET_JSON" | grep -o '"database":"[^"]*"' | cut -d'"' -f4)
+
+    # Retrieve encryption key from Secrets Manager
+    if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key > /dev/null 2>&1; then
+        echo "✓ Found encryption key in Secrets Manager"
+        ENCRYPTION_SECRET_JSON=$(docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key --query SecretString --output text)
+        DB_ENCRYPTION_KEY=$(echo "$ENCRYPTION_SECRET_JSON" | grep -o '"key_hex":"[^"]*"' | cut -d'"' -f4)
+    else
+        echo "WARNING: Credentials exist but encryption key missing - will regenerate"
+        DB_ENCRYPTION_KEY=""
+    fi
+
+else
+    # Step 3: Generate new credentials and store in Secrets Manager FIRST
+    echo "No credentials found in Secrets Manager"
+    echo "Generating new database credentials and encryption key..."
+
     MYSQL_ROOT_PASSWORD=$(generate_password)
     MYSQL_USER="app_user"
     MYSQL_PASSWORD=$(generate_password)
     MYSQL_DATABASE="orders_db"
+    DB_ENCRYPTION_KEY=$(generate_encryption_key)
 
-    # Save credentials to file
-    cat > "$CREDENTIALS_FILE" <<EOF
-# Database Credentials for $DURABLE_ENV
-# Generated: $(date)
-# WARNING: This file contains sensitive credentials. Keep secure!
+    echo "✓ New credentials and encryption key generated"
+    echo "DEBUG: Generated credentials:"
+    echo "  MYSQL_USER=$MYSQL_USER"
+    echo "  MYSQL_DATABASE=$MYSQL_DATABASE"
+    echo "  MYSQL_PASSWORD (first 8 chars)=${MYSQL_PASSWORD:0:8}..."
+    echo "  MYSQL_ROOT_PASSWORD (first 8 chars)=${MYSQL_ROOT_PASSWORD:0:8}..."
+    echo "  DB_ENCRYPTION_KEY (first 8 chars)=${DB_ENCRYPTION_KEY:0:8}..."
 
-MYSQL_ROOT_PASSWORD=$MYSQL_ROOT_PASSWORD
-MYSQL_USER=$MYSQL_USER
-MYSQL_PASSWORD=$MYSQL_PASSWORD
-MYSQL_DATABASE=$MYSQL_DATABASE
-EOF
+    echo ""
+    echo "==========================================  "
+    echo "STORING CREDENTIALS IN SECRETS MANAGER:"
+    echo "=========================================="
+    echo ""
 
-    chmod 600 "$CREDENTIALS_FILE"
-    echo "✓ Database credentials generated and saved to $CREDENTIALS_FILE"
+    # Export credentials for terraform-apply.sh
+    export MYSQL_USER MYSQL_PASSWORD MYSQL_DATABASE MYSQL_ROOT_PASSWORD DB_ENCRYPTION_KEY
+
+    # Apply Terraform to store credentials in Secrets Manager
+    # If this fails, database won't be created (transactional)
+    if ! ./durable/terraform-apply.sh "$DURABLE_ENV"; then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: Failed to store credentials in Secrets Manager"
+        echo "=========================================="
+        echo ""
+        echo "Database will NOT be created to maintain consistency."
+        echo "Fix the Terraform error and run setup again."
+        exit 1
+    fi
+
+    echo ""
+    echo "✓ Credentials successfully stored in Secrets Manager"
+    echo "  Now proceeding to create database with these credentials..."
+    echo ""
 fi
 
 # Load environment-specific configuration
@@ -136,46 +227,83 @@ echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> "$TEMP_ENV_FILE"
 echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> "$TEMP_ENV_FILE"
 echo "AWS_REGION=${AWS_REGION:-us-east-1}" >> "$TEMP_ENV_FILE"
 
-# Check if infrastructure already exists
-if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-    CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "not-found")
+# Step 4: Check database and nginx status
+# Note: LocalStack is already running and Secrets Manager already has credentials
+DB_STATUS=$(docker inspect -f '{{.State.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "not-found")
 
-    if [ "$CONTAINER_STATUS" = "running" ]; then
-        echo "✓ Durable infrastructure already exists and is running"
-        echo "  Database: $CONTAINER_NAME"
-        echo "  LocalStack: $LOCALSTACK_CONTAINER"
-        echo ""
+# Check nginx status (required in both devlocal and CI for blue/green deployments)
+NGINX_STATUS=$(docker inspect -f '{{.State.Status}}' "$NGINX_CONTAINER" 2>/dev/null || echo "not-found")
+CHECK_NGINX=true
 
-        # Check if Terraform has been applied
-        if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/credentials > /dev/null 2>&1; then
-            echo "✓ Secrets Manager already configured"
-        else
-            echo "⚠ Secrets Manager not configured yet"
-            echo "  Applying Terraform configuration..."
-            ./durable/terraform-apply.sh "$DURABLE_ENV"
-        fi
+# Determine if we need to start/restart database and nginx
+NEEDS_START=false
 
-        rm "$TEMP_ENV_FILE"
+if [ "$DB_STATUS" = "not-found" ]; then
+    echo "Database not found, creating it..."
+    NEEDS_START=true
+elif [ "$DB_STATUS" != "running" ]; then
+    echo "⚠ Database is stopped, starting it..."
+    NEEDS_START=true
+elif [ "$CHECK_NGINX" = true ] && [ "$NGINX_STATUS" != "running" ]; then
+    echo "⚠ Nginx is not running, starting services..."
+    NEEDS_START=true
+fi
 
+# If database exists and is running, verify credentials match Secrets Manager
+if [ "$DB_STATUS" = "running" ] && [ "$NEEDS_START" = false ]; then
+    echo "✓ Database is running"
+    echo "Verifying database credentials match Secrets Manager..."
+    if docker exec "$CONTAINER_NAME" mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "SELECT 1" "$MYSQL_DATABASE" > /dev/null 2>&1; then
+        echo "✓ Database credentials are valid"
+    else
         echo ""
         echo "=========================================="
-        echo "Durable Infrastructure Already Running!"
+        echo "ERROR: Database Credential Mismatch"
         echo "=========================================="
         echo ""
-        print_infrastructure_details
-        exit 0
-    elif [ "$CONTAINER_STATUS" = "exited" ]; then
-        echo "⚠ Durable infrastructure exists but is stopped"
-        echo "  Starting existing containers..."
-        docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d
+        echo "The database is running but credentials don't match Secrets Manager."
+        echo "This can happen if:"
+        echo "  1. Database volume persisted with old credentials"
+        echo "  2. Secrets Manager was updated with new credentials"
+        echo ""
+        echo "Solution: Recreate database with correct credentials from Secrets Manager"
+        echo "  ./durable/teardown.sh $DURABLE_ENV"
+        echo "  ./durable/setup.sh $DURABLE_ENV"
+        echo ""
+        exit 1
     fi
-else
-    echo "Creating new durable infrastructure..."
-    echo "Project name: $PROJECT_NAME"
+fi
+
+if [ "$NEEDS_START" = true ]; then
+    # Step 5: Start database and nginx with credentials from Secrets Manager
+    echo ""
+    echo "DEBUG: Credentials from Secrets Manager being used for containers:"
+    echo "  MYSQL_USER=$MYSQL_USER"
+    echo "  MYSQL_DATABASE=$MYSQL_DATABASE"
+    echo "  MYSQL_PASSWORD (first 8 chars)=${MYSQL_PASSWORD:0:8}..."
+    echo "  MYSQL_ROOT_PASSWORD (first 8 chars)=${MYSQL_ROOT_PASSWORD:0:8}..."
     echo ""
 
-    # Start durable infrastructure
-    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d
+    echo "Starting database and nginx with credentials from Secrets Manager..."
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d --build
+else
+    # Everything already running and verified
+    echo ""
+    echo "=========================================="
+    echo "Durable Infrastructure Already Running!"
+    echo "=========================================="
+    echo ""
+    echo "  Database: $CONTAINER_NAME ($DB_STATUS)"
+    echo "  LocalStack: $LOCALSTACK_CONTAINER (running)"
+    if [ "$CHECK_NGINX" = true ]; then
+        echo "  Nginx: $NGINX_CONTAINER ($NGINX_STATUS)"
+    else
+        echo "  Nginx: Skipped in CI (using direct container ports)"
+    fi
+    echo ""
+    rm "$TEMP_ENV_FILE"
+    print_infrastructure_details
+    exit 0
 fi
 
 # Wait for services to be healthy
@@ -205,32 +333,46 @@ for i in $(seq 1 $MAX_DB_ITERATIONS); do
     sleep $DB_SLEEP_INTERVAL
 done
 
-# Wait for LocalStack
-MAX_LS_WAIT=${LOCALSTACK_TIMEOUT:-150}
-SLEEP_INTERVAL=2
-MAX_LS_ITERATIONS=$((MAX_LS_WAIT / SLEEP_INTERVAL))
-for i in $(seq 1 $MAX_LS_ITERATIONS); do
-    if docker exec "$LOCALSTACK_CONTAINER" curl -sf http://localhost:4566/_localstack/health > /dev/null 2>&1; then
-        echo "✓ LocalStack is ready"
-        break
-    fi
-    if [ $i -eq $MAX_LS_ITERATIONS ]; then
-        echo "ERROR: LocalStack did not become ready in time"
-        echo "Showing last 50 lines of LocalStack logs:"
-        docker logs "$LOCALSTACK_CONTAINER" --tail 50
-        rm "$TEMP_ENV_FILE"
-        exit 1
-    fi
-    echo "Waiting for LocalStack... ($i/$MAX_LS_ITERATIONS)"
-    sleep $SLEEP_INTERVAL
-done
-
-# Apply Terraform to configure Secrets Manager and KMS
+# Verify application user credentials work
+echo "Verifying application user credentials..."
 echo ""
-echo "Applying Terraform configuration..."
-echo "  - Creating KMS key for database encryption"
-echo "  - Storing database credentials in Secrets Manager"
-./durable/terraform-apply.sh "$DURABLE_ENV"
+echo "DEBUG: What password did the MariaDB container actually receive?"
+docker inspect "$CONTAINER_NAME" --format '{{range .Config.Env}}{{println .}}{{end}}' | grep "MYSQL_PASSWORD=" | sed 's/MYSQL_PASSWORD=\(........\).*/MYSQL_PASSWORD=\1.../'
+echo ""
+echo "DEBUG: Testing connection with credentials from memory:"
+echo "  User: $MYSQL_USER"
+echo "  Password (first 8 chars): ${MYSQL_PASSWORD:0:8}..."
+echo ""
+
+if docker exec "$CONTAINER_NAME" mariadb -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "SELECT 1" "$MYSQL_DATABASE" > /dev/null 2>&1; then
+    echo "✓ Application user credentials verified"
+else
+    echo "ERROR: Application user cannot connect to database"
+    echo "User: $MYSQL_USER"
+    echo "Database: $MYSQL_DATABASE"
+    echo ""
+    echo "DEBUG: Credential mismatch detected!"
+    echo "  Password in memory (first 8): ${MYSQL_PASSWORD:0:8}..."
+    echo "  Password container received: see above"
+    echo ""
+    echo "Checking if user exists..."
+    docker exec "$CONTAINER_NAME" mariadb -u root -p"$MYSQL_ROOT_PASSWORD" -e "SELECT User, Host FROM mysql.user WHERE User='$MYSQL_USER';" mysql
+    rm "$TEMP_ENV_FILE"
+    exit 1
+fi
+
+# LocalStack is already running and verified (started at beginning of script)
+echo "✓ LocalStack is healthy"
+
+# Verify Secrets Manager has credentials (should always be true at this point)
+echo "Verifying Secrets Manager has credentials..."
+if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/credentials > /dev/null 2>&1; then
+    echo "✓ Secrets Manager contains database credentials"
+else
+    echo "ERROR: Secrets Manager does not have credentials (this should not happen)"
+    rm "$TEMP_ENV_FILE"
+    exit 1
+fi
 
 # Clean up temporary file
 rm "$TEMP_ENV_FILE"

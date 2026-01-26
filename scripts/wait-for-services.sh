@@ -30,6 +30,17 @@ fi
 
 shift  # Remove project name from arguments
 
+# Function to get container name for a service
+# Uses docker ps directly to work without compose file context
+get_container_name() {
+    local service=$1
+    docker ps \
+        --filter "name=${PROJECT_NAME}" \
+        --format "{{.Names}}" \
+        | grep -E "(^|-)${service}(-[0-9]+)?$" \
+        | head -1
+}
+
 # Function to get timeout for a specific service
 get_timeout() {
     local service=$1
@@ -54,15 +65,28 @@ wait_for_service() {
         iteration=$((iteration + 1))
         elapsed=$((iteration * HEALTH_CHECK_INTERVAL))
 
-        # Check if service is healthy
-        if docker compose -p "$PROJECT_NAME" ps "$service" 2>/dev/null | grep -q "healthy"; then
-            echo "✓ $service is healthy! (took ${elapsed}s)"
-            return 0
-        fi
+        # Get container name using direct docker commands (works without compose files)
+        local container_name
+        container_name=$(get_container_name "$service")
 
-        # Check if service exists but isn't healthy yet
-        if docker compose -p "$PROJECT_NAME" ps "$service" 2>/dev/null | grep -q "$service"; then
-            echo "Waiting for $service... ($iteration/$max_iterations, ${elapsed}s elapsed)"
+        if [ -n "$container_name" ]; then
+            # Container exists - check health status
+            local health_status
+            health_status=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$container_name" 2>/dev/null || echo "unknown")
+
+            if [ "$health_status" = "healthy" ]; then
+                echo "✓ $service is healthy! (took ${elapsed}s)"
+                return 0
+            elif [ "$health_status" = "no-healthcheck" ]; then
+                # Container has no healthcheck, consider it healthy if running
+                local running_status
+                running_status=$(docker inspect --format='{{.State.Running}}' "$container_name" 2>/dev/null || echo "false")
+                if [ "$running_status" = "true" ]; then
+                    echo "✓ $service is running (no healthcheck defined)! (took ${elapsed}s)"
+                    return 0
+                fi
+            fi
+            echo "Waiting for $service ($container_name)... status=$health_status ($iteration/$max_iterations, ${elapsed}s elapsed)"
         else
             echo "WARNING: $service container not found, waiting... ($iteration/$max_iterations)"
         fi
@@ -71,19 +95,30 @@ wait_for_service() {
     done
 
     # Timeout reached - collect diagnostics
+    local container_name
+    container_name=$(get_container_name "$service")
+
     echo ""
     echo "========================================="
     echo "ERROR: $service failed to become healthy after ${timeout}s"
     echo "========================================="
     echo ""
     echo "=== Container Status ==="
-    docker compose -p "$PROJECT_NAME" ps "$service" || true
+    if [ -n "$container_name" ]; then
+        docker inspect --format='Name: {{.Name}}  Status: {{.State.Status}}  Health: {{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' "$container_name" || true
+    else
+        echo "Container not found"
+    fi
     echo ""
     echo "=== Container Logs (last 100 lines) ==="
-    docker compose -p "$PROJECT_NAME" logs --tail=100 "$service" || true
+    if [ -n "$container_name" ]; then
+        docker logs --tail=100 "$container_name" 2>&1 || true
+    else
+        echo "Container not found"
+    fi
     echo ""
     echo "=== All Containers in Project ==="
-    docker compose -p "$PROJECT_NAME" ps || true
+    docker ps --filter "name=${PROJECT_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" || true
     echo ""
 
     return 1
@@ -100,13 +135,18 @@ check_endpoint() {
 
     echo "Waiting for $service endpoint to be ready: $url (timeout: ${timeout}s)..."
 
+    local container_name
+    container_name=$(get_container_name "$service")
+
     while [ $iteration -lt $max_iterations ]; do
         iteration=$((iteration + 1))
         elapsed=$((iteration * HEALTH_CHECK_INTERVAL))
 
-        if docker compose -p "$PROJECT_NAME" exec -T "$service" curl -f -s "$url" > /dev/null 2>&1; then
-            echo "✓ $service endpoint is ready! (took ${elapsed}s)"
-            return 0
+        if [ -n "$container_name" ]; then
+            if docker exec "$container_name" curl -f -s "$url" > /dev/null 2>&1; then
+                echo "✓ $service endpoint is ready! (took ${elapsed}s)"
+                return 0
+            fi
         fi
 
         echo "Waiting for $service endpoint... ($iteration/$max_iterations, ${elapsed}s elapsed)"
@@ -114,7 +154,9 @@ check_endpoint() {
     done
 
     echo "ERROR: $service endpoint not ready after ${timeout}s"
-    docker compose -p "$PROJECT_NAME" logs --tail=50 "$service" || true
+    if [ -n "$container_name" ]; then
+        docker logs --tail=50 "$container_name" 2>&1 || true
+    fi
     return 1
 }
 

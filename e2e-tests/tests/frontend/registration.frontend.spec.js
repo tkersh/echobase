@@ -49,11 +49,14 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="password"]', userData.password);
     await page.fill('input[name="confirmPassword"]', userData.password);
 
-    // Submit
-    await page.click('button[type="submit"]');
+    // Submit and wait for navigation - increase timeout for slow registrations
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 15000 }),
+      page.click('button[type="submit"]')
+    ]);
 
-    // Should redirect to orders page - increase timeout for slow registrations
-    await expect(page).toHaveURL(/\/orders/, { timeout: 15000 });
+    // Should redirect to orders page
+    await expect(page).toHaveURL(/\/orders/);
 
     // Verify user exists in database
     const dbUser = await dbHelper.waitForUser(userData.username);
@@ -72,10 +75,15 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="fullName"]', userData.fullName);
     await page.fill('input[name="password"]', userData.password);
     await page.fill('input[name="confirmPassword"]', userData.password);
-    await page.click('button[type="submit"]');
+
+    // Submit and wait for navigation
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 15000 }),
+      page.click('button[type="submit"]')
+    ]);
 
     // Wait for redirect
-    await expect(page).toHaveURL(/\/orders/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/orders/);
 
     // Verify user was created
     const dbUser = await dbHelper.waitForUser(userData.username);
@@ -149,7 +157,12 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="fullName"]', userData.fullName);
     await page.fill('input[name="password"]', userData.password);
     await page.fill('input[name="confirmPassword"]', userData.password);
-    await page.click('button[type="submit"]');
+
+    // Submit and wait for navigation
+    await Promise.all([
+      page.waitForURL(/\/orders/, { timeout: 15000 }),
+      page.click('button[type="submit"]')
+    ]);
 
     await expect(page).toHaveURL(/\/orders/);
 

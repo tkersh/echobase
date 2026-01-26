@@ -6,9 +6,9 @@ stages:
   - validate       # Code validation and linting
   - build          # Build Docker images
   - durable        # Setup durable infrastructure (databases)
-  - deploy-green   # Deploy to green environment for testing
-  - test           # Run all tests (including tests against green)
-  - deploy         # Deploy to local environment
+  - deploy-target  # Deploy to target environment for testing
+  - test           # Run all tests (including tests against target)
+  - promote        # Promote tested environment to production
   - teardown       # Manual teardown/cleanup stage
 
 # Global variables
@@ -51,12 +51,19 @@ variables:
   DEV_LOCAL_DB_PORT: "3306"
   DEV_LOCAL_LOCALSTACK_PORT: "4566"
 
-  # Green Environment Ports (docker-compose.green.yml) - Staging
-  # Can coexist with devlocal
+  # Green Environment Ports (docker-compose.green.yml) - CI Canary
+  # Can coexist with blue and devlocal
   GREEN_API_PORT: "3101"
   GREEN_FRONTEND_PORT: "3543"
   GREEN_DB_PORT: "3406"
   GREEN_LOCALSTACK_PORT: "4666"
+
+  # Blue Environment Ports (docker-compose.blue.yml) - CI Production/Canary
+  # Can coexist with green and devlocal
+  # Note: Blue and Green share the CI durable database (no separate DB port)
+  BLUE_API_PORT: "3102"
+  BLUE_FRONTEND_PORT: "3544"
+  BLUE_LOCALSTACK_PORT: "4667"
 
 # Default settings for all jobs
 default:
@@ -244,10 +251,10 @@ build:docker-images:
     - source .env
 
     # Set build metadata for Docker images (using GitLab CI predefined variables)
-    - export GIT_SHA=${CI_COMMIT_SHORT_SHA}
+    - export GIT_SHORT_SHA=${CI_COMMIT_SHORT_SHA}
     - export BUILD_DATE=${CI_COMMIT_TIMESTAMP}
     - echo "Build metadata:"
-    - echo "  GIT_SHA=${GIT_SHA}"
+    - echo "  GIT_SHORT_SHA=${GIT_SHORT_SHA}"
     - echo "  BUILD_DATE=${BUILD_DATE}"
     - echo "  CI_PIPELINE_ID=${CI_PIPELINE_ID}"
 
@@ -299,6 +306,14 @@ durable:setup-ci:
       echo "Setting up CI Durable Infrastructure"
       echo "=========================================="
       echo ""
+
+      # Diagnostic info to detect multi-runner issues
+      echo "DIAGNOSTIC: Runner Info"
+      echo "  Hostname: $(hostname)"
+      echo "  Docker host: ${DOCKER_HOST:-unix:///var/run/docker.sock}"
+      docker info 2>&1 | grep -E "Name:|ID:" | sed 's/^/  /'
+      echo ""
+
       echo "This job is IDEMPOTENT:"
       echo "  - If database exists and is running: skips creation"
       echo "  - If database exists but stopped: starts it"
@@ -307,7 +322,7 @@ durable:setup-ci:
       echo "The CI database persists across pipeline runs for data continuity."
       echo "To rebuild: manually run 'teardown:durable-ci' job first"
       echo ""
-      
+
       source .env
       echo "Configuring environment for CI..."
       sed -i 's|DB_HOST=.*|DB_HOST=echobase-ci-durable-mariadb|g' .env
@@ -332,10 +347,15 @@ durable:setup-ci:
     - branches
 
 # ============================================================================
-# GREEN ENVIRONMENT TESTS (run against deployed green environment)
+# DETECT TARGET ENVIRONMENT
 # ============================================================================
 
-test:green-api-gateway:
+
+# ============================================================================
+# TARGET ENVIRONMENT TESTS (run against deployed target environment)
+# ============================================================================
+
+test:target-api-gateway:
   stage: test
   tags:
     - docker-local
@@ -346,21 +366,44 @@ test:green-api-gateway:
   dependencies:
     - build:dependencies
     - validate:env-check
+    - deploy:target
   needs:
     - build:dependencies
     - validate:env-check
-    - deploy:green
+    - deploy:target
   script:
-    - echo "Running all API Gateway tests (unit + security) against GREEN environment..."
-    - source .env
-    - echo "Checking green environment status..."
-    - docker compose -p echobase-green ps
-    - scripts/wait-for-services.sh echobase-green api-gateway
-    - docker compose -p echobase-green exec -T -e GREEN_FRONTEND_PORT=${GREEN_FRONTEND_PORT} api-gateway npm test -- --coverage --ci
-    - mkdir -p backend/api-gateway/coverage backend/api-gateway/test-results
-    - echo "Copying test results and coverage from container..."
-    - docker compose -p echobase-green cp api-gateway:/app/coverage/. backend/api-gateway/coverage/ 2>/dev/null || echo "No coverage files found in container"
-    - docker compose -p echobase-green cp api-gateway:/app/junit.xml backend/api-gateway/junit.xml 2>/dev/null || echo "No junit.xml found in container"
+    - |
+      # Query nginx to determine which environment was deployed
+      DEPLOY_TARGET=$(scripts/detect-target-environment.sh)
+      echo ""
+      echo "=========================================="
+      echo "  TEST TARGET: $DEPLOY_TARGET"
+      echo "=========================================="
+      echo ""
+      echo "Running all API Gateway tests (unit + security) against $DEPLOY_TARGET environment..."
+      source .env
+
+      # Set environment-specific port variables with correct names for the container
+      if [ "$DEPLOY_TARGET" = "blue" ]; then
+        ENV_FRONTEND_PORT=${BLUE_FRONTEND_PORT:-3544}
+        ENV_VAR_NAME="BLUE_FRONTEND_PORT"
+      else
+        ENV_FRONTEND_PORT=${GREEN_FRONTEND_PORT:-3543}
+        ENV_VAR_NAME="GREEN_FRONTEND_PORT"
+      fi
+
+      echo "Checking $DEPLOY_TARGET environment status..."
+      docker ps --filter "name=echobase-$DEPLOY_TARGET" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      scripts/wait-for-services.sh echobase-$DEPLOY_TARGET api-gateway
+
+      # Get actual container name (works without compose file context)
+      API_CONTAINER=$(scripts/get-container-name.sh echobase-$DEPLOY_TARGET api-gateway)
+      echo "Running tests in container: $API_CONTAINER"
+      docker exec -e ${ENV_VAR_NAME}=${ENV_FRONTEND_PORT} "$API_CONTAINER" npm test -- --coverage --ci
+      mkdir -p backend/api-gateway/coverage backend/api-gateway/test-results
+      echo "Copying test results and coverage from container..."
+      docker cp "$API_CONTAINER":/app/coverage/. backend/api-gateway/coverage/ 2>/dev/null || echo "No coverage files found in container"
+      docker cp "$API_CONTAINER":/app/junit.xml backend/api-gateway/junit.xml 2>/dev/null || echo "No junit.xml found in container"
   artifacts:
     reports:
       junit: backend/api-gateway/junit.xml
@@ -373,26 +416,28 @@ test:green-api-gateway:
     expire_in: 1 week
     when: always
   after_script:
-    - docker compose -p echobase-green logs --tail=50 api-gateway || true
+    - DEPLOY_TARGET=$(scripts/detect-target-environment.sh 2>/dev/null || echo "unknown")
+    - API_CONTAINER=$(scripts/get-container-name.sh echobase-$DEPLOY_TARGET api-gateway 2>/dev/null) && docker logs --tail=50 "$API_CONTAINER" || true
   only:
     - branches
     - merge_requests
 
-test:green-e2e:
+test:target-e2e:
   stage: test
-  # Use host Docker daemon to access containers from deploy:green
+  # Use host Docker daemon to access containers from deploy:target
   tags:
-    - docker-local  # Matches local runner tag
+    - docker-local
   before_script:
     - apk add --no-cache bash curl git docker-cli-compose
     - *setup_scripts
   dependencies:
     - build:dependencies
     - validate:env-check
+    - deploy:target
   needs:
     - build:dependencies
     - validate:env-check
-    - deploy:green
+    - deploy:target
   script:
     - |
       set -e
@@ -403,7 +448,14 @@ test:green-e2e:
       }
       trap 'failure_message $LINENO' ERR
       
-      echo "Running E2E tests against GREEN environment..."
+      # Query nginx to determine which environment was deployed
+      DEPLOY_TARGET=$(scripts/detect-target-environment.sh)
+      echo ""
+      echo "=========================================="
+      echo "  TEST TARGET: $DEPLOY_TARGET"
+      echo "=========================================="
+      echo ""
+      echo "Running E2E tests against $DEPLOY_TARGET environment..."
       source .env
 
       echo "Retrieving database credentials from Secrets Manager..."
@@ -418,15 +470,15 @@ test:green-e2e:
 
       echo "Database user: $DB_USER"
       echo "Database name: $DB_NAME"
-      echo "Checking green environment status..."
-      docker compose -p echobase-green ps
-      scripts/wait-for-services.sh echobase-green api-gateway frontend
+      echo "Checking $DEPLOY_TARGET environment status..."
+      docker compose -p echobase-$DEPLOY_TARGET ps
+      scripts/wait-for-services.sh echobase-$DEPLOY_TARGET api-gateway frontend
 
       echo "=== Verifying Build Metadata in Running Containers ==="
-      scripts/verify-build-metadata.sh containers echobase-green || echo "WARNING: Build metadata verification failed (non-blocking)"
+      scripts/verify-build-metadata.sh containers echobase-$DEPLOY_TARGET || echo "WARNING: Build metadata verification failed (non-blocking)"
 
       echo "=== API Gateway Startup Logs (first 100 lines) ==="
-      if API_GATEWAY_CONTAINER=$(scripts/get-container-name.sh echobase-green api-gateway); then
+      if API_GATEWAY_CONTAINER=$(scripts/get-container-name.sh echobase-$DEPLOY_TARGET api-gateway); then
         timeout 30 docker logs "$API_GATEWAY_CONTAINER" 2>&1 | head -100 || echo "WARNING: Failed to get first 100 lines (timeout or error)"
         echo ""
         echo "=== API Gateway Recent Logs (last 50 lines) ==="
@@ -435,14 +487,14 @@ test:green-e2e:
       else
         echo "WARNING: Failed to get API Gateway container (see error details above)"
       fi
-      
-      echo "Running Playwright E2E tests inside the green network..."
+
+      echo "Running Playwright E2E tests inside the $DEPLOY_TARGET network..."
 
       echo "Checking Docker networks..."
-      docker network ls | grep green || echo "No green network found by name"
+      docker network ls | grep $DEPLOY_TARGET || echo "No $DEPLOY_TARGET network found by name"
 
-      # Use the exact network name from docker-compose.green.yml
-      NETWORK_NAME="echobase-green-network"
+      # Use the exact network name from docker-compose file
+      NETWORK_NAME="echobase-$DEPLOY_TARGET-network"
 
       # Verify the network exists
       if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
@@ -462,12 +514,12 @@ test:green-e2e:
         -e DB_NAME=$DB_NAME \
         -e DB_USER=$DB_USER \
         -e DB_PASSWORD=$DB_PASSWORD \
-        -e API_BASE_URL=https://echobase-green-api-gateway:3001 \
-        -e WEB_BASE_URL=https://echobase-green-frontend:443 \
+        -e API_BASE_URL=https://echobase-$DEPLOY_TARGET-api-gateway:3001 \
+        -e WEB_BASE_URL=https://echobase-$DEPLOY_TARGET-frontend:443 \
         -e AWS_REGION=us-east-1 \
         -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
         -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-        -e SQS_ENDPOINT=http://echobase-green-localstack:4566 \
+        -e SQS_ENDPOINT=http://echobase-$DEPLOY_TARGET-localstack:4566 \
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         -w /work \
         mcr.microsoft.com/playwright:v1.56.0-noble \
@@ -512,10 +564,10 @@ test:green-e2e:
         echo "=== Container logs (last 50 lines) ==="
         docker logs --tail=50 $CONTAINER_ID || true
         echo "=== API Gateway Logs (last 100 lines) ==="
-        docker logs echobase-green-api-gateway --tail 100 2>&1 | grep -E "CSRF|CORS|403|ERROR|Rejected" || docker logs echobase-green-api-gateway --tail 100
+        docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100 2>&1 | grep -E "CSRF|CORS|403|ERROR|Rejected" || docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100
         echo ""
-        echo "=== Frontend Logs (last 50 lines) syzygy ==="
-        docker logs echobase-green-frontend --tail 50 2>&1 || true
+        echo "=== Frontend Logs (last 50 lines) ==="
+        docker logs echobase-$DEPLOY_TARGET-frontend --tail 50 2>&1 || true
       else
         echo "✓ All E2E tests passed"
       fi
@@ -533,8 +585,12 @@ test:green-e2e:
     expire_in: 1 week
     when: always
   after_script:
-    - echo "=== Green environment service logs (last 100 lines) ==="
-    - docker compose -p echobase-green logs --tail=100 || true
+    - DEPLOY_TARGET=$(scripts/detect-target-environment.sh 2>/dev/null || echo "unknown")
+    - echo "=== $DEPLOY_TARGET environment service logs (last 100 lines each) ==="
+    - |
+      for container in $(docker ps --filter "name=echobase-$DEPLOY_TARGET" --format "{{.Names}}" 2>/dev/null); do
+        echo "=== Logs for $container ===" && docker logs --tail=100 "$container" 2>&1 || true
+      done
   only:
     - branches
     - merge_requests
@@ -547,12 +603,12 @@ test:green-e2e:
 # BLUE-GREEN DEPLOYMENT
 # ============================================================================
 
-deploy:green:
-  stage: deploy-green
+deploy:target:
+  stage: deploy-target
   # Use host Docker daemon for persistent containers
   # Requires GitLab runner with Docker socket access
   tags:
-    - docker-local  # Matches local runner tag
+    - docker-local
   before_script:
     - apk add --no-cache bash curl git docker-cli-compose wget unzip
     - *install_terraform
@@ -562,18 +618,80 @@ deploy:green:
   needs:
     - build:docker-images
     - durable:setup-ci
+  resource_group: deployment  # Prevent concurrent deployments
   script:
     - |
-      echo "Deploying to GREEN environment..."
+      echo "=========================================="
+      echo "DEPLOY:TARGET - Environment Detection"
+      echo "=========================================="
+      echo ""
+      echo "Checking environment setup..."
+      echo "  Working directory: $(pwd)"
+      echo "  Script exists: $(test -f scripts/detect-target-environment.sh && echo 'yes' || echo 'no')"
+      echo "  Script executable: $(test -x scripts/detect-target-environment.sh && echo 'yes' || echo 'no')"
+      echo ""
+
+      # Diagnostic info to detect multi-runner issues
+      echo "=========================================="
+      echo "DIAGNOSTIC: Runner and Docker Info"
+      echo "=========================================="
+      echo "  Hostname: $(hostname)"
+      echo "  Docker host: ${DOCKER_HOST:-unix:///var/run/docker.sock}"
+      echo "  Docker info:"
+      docker info 2>&1 | grep -E "Name:|ID:|Server Version:" | sed 's/^/    /'
+      echo ""
+      echo "  All running containers:"
+      docker ps --format "    {{.Names}} ({{.Status}})" || echo "    ERROR: docker ps failed"
+      echo ""
+      echo "  Durable containers specifically:"
+      docker ps --filter "name=echobase-ci-durable" --format "    {{.Names}} ({{.Status}})" || echo "    None found"
+      echo "=========================================="
+      echo ""
+
+      # Detect target by querying nginx load balancer (single source of truth)
+      echo "Detecting deployment target..."
+      echo ""
+      if ! DEPLOY_TARGET=$(scripts/detect-target-environment.sh); then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: Failed to detect target environment"
+        echo "=========================================="
+        echo "The detect-target-environment.sh script failed."
+        echo "This determines which environment (blue or green) to deploy to."
+        echo ""
+        echo "If durable containers are missing, jobs may be running on different runners."
+        echo "Ensure only ONE GitLab runner has the 'docker-local' tag."
+        echo ""
+        echo "Please check the diagnostic info and error messages above."
+        echo ""
+        exit 1
+      fi
+
+      echo ""
+      echo "=========================================="
+      echo "  DEPLOY TARGET: $DEPLOY_TARGET"
+      echo "=========================================="
+      echo ""
+
       source .env
-      
+
+      # Set environment-specific variables
+      if [ "$DEPLOY_TARGET" = "blue" ]; then
+        ENV_API_PORT=${BLUE_API_PORT:-3102}
+        ENV_FRONTEND_PORT=${BLUE_FRONTEND_PORT:-3544}
+        ENV_LOCALSTACK_PORT=${BLUE_LOCALSTACK_PORT:-4667}
+      else
+        ENV_API_PORT=${GREEN_API_PORT:-3101}
+        ENV_FRONTEND_PORT=${GREEN_FRONTEND_PORT:-3543}
+        ENV_LOCALSTACK_PORT=${GREEN_LOCALSTACK_PORT:-4666}
+      fi
+
       echo "Verifying durable infrastructure is running..."
       docker ps --filter "name=echobase-ci-durable" --format "{{.Names}}: {{.Status}}"
 
-      echo "Cleaning up any existing green environment..."
-      # The '|| true' ensures the pipeline doesn't fail if the green environment doesn't exist yet
-      docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green down || true
-      
+      echo "Cleaning up any existing $DEPLOY_TARGET environment..."
+      docker compose -f docker-compose.yml -f docker-compose.$DEPLOY_TARGET.yml -p echobase-$DEPLOY_TARGET down || true
+
       echo "Note: Database is managed separately in durable infrastructure"
 
       # Images are already in Docker daemon from build:docker-images (same runner)
@@ -582,62 +700,156 @@ deploy:green:
       scripts/verify-build-metadata.sh images
 
       echo "Images ready for deployment (built in build:docker-images job)"
-      
-      echo "Starting green environment..."
-      docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green up -d localstack
-      
-      scripts/wait-for-services.sh echobase-green localstack
-      scripts/wait-for-endpoint.sh http://localhost:${GREEN_LOCALSTACK_PORT}/_localstack/health ${LOCALSTACK_TIMEOUT} "LocalStack (Green)"
-      
+
+      echo "Starting $DEPLOY_TARGET environment..."
+      docker compose -f docker-compose.yml -f docker-compose.$DEPLOY_TARGET.yml -p echobase-$DEPLOY_TARGET up -d localstack
+
+      scripts/wait-for-services.sh echobase-$DEPLOY_TARGET localstack
+      scripts/wait-for-endpoint.sh http://localhost:${ENV_LOCALSTACK_PORT}/_localstack/health ${LOCALSTACK_TIMEOUT} "LocalStack ($DEPLOY_TARGET)"
+
       # Apply infrastructure changes (e.g., S3 buckets, queues) to LocalStack
-      scripts/terraform-apply.sh http://localhost:${GREEN_LOCALSTACK_PORT}
-      
-      docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green up -d api-gateway frontend order-processor
-      
-      scripts/wait-for-services.sh echobase-green api-gateway frontend order-processor
-      
-      echo "Verifying green environment..."
-      docker compose -p echobase-green ps
-      
+      scripts/terraform-apply.sh http://localhost:${ENV_LOCALSTACK_PORT}
+
+      echo ""
+      echo "Starting application services..."
+      echo "  Note: Frontend depends on API Gateway being healthy"
+      echo "  This may take up to 2 minutes while health checks run"
+      echo ""
+
+      # Start api-gateway first without frontend to avoid dependency failures
+      echo "Step 1: Starting API Gateway and Order Processor..."
+      if ! docker compose -f docker-compose.yml -f docker-compose.$DEPLOY_TARGET.yml -p echobase-$DEPLOY_TARGET up -d api-gateway order-processor; then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: Failed to start API Gateway or Order Processor"
+        echo "=========================================="
+        docker compose -p echobase-$DEPLOY_TARGET ps
+        docker compose -p echobase-$DEPLOY_TARGET logs --tail=100 api-gateway
+        docker compose -p echobase-$DEPLOY_TARGET logs --tail=100 order-processor
+        exit 1
+      fi
+
+      echo ""
+      echo "Step 2: Waiting for API Gateway to become healthy..."
+      if ! scripts/wait-for-services.sh echobase-$DEPLOY_TARGET api-gateway order-processor; then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: API Gateway or Order Processor failed health check"
+        echo "=========================================="
+        echo "This usually means:"
+        echo "  1. Database connection failed"
+        echo "  2. Secrets Manager credentials are incorrect"
+        echo "  3. Environment variables are missing"
+        echo "  4. Application crashed on startup"
+        echo ""
+        echo "Check the logs above for specific error messages."
+        exit 1
+      fi
+
+      echo ""
+      echo "Step 3: Starting Frontend (depends on API Gateway)..."
+      docker compose -f docker-compose.yml -f docker-compose.$DEPLOY_TARGET.yml -p echobase-$DEPLOY_TARGET up -d frontend
+
+      echo ""
+      echo "Step 4: Waiting for Frontend to become healthy..."
+      scripts/wait-for-services.sh echobase-$DEPLOY_TARGET frontend
+
+      echo "Verifying $DEPLOY_TARGET environment..."
+      docker compose -p echobase-$DEPLOY_TARGET ps
+
       echo ""
       echo "=== Port Mappings Check ==="
-      # This command contains single quotes and a pipe, which is handled fine inside the literal block
-      docker ps --format "table {{.Names}}\t{{.Ports}}" | grep -E "echobase-green|echobase-ci-durable|NAMES"
-      
-      echo "✓ Green environment deployed successfully!"
-      echo "Green environment services are running on internal network:"
-      # These final lines were causing validation errors due to the ':' and embedded single quotes
+      docker ps --format "table {{.Names}}\t{{.Ports}}" | grep -E "echobase-$DEPLOY_TARGET|echobase-ci-durable|NAMES"
+
+      echo "✓ $DEPLOY_TARGET environment deployed successfully!"
+      echo "$DEPLOY_TARGET environment services are running on internal network:"
       echo "  - MariaDB (Durable): echobase-ci-durable-mariadb:3306"
-      echo "  - LocalStack: echobase-green-localstack:4566"
-      echo "  - API Gateway: echobase-green-api-gateway:3001"
-      echo "  - Frontend: echobase-green-frontend:443"
-      
+      echo "  - LocalStack: echobase-$DEPLOY_TARGET-localstack:4566"
+      echo "  - API Gateway: echobase-$DEPLOY_TARGET-api-gateway:3001"
+      echo "  - Frontend: echobase-$DEPLOY_TARGET-frontend:443"
       echo ""
-      echo "Green environment ready for testing (containers will persist)"
+      echo "External access ports:"
+      echo "  - API Gateway: localhost:$ENV_API_PORT"
+      echo "  - Frontend: localhost:$ENV_FRONTEND_PORT"
+
+      echo ""
+      echo "=== Network Connectivity Verification ==="
+      echo "Containers on echobase-ci-durable-network:"
+      docker network inspect echobase-ci-durable-network --format '{{range .Containers}}  {{.Name}}{{println}}{{end}}' 2>/dev/null || echo "  (failed to inspect)"
+      echo ""
+      echo "Testing nginx -> $DEPLOY_TARGET connectivity:"
+      NGINX_CONTAINER=$(docker ps --filter "label=echobase.service=nginx" --format "{{.Names}}" | head -1)
+      if [ -n "$NGINX_CONTAINER" ]; then
+        echo -n "  nginx -> frontend: "
+        docker exec "$NGINX_CONTAINER" wget -q --spider --timeout=5 --no-check-certificate "https://echobase-${DEPLOY_TARGET}-frontend:443/" 2>/dev/null && echo "OK" || echo "FAIL"
+        echo -n "  nginx -> api-gateway: "
+        docker exec "$NGINX_CONTAINER" wget -q --spider --timeout=5 --no-check-certificate "https://echobase-${DEPLOY_TARGET}-api-gateway:3001/health" 2>/dev/null && echo "OK" || echo "FAIL"
+      else
+        echo "  WARNING: nginx container not found"
+      fi
+      echo ""
+
+      echo "$DEPLOY_TARGET environment ready for testing (containers will persist)"
       echo "Note: Database is in durable infrastructure and persists across deployments"
-  environment:
-    name: green-canary
-    url: http://localhost:8081
-    on_stop: teardown:green
+  after_script:
+    - |
+      # Capture logs on failure for debugging
+      # Detect which environment was being deployed (may not be set if detection failed)
+      if [ -n "$DEPLOY_TARGET" ]; then
+        echo ""
+        echo "=========================================="
+        echo "DEBUG: Showing $DEPLOY_TARGET container logs"
+        echo "=========================================="
+        echo ""
+        echo "=== Container Status ==="
+        docker compose -p echobase-$DEPLOY_TARGET ps 2>&1 || echo "Failed to get container status"
+        echo ""
+        echo "=== API Gateway Logs (last 100 lines) ==="
+        docker compose -p echobase-$DEPLOY_TARGET logs --tail=100 api-gateway 2>&1 || echo "Failed to get api-gateway logs"
+        echo ""
+        echo "=== Frontend Logs (last 50 lines) ==="
+        docker compose -p echobase-$DEPLOY_TARGET logs --tail=50 frontend 2>&1 || echo "Failed to get frontend logs"
+        echo ""
+        echo "=== LocalStack Logs (last 50 lines) ==="
+        docker compose -p echobase-$DEPLOY_TARGET logs --tail=50 localstack 2>&1 || echo "Failed to get localstack logs"
+        echo ""
+        echo "=== Durable Infrastructure Status ==="
+        docker ps --filter "name=echobase-ci-durable" --format "table {{.Names}}\t{{.Status}}" 2>&1 || echo "Failed to get durable status"
+      fi
   only:
     - branches
 
-promote:green:
-  stage: deploy
+promote:to-production:
+  stage: promote
+  tags:
+    - docker-local  # Required to access Docker socket for nginx queries
+  before_script:
+    - apk add --no-cache bash docker-cli-compose curl
+    - chmod +x scripts/*.sh
   needs:
-    - deploy:green
+    - test:target-api-gateway
+    - test:target-e2e
   script:
-    - echo "Promoting GREEN to production..."
-    - chmod +x scripts/switch-environment.sh
-    - ./scripts/switch-environment.sh green
-    - echo "✓ Traffic switched to green environment"
-    - echo "Production now points to:"
-    - 'echo "  - Frontend: https://docker:${GREEN_FRONTEND_PORT} (via port 443)"'
-    - 'echo "  - API: https://docker:${GREEN_API_PORT} (via /api)"'
-    - echo ""
-    - echo "Old blue environment still running on:"
-    - 'echo "  - Direct access: http://localhost:8080"'
-    - echo "Use 'teardown:blue' job to remove old environment"
+    - |
+      # Query nginx to determine which environment to promote
+      DEPLOY_TARGET=$(scripts/detect-target-environment.sh)
+      echo "Promoting $DEPLOY_TARGET to production with smoke tests..."
+
+      # Use promote-with-tests.sh which handles:
+      # 1. Traffic switch
+      # 2. Smoke tests (with 2 retries)
+      # 3. Automatic rollback on failure
+      ./scripts/promote-with-tests.sh $DEPLOY_TARGET
+
+      echo ""
+      echo "Production now points to: $DEPLOY_TARGET"
+      if [ "$DEPLOY_TARGET" = "blue" ]; then
+        echo "Previous green environment still running for rollback"
+        echo "Use 'teardown:green' job to remove it when confident"
+      else
+        echo "Previous blue environment still running for rollback"
+        echo "Use 'teardown:blue' job to remove it when confident"
+      fi
   environment:
     name: production
     url: https://localhost
@@ -645,15 +857,38 @@ promote:green:
   only:
     - branches
 
-rollback:to-blue:
-  stage: deploy
+rollback:to-previous:
+  stage: promote
+  tags:
+    - docker-local  # Required to access Docker socket for nginx queries
+  before_script:
+    - apk add --no-cache bash docker-cli-compose
+    - chmod +x scripts/*.sh
   needs: []
   script:
-    - echo "Rolling back to BLUE environment..."
-    - chmod +x scripts/switch-environment.sh
-    - ./scripts/switch-environment.sh blue
-    - echo "✓ Traffic switched back to blue environment"
-    - echo "You can now investigate or remove green environment"
+    - |
+      echo "Rolling back to previous environment..."
+
+      # Get current production environment from nginx
+      CURRENT=$(./scripts/get-active-environment.sh)
+      echo "Current production (from nginx): $CURRENT"
+
+      # Determine rollback target
+      if [ "$CURRENT" = "blue" ]; then
+        ROLLBACK_TARGET="green"
+      elif [ "$CURRENT" = "green" ]; then
+        ROLLBACK_TARGET="blue"
+      else
+        echo "ERROR: No production environment detected in nginx config"
+        exit 1
+      fi
+
+      echo "Rolling back to: $ROLLBACK_TARGET"
+
+      # Use switch-traffic.sh to perform the rollback
+      ./scripts/switch-traffic.sh $ROLLBACK_TARGET
+
+      echo "✓ Successfully rolled back to $ROLLBACK_TARGET environment"
   environment:
     name: production
     url: https://localhost
@@ -667,29 +902,58 @@ rollback:to-blue:
 
 teardown:blue:
   stage: teardown
+  tags:
+    - docker-local  # Required for Docker access and nginx queries
   needs: []
-  <<: *terraform_job_setup
+  before_script:
+    - apk add --no-cache bash docker-cli-compose
+    - *setup_scripts
   script:
-    - echo "Removing old BLUE environment..."
-    - scripts/terraform-destroy.sh
-    - docker compose -p echobase down
-    - echo "✓ Blue environment removed"
+    - |
+      echo "Removing BLUE environment..."
+
+      # Safety check: Do not teardown production (query nginx - REQUIRED)
+      PRODUCTION_ENV=$(scripts/get-active-environment.sh)
+      if [ "$PRODUCTION_ENV" = "blue" ]; then
+        echo "ERROR: Cannot teardown blue - it is currently production (per nginx)!"
+        echo "Switch traffic to green first using rollback:to-previous"
+        exit 1
+      fi
+      echo "Safety check passed: production is '$PRODUCTION_ENV', not blue"
+
+      echo "Tearing down blue environment..."
+      docker compose -f docker-compose.yml -f docker-compose.blue.yml -p echobase-blue down || true
+      echo "✓ Blue environment removed"
+      echo "Note: Durable CI infrastructure is still running."
   when: manual
   only:
     - branches
 
 teardown:green:
   stage: teardown
+  tags:
+    - docker-local  # Required for Docker access and nginx queries
   needs: []
+  before_script:
+    - apk add --no-cache bash docker-cli-compose
+    - *setup_scripts
   script:
     - |
       echo "Removing GREEN environment..."
+
+      # Safety check: Do not teardown production (query nginx - REQUIRED)
+      PRODUCTION_ENV=$(scripts/get-active-environment.sh)
+      if [ "$PRODUCTION_ENV" = "green" ]; then
+        echo "ERROR: Cannot teardown green - it is currently production (per nginx)!"
+        echo "Switch traffic to blue first using rollback:to-previous"
+        exit 1
+      fi
+      echo "Safety check passed: production is '$PRODUCTION_ENV', not green"
+
+      echo "Tearing down green environment..."
       docker compose -f docker-compose.yml -f docker-compose.green.yml -p echobase-green down || true
-      echo "Green environment removed"
+      echo "✓ Green environment removed"
       echo "Note: Durable CI infrastructure is still running. Use teardown:durable-ci to remove it."
-  environment:
-    name: green-canary
-    action: stop
   when: manual
   only:
     - branches

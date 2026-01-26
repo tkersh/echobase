@@ -2,6 +2,9 @@
 
 # E2E Test Setup Script
 # This script ensures the environment is ready for E2E tests
+#
+# Usage: ./e2e-tests/scripts/setup-tests.sh [devlocal|ci]
+#   If no environment specified, auto-detects which is running.
 
 set -e
 
@@ -71,6 +74,16 @@ print_success "Docker is running"
 
 # Navigate to project root
 cd "$(dirname "$0")/../.." || exit
+PROJECT_ROOT="$(pwd)"
+
+# Detect environment
+echo ""
+echo "Detecting environment..."
+# shellcheck source=scripts/detect-env.sh
+if ! source "$PROJECT_ROOT/scripts/detect-env.sh" "${1:-}"; then
+    exit 1
+fi
+print_success "Using durable environment: $DURABLE_ENV"
 
 # Check if .env file exists
 echo ""
@@ -99,8 +112,8 @@ set +a
 # Retrieve database credentials from Secrets Manager (same as CI system)
 echo ""
 echo "Retrieving database credentials from Secrets Manager..."
-if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localstack$"; then
-    SECRET_JSON=$(docker exec echobase-devlocal-durable-localstack awslocal secretsmanager get-secret-value \
+if docker ps --format '{{.Names}}' | grep -q "^${DURABLE_LOCALSTACK}$"; then
+    SECRET_JSON=$(docker exec "$DURABLE_LOCALSTACK" awslocal secretsmanager get-secret-value \
         --secret-id echobase/database/credentials \
         --query SecretString \
         --output text 2>/dev/null)
@@ -119,40 +132,22 @@ if docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-localst
             exit 1
         fi
 
-        # For root access, fall back to credentials file
-        if [ -f "durable/.credentials.devlocal" ]; then
-            MYSQL_ROOT_PASSWORD=$(grep MYSQL_ROOT_PASSWORD durable/.credentials.devlocal | cut -d'=' -f2)
-            export MYSQL_ROOT_PASSWORD
-        fi
+        # Get root password from Secrets Manager
+        MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"root_password":"[^"]*"' | cut -d'"' -f4)
+        export MYSQL_ROOT_PASSWORD
+
         print_success "Retrieved database credentials from Secrets Manager"
     else
-        # In CI environment, Secrets Manager is required
-        if [ "${CI:-false}" = "true" ]; then
-            print_error "Secrets Manager is required in CI environment"
-            print_error "Cannot fall back to credentials file in CI"
-            exit 1
-        fi
-
-        print_warning "Could not retrieve credentials from Secrets Manager, falling back to credentials file"
-        if [ -f "durable/.credentials.devlocal" ]; then
-            set -a
-            source durable/.credentials.devlocal
-            set +a
-        fi
-    fi
-else
-    # In CI environment, durable LocalStack must be running
-    if [ "${CI:-false}" = "true" ]; then
-        print_error "Durable LocalStack is required in CI environment"
+        # Secrets Manager is required - no fallback to files
+        print_error "Could not retrieve credentials from Secrets Manager"
+        print_error "Ensure durable infrastructure is running: ./durable/setup.sh $DURABLE_ENV"
         exit 1
     fi
-
-    print_warning "Durable LocalStack not running, falling back to credentials file"
-    if [ -f "durable/.credentials.devlocal" ]; then
-        set -a
-        source durable/.credentials.devlocal
-        set +a
-    fi
+else
+    # Durable LocalStack must be running - no fallback
+    print_error "Durable LocalStack is not running ($DURABLE_LOCALSTACK)"
+    print_error "Start durable infrastructure first: ./durable/setup.sh $DURABLE_ENV"
+    exit 1
 fi
 
 # Check if docker-compose.yml exists
@@ -165,10 +160,10 @@ print_success "Found docker-compose.yml"
 # Ensure durable infrastructure is running
 echo ""
 echo "Ensuring durable infrastructure is running..."
-if ! docker ps --format '{{.Names}}' | grep -q "^echobase-devlocal-durable-mariadb$"; then
+if ! docker ps --format '{{.Names}}' | grep -q "^${DURABLE_MARIADB}$"; then
     print_warning "Durable database not running, starting it..."
     chmod +x durable/setup.sh
-    ./durable/setup.sh devlocal
+    ./durable/setup.sh "$DURABLE_ENV"
 fi
 print_success "Durable infrastructure ready"
 
@@ -188,10 +183,10 @@ WEB_URL="${WEB_BASE_URL:-$DEFAULT_WEB_URL}"
 # Wait for database (in durable infrastructure)
 echo "Waiting for database..."
 RETRY_COUNT=0
-until docker exec echobase-devlocal-durable-mariadb mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
+until docker exec "$DURABLE_MARIADB" mariadb-admin ping -h localhost -u root -p"${MYSQL_ROOT_PASSWORD}" &> /dev/null; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
-        fail_service_health_check "Database" "echobase-devlocal-durable-mariadb"
+        fail_service_health_check "Database" "$DURABLE_MARIADB"
     fi
     sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
@@ -203,7 +198,7 @@ RETRY_COUNT=0
 until curl -k -s "${API_URL}/health" > /dev/null 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
-        fail_service_health_check "API Gateway" "echobase-devlocal-api-gateway"
+        fail_service_health_check "API Gateway" "$EPHEMERAL_API_GATEWAY"
     fi
     sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
@@ -215,7 +210,7 @@ RETRY_COUNT=0
 until curl -k -s "${WEB_URL}" > /dev/null 2>&1; do
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -ge $MAX_SERVICE_RETRIES ]; then
-        fail_service_health_check "Frontend" "echobase-devlocal-frontend"
+        fail_service_health_check "Frontend" "$EPHEMERAL_FRONTEND"
     fi
     sleep "$HEALTH_CHECK_INTERVAL_SECS"
 done
@@ -242,13 +237,13 @@ print_success "Playwright browsers installed"
 # Verify database connection (use app user, not root)
 echo ""
 echo "Verifying database connection..."
-if docker exec echobase-devlocal-durable-mariadb mariadb -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e "USE ${MYSQL_DATABASE}; SELECT 1;" > /dev/null 2>&1; then
+if docker exec "$DURABLE_MARIADB" mariadb -u "${MYSQL_USER}" -p"${MYSQL_PASSWORD}" -e "USE ${MYSQL_DATABASE}; SELECT 1;" > /dev/null 2>&1; then
     print_success "Database connection verified (user: ${MYSQL_USER})"
 else
     print_error "Cannot connect to database"
-    print_error "Database container: echobase-devlocal-durable-mariadb"
+    print_error "Database container: $DURABLE_MARIADB"
     print_error "User: ${MYSQL_USER}"
-    docker ps --filter "name=echobase-devlocal-durable"
+    docker ps --filter "name=${DURABLE_CONTAINER_PREFIX}"
     exit 1
 fi
 
@@ -286,9 +281,10 @@ echo ""
 echo "========================================="
 echo "Environment Ready!"
 echo "========================================="
+echo "Environment:  ${DURABLE_ENV}"
 echo "Frontend:     ${WEB_URL}"
 echo "API Gateway:  ${API_URL}"
-echo "Database:     localhost:3306"
+echo "Database:     localhost:${DURABLE_DB_PORT}"
 echo ""
 echo "Run tests with:"
 echo "  cd e2e-tests"

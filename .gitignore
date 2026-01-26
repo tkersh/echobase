@@ -47,7 +47,7 @@ Thumbs.db
 
 # Note: .terraform.lock.hcl should be committed to source control
 
-# .tfstate files
+# .tfstate files (including environment-specific: terraform.tfstate.devlocal, terraform.tfstate.ci)
 *.tfstate
 *.tfstate.*
 
@@ -99,15 +99,10 @@ localstack-data/
 .env
 .env.local
 .env.*.local
-.env.backup
+.env.backup*
 .env.development.local
 .env.test.local
 .env.production.local
-
-### MariaDB Encryption Keys ###
-# CRITICAL: Never commit encryption keys!
-mariadb/config/keyfile.enc
-*.enc
 
 # Durable infrastructure credentials
 durable/.credentials.*

@@ -11,32 +11,39 @@ A cloud-native, asynchronous order processing application built with React, Node
 
 ![Architecture Diagram](docs/architecture.jpg)
 
-### Durable Infrastructure (Database Layer)
+### Durable Infrastructure (Persistent Layer)
 
-The database infrastructure is managed separately from application deployments to enable true blue-green deployments:
+The durable infrastructure is managed separately from application deployments to enable true blue-green deployments:
 
-- **Dev-Local Database** (`echobase-devlocal-durable-mariadb`) - Port 3306
-  - Persists across blue-green application deployments
-  - Network: `echobase-devlocal-durable-network`
-  - Volume: `echobase-devlocal-durable-mariadb-data`
+- **nginx Load Balancer** (`echobase-ci-durable-nginx`) - Ports 443 (production), 8080 (blue direct), 8081 (green direct)
+  - **Single source of truth** for which environment is production
+  - Routes production traffic (port 443) to active environment
+  - Direct access ports for blue (8080) and green (8081) testing
+  - Persists across all deployments
+  - Network: `echobase-ci-durable-network`
 
-- **CI Database** (`echobase-ci-durable-mariadb`) - Port 3307
+- **MariaDB Database** (`echobase-ci-durable-mariadb`) - Port 3307
   - Separate database for CI/CD testing
+  - Persists across blue-green application deployments
   - Network: `echobase-ci-durable-network`
   - Volume: `echobase-ci-durable-mariadb-data`
+
+- **LocalStack (Secrets)** (`echobase-ci-durable-localstack`) - Port 4567
+  - Secrets Manager and KMS only (persistent credentials)
+  - Network: `echobase-ci-durable-network`
 
 See [durable/README.md](durable/README.md) for complete durable infrastructure documentation.
 
 ### Application Components (Ephemeral - Blue/Green Deployable)
 
-1. **Frontend (React + Vite)** - HTTPS Port 3443
+1. **Frontend (React + Vite)** - HTTPS Port 443
    - User interface for order placement and user registration
    - Built with React 18 and Vite
    - Modern CSS with responsive design
    - JWT-based authentication
    - **Secure HTTPS communication** with self-signed certificates
    - Communicates with API Gateway over HTTPS
-   - Ports: Dev-Local 3443, CI-Blue 3444, Green 3543
+   - Ports: CI-Blue 3544, CI-Green 3543
 
 2. **API Gateway (Express)** - HTTPS Port 3001
    - REST API for order submission and authentication
@@ -45,13 +52,13 @@ See [durable/README.md](durable/README.md) for complete durable infrastructure d
    - Retrieves database credentials from AWS Secrets Manager
    - Places orders into SQS queue
    - Health check endpoint
-   - Ports: Dev-Local 3001, CI-Blue 3002, Green 3101
+   - Ports: CI-Blue 3102, CI-Green 3101
 
 3. **Processing Queue (SQS)**
-   - AWS SQS queue running on Localstack
+   - AWS SQS queue running on Localstack (ephemeral)
    - Asynchronous message processing
    - Dead letter queue for failed messages
-   - Blue: 4566, Green: 4666
+   - Ports: CI-Blue 4667, CI-Green 4666
 
 4. **Order Processor (Node.js Microservice)**
    - Background service polling SQS
@@ -61,11 +68,11 @@ See [durable/README.md](durable/README.md) for complete durable infrastructure d
 
 5. **Data Store (MariaDB)** - Durable Infrastructure
    - **Managed separately** from application deployments (see `durable/` directory)
+   - **Shared by both blue and green** environments (no data duplication)
    - Persistent storage for orders with encryption at rest
    - AES-256 encryption for all data, logs, and temporary files
    - User authentication and order history tracking
    - Foreign key relationships enforcing data integrity
-   - Dev-Local: `echobase-devlocal-durable-mariadb` (port 3306)
    - CI: `echobase-ci-durable-mariadb` (port 3307)
 
 6. **Security Services (AWS - Localstack)**
