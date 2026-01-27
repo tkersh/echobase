@@ -42,10 +42,9 @@ export default defineConfig({
     // Base URL for frontend tests
     baseURL: process.env.WEB_BASE_URL,
 
-    // Add Origin header for CSRF protection
-    extraHTTPHeaders: {
-      'Origin': process.env.WEB_BASE_URL,
-    },
+    // Note: Origin header is set automatically by the browser for POST requests
+    // For API tests, ApiHelper explicitly sets Origin header
+    // Removed extraHTTPHeaders Origin to avoid conflicts with browser's natural Origin
 
     // Collect trace on failure
     trace: 'on-first-retry',

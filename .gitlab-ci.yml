@@ -561,8 +561,14 @@ test:target-e2e:
       if [ $TEST_EXIT_CODE -ne 0 ]; then
         echo "ERROR: Tests failed with exit code: $TEST_EXIT_CODE"
         echo ""
+        echo "=== CORS_ORIGIN in API Gateway container ==="
+        docker exec echobase-$DEPLOY_TARGET-api-gateway printenv CORS_ORIGIN || echo "Could not read CORS_ORIGIN"
+        echo ""
         echo "=== Container logs (last 50 lines) ==="
         docker logs --tail=50 $CONTAINER_ID || true
+        echo "=== API Gateway Logs - CSRF/CORS related ==="
+        docker logs echobase-$DEPLOY_TARGET-api-gateway 2>&1 | grep -E "CSRF|CORS|Origin|403|Rejected" | tail -50 || echo "No CSRF/CORS logs found"
+        echo ""
         echo "=== API Gateway Logs (last 100 lines) ==="
         docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100 2>&1 | grep -E "CSRF|CORS|403|ERROR|Rejected" || docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100
         echo ""
@@ -765,6 +771,12 @@ deploy:target:
       docker ps --format "table {{.Names}}\t{{.Ports}}" | grep -E "echobase-$DEPLOY_TARGET|echobase-ci-durable|NAMES"
 
       echo "✓ $DEPLOY_TARGET environment deployed successfully!"
+
+      echo ""
+      echo "=== CORS_ORIGIN Verification ==="
+      docker exec echobase-$DEPLOY_TARGET-api-gateway printenv CORS_ORIGIN || echo "WARNING: Could not read CORS_ORIGIN"
+      echo ""
+
       echo "$DEPLOY_TARGET environment services are running on internal network:"
       echo "  - MariaDB (Durable): echobase-ci-durable-mariadb:3306"
       echo "  - LocalStack: echobase-$DEPLOY_TARGET-localstack:4566"
