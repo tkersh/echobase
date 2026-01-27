@@ -21,6 +21,27 @@ Lessons learned from past bugs - check these before modifying related code.
 
 ---
 
+## Docker Compose and Environment Variables
+
+- **`source .env` puts ALL vars into shell**: Shell environment variables have HIGHEST precedence for Docker Compose variable substitution. If you `source .env` and then run docker-compose, shell vars will override values in docker-compose.yml and override files.
+- **Unset vars that need per-environment values**: After sourcing .env, unset variables like `CORS_ORIGIN` that have different values in docker-compose.blue.yml vs docker-compose.green.yml. Let the compose file define them.
+- **Explicit values in compose files override `${VAR}` syntax**: docker-compose.green.yml's `CORS_ORIGIN=...` is an explicit value. docker-compose.yml's `CORS_ORIGIN=${CORS_ORIGIN}` uses variable substitution. Shell env takes precedence for substitution.
+- **Debug with `docker compose config`**: Run `docker compose -f docker-compose.yml -f docker-compose.green.yml config` to see the final merged config and verify environment variable values.
+
+---
+
+## Test Suite Consistency
+
+- **Apply fixes across all test suites**: When fixing an issue in one test suite (smoke tests, E2E tests, API Gateway unit tests), check if the same issue could affect the others. Common patterns that need cross-suite fixes:
+  - Origin/CORS header handling
+  - Network mode differences (host vs container)
+  - URL construction and endpoint paths
+  - Environment variable usage
+- **Test suites share infrastructure**: All test suites run against the same deployed environment. A CORS fix needed for smoke tests likely affects E2E tests too.
+- **Check all test files when modifying shared utilities**: Changes to `scripts/smoke-tests.sh`, `e2e-tests/utils/`, or `backend/api-gateway/middleware/` can affect multiple test types.
+
+---
+
 ## Logging and Diagnostics
 
 - **Always add logging for failure diagnostics**: When adding anything to core code or supporting infrastructure (scripts, CI jobs, services), include appropriate logging that will help diagnose failures. This includes: input values, intermediate states, error messages with context, and exit codes.

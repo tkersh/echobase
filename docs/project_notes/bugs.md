@@ -40,6 +40,13 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 - **Prevention**: When making requests through internal Docker networking, ensure Origin headers match what the API's CORS/CSRF configuration allows. `host.docker.internal` is a Docker-specific hostname that APIs typically don't include in allowed origins
 - **File**: `scripts/smoke-tests.sh` lines 140-143
 
+### 2026-01-26 - E2E Tests Failing with "Origin validation failed" in CI
+- **Issue**: UI tests (login, registration flows) failing with 403 "Origin validation failed"
+- **Root Cause**: `deploy:target` job runs `source .env` which sets `CORS_ORIGIN=https://localhost:3543` in shell. Shell environment variables take precedence in Docker Compose variable substitution, overriding the explicit `CORS_ORIGIN` in `docker-compose.green.yml` that includes internal container names like `https://echobase-green-frontend`
+- **Solution**: Added `unset CORS_ORIGIN` after `source .env` in deploy:target so the docker-compose.green.yml value is used
+- **Prevention**: Be aware that `source .env` puts ALL variables into shell environment, which can override values in docker-compose override files. Either unset sensitive vars after sourcing, or don't include them in .env when they need environment-specific values
+- **File**: `.gitlab-ci.yml` line ~678
+
 <!-- Example entry format:
 
 ### 2026-01-23 - Container Failing to Start

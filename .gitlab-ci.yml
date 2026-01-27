@@ -675,6 +675,11 @@ deploy:target:
 
       source .env
 
+      # Unset CORS_ORIGIN from shell so docker-compose.{blue,green}.yml values are used
+      # Shell env would override the explicit CORS_ORIGIN in those files
+      # Each environment file defines CORS_ORIGIN with both localhost and internal container names
+      unset CORS_ORIGIN
+
       # Set environment-specific variables
       if [ "$DEPLOY_TARGET" = "blue" ]; then
         ENV_API_PORT=${BLUE_API_PORT:-3102}
