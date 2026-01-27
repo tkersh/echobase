@@ -48,7 +48,8 @@ services:
       - SECRETS_MANAGER_ENDPOINT=${SECRETS_MANAGER_ENDPOINT}
       - DB_SECRET_NAME=${DB_SECRET_NAME}
       - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGIN=${CORS_ORIGIN}
+      # CORS_ORIGIN defined in environment-specific files (override.yml, blue.yml, green.yml)
+      # Each environment needs different allowed origins (localhost ports, internal container names)
       - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
       - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
     depends_on:

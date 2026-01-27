@@ -23,9 +23,9 @@ Lessons learned from past bugs - check these before modifying related code.
 
 ## Docker Compose and Environment Variables
 
-- **`source .env` puts ALL vars into shell**: Shell environment variables have HIGHEST precedence for Docker Compose variable substitution. If you `source .env` and then run docker-compose, shell vars will override values in docker-compose.yml and override files.
-- **Unset vars that need per-environment values**: After sourcing .env, unset variables like `CORS_ORIGIN` that have different values in docker-compose.blue.yml vs docker-compose.green.yml. Let the compose file define them.
-- **Explicit values in compose files override `${VAR}` syntax**: docker-compose.green.yml's `CORS_ORIGIN=...` is an explicit value. docker-compose.yml's `CORS_ORIGIN=${CORS_ORIGIN}` uses variable substitution. Shell env takes precedence for substitution.
+- **Don't use `${VAR}` for per-environment values**: If a variable like `CORS_ORIGIN` differs between environments (devlocal, blue, green), don't use `${CORS_ORIGIN}` in the base docker-compose.yml. Docker Compose substitutes `${VAR}` from .env file BEFORE merging with override files, so the .env value wins.
+- **Define environment-specific vars in environment files**: Each environment file (override.yml, blue.yml, green.yml) should explicitly define values like `CORS_ORIGIN` that differ per environment. The base file should only use `${VAR}` for truly shared values.
+- **`.env` is read directly by Docker Compose**: Even if you `unset VAR` in shell, Docker Compose still reads .env file for `${VAR}` substitution. The only reliable fix is to not use `${VAR}` syntax for per-environment values.
 - **Debug with `docker compose config`**: Run `docker compose -f docker-compose.yml -f docker-compose.green.yml config` to see the final merged config and verify environment variable values.
 
 ---

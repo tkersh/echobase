@@ -17,6 +17,9 @@ services:
   api-gateway:
     ports:
       - "3001:3001"
+    environment:
+      # CORS_ORIGIN for devlocal - localhost ports used for local development
+      - CORS_ORIGIN=https://localhost:3443,http://localhost:3000
 
   frontend:
     ports:

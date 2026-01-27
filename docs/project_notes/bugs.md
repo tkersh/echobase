@@ -42,10 +42,10 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 
 ### 2026-01-26 - E2E Tests Failing with "Origin validation failed" in CI
 - **Issue**: UI tests (login, registration flows) failing with 403 "Origin validation failed"
-- **Root Cause**: `deploy:target` job runs `source .env` which sets `CORS_ORIGIN=https://localhost:3543` in shell. Shell environment variables take precedence in Docker Compose variable substitution, overriding the explicit `CORS_ORIGIN` in `docker-compose.green.yml` that includes internal container names like `https://echobase-green-frontend`
-- **Solution**: Added `unset CORS_ORIGIN` after `source .env` in deploy:target so the docker-compose.green.yml value is used
-- **Prevention**: Be aware that `source .env` puts ALL variables into shell environment, which can override values in docker-compose override files. Either unset sensitive vars after sourcing, or don't include them in .env when they need environment-specific values
-- **File**: `.gitlab-ci.yml` line ~678
+- **Root Cause**: Base `docker-compose.yml` had `CORS_ORIGIN=${CORS_ORIGIN}` which Docker Compose substitutes from .env file. The .env file only had localhost origins, not internal container names like `https://echobase-green-frontend`. Even though `docker-compose.green.yml` defined explicit CORS_ORIGIN, the variable substitution from .env was taking precedence.
+- **Solution**: Removed `CORS_ORIGIN=${CORS_ORIGIN}` from base `docker-compose.yml`. Each environment file now explicitly defines CORS_ORIGIN: `override.yml` (devlocal), `blue.yml`, and `green.yml` each have their own allowed origins.
+- **Prevention**: Don't use `${VAR}` substitution in base docker-compose.yml for values that differ per environment. Define them explicitly in each environment-specific file instead.
+- **Files**: `docker-compose.yml`, `docker-compose.override.yml`
 
 <!-- Example entry format:
 
