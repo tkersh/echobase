@@ -29,6 +29,7 @@ services:
     container_name: echobase-green-api-gateway
     environment:
       - DEPLOYMENT_COLOR=green
+      - LOG_LEVEL=DEBUG
       # Include both external (localhost) and internal (container name) origins for CORS
       # Include nginx LB ports (1443 HTTPS, 8181 green direct), direct frontend port (3543), and internal container names
       - CORS_ORIGIN=https://localhost:1443,http://localhost:8181,https://localhost:3543,https://echobase-green-frontend:443,https://echobase-green-frontend

@@ -29,6 +29,7 @@ services:
     container_name: echobase-blue-api-gateway
     environment:
       - DEPLOYMENT_COLOR=blue
+      - LOG_LEVEL=DEBUG
       # Include both external (localhost) and internal (container name) origins for CORS
       # Include nginx LB ports (1443 HTTPS, 8180 blue direct), direct frontend port (3544), and internal container names
       - CORS_ORIGIN=https://localhost:1443,http://localhost:8180,https://localhost:3544,https://echobase-blue-frontend:443,https://echobase-blue-frontend
