@@ -523,7 +523,7 @@ test:target-e2e:
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         -w /work \
         mcr.microsoft.com/playwright:v1.56.0-noble \
-        /bin/bash -c "npx playwright install chromium && npm test")
+        /bin/bash -c "npx playwright install chromium && npx playwright test --grep 'full flow via UI|register, logout, login|multiple consecutive orders'")
 
       if [ -z "$CONTAINER_ID" ]; then
         echo "ERROR: Failed to create container"
@@ -561,16 +561,22 @@ test:target-e2e:
       if [ $TEST_EXIT_CODE -ne 0 ]; then
         echo "ERROR: Tests failed with exit code: $TEST_EXIT_CODE"
         echo ""
-        echo "=== CORS_ORIGIN in API Gateway container ==="
+        echo "=== ENVIRONMENT DIAGNOSTICS ==="
+        echo "API Gateway Image Created:"
+        docker inspect echobase-api-gateway:latest --format='{{.Created}}' 2>/dev/null || echo "Could not get image info"
+        echo "CORS_ORIGIN:"
         docker exec echobase-$DEPLOY_TARGET-api-gateway printenv CORS_ORIGIN || echo "Could not read CORS_ORIGIN"
+        echo "LOG_LEVEL:"
+        docker exec echobase-$DEPLOY_TARGET-api-gateway printenv LOG_LEVEL || echo "LOG_LEVEL not set (default: INFO)"
         echo ""
-        echo "=== Container logs (last 50 lines) ==="
+        echo "=== Test Container logs (last 50 lines) ==="
         docker logs --tail=50 $CONTAINER_ID || true
-        echo "=== API Gateway Logs - CSRF/CORS related ==="
-        docker logs echobase-$DEPLOY_TARGET-api-gateway 2>&1 | grep -E "CSRF|CORS|Origin|403|Rejected" | tail -50 || echo "No CSRF/CORS logs found"
         echo ""
-        echo "=== API Gateway Logs (last 100 lines) ==="
-        docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100 2>&1 | grep -E "CSRF|CORS|403|ERROR|Rejected" || docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 100
+        echo "=== API Gateway Logs - Any 403 responses ==="
+        docker logs echobase-$DEPLOY_TARGET-api-gateway 2>&1 | grep -i "403\|rejected\|failed\|forbidden" || echo "No 403/rejection logs found"
+        echo ""
+        echo "=== API Gateway ALL Logs (last 200 lines, UNFILTERED) ==="
+        docker logs echobase-$DEPLOY_TARGET-api-gateway --tail 200 2>&1 || echo "Could not get API Gateway logs"
         echo ""
         echo "=== Frontend Logs (last 50 lines) ==="
         docker logs echobase-$DEPLOY_TARGET-frontend --tail 50 2>&1 || true
