@@ -29,13 +29,9 @@ function csrfProtection(req, res, next) {
   const host = req.get('host');
   const allowedOrigin = process.env.CORS_ORIGIN;
 
-  // Debug logging for CSRF validation
-  debug(`CSRF - Method: ${req.method}, Path: ${req.path}`);
-  debug(`  Origin header: ${originHeader || '(not set)'}`);
-  debug(`  Referer header: ${referer || '(not set)'}`);
-  debug(`  Host header: ${host || '(not set)'}`);
-  debug(`  X-Forwarded-Proto: ${req.get('x-forwarded-proto') || '(not set)'}`);
-  debug(`  req.secure: ${req.secure}`);
+  // Logging for CSRF validation (use info level so it always shows)
+  info(`CSRF check - ${req.method} ${req.path}`);
+  info(`  Origin: ${originHeader || '(not set)'}, Host: ${host || '(not set)'}, Referer: ${referer ? 'set' : '(not set)'}`);
 
   let origin = originHeader;
   let originSource = 'origin-header';
@@ -126,17 +122,17 @@ function csrfProtection(req, res, next) {
     });
 
     if (!isAllowed) {
-      debug(`CSRF: Rejected request from unauthorized origin: ${origin}`);
-      debug(`  Allowed origins: ${allowedOrigins.join(', ')}`);
+      warn(`CSRF: Rejected request from unauthorized origin: ${origin}`);
+      warn(`  Allowed origins: ${allowedOrigins.join(', ')}`);
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Origin validation failed',
       });
     }
 
-    debug(`  CSRF validation passed for origin: ${origin}`);
+    info(`CSRF: Validation passed for origin: ${origin}`);
   } catch (err) {
-    logError(`CSRF: Error parsing origin URL (origin="${origin}"):`, err);
+    warn(`CSRF: Error parsing origin URL (origin="${origin}"): ${err.message}`);
     return res.status(403).json({
       error: 'Forbidden',
       message: 'Origin validation failed',
