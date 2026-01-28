@@ -38,8 +38,13 @@ ARG BUILD_DATE=unknown
 # Copy built assets from build stage
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Copy nginx configuration template
+# Uses nginx's built-in envsubst feature: on startup, nginx processes
+# /etc/nginx/templates/*.conf.template and outputs to /etc/nginx/conf.d/
+# NGINX_ENVSUBST_FILTER restricts substitution to only $API_GATEWAY_HOST,
+# preventing replacement of nginx's own variables ($host, $request_uri, etc.)
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+ENV NGINX_ENVSUBST_FILTER=API_GATEWAY_HOST
 
 # Copy SSL certificates for HTTPS (MITM Protection)
 COPY ssl/localhost.crt /etc/nginx/ssl/localhost.crt

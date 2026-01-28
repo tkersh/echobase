@@ -116,6 +116,11 @@ services:
     image: echobase-frontend:latest
     environment:
       - REACT_APP_API_URL=${REACT_APP_API_URL}
+      # API_GATEWAY_HOST controls which api-gateway container nginx proxies to.
+      # Default 'api-gateway' works for devlocal (single api-gateway on network).
+      # CI overrides this in blue.yml/green.yml to use explicit container names,
+      # preventing DNS round-robin when both environments share the durable-network.
+      - API_GATEWAY_HOST=api-gateway
     depends_on:
       api-gateway:
         condition: service_healthy

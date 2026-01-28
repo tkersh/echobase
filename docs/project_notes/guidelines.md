@@ -21,6 +21,16 @@ Lessons learned from past bugs - check these before modifying related code.
 
 ---
 
+## Docker Service Name DNS on Shared Networks
+
+- **Service names resolve to ALL matching containers**: When multiple Docker Compose projects share an external network (e.g., `durable-network`), a service name like `api-gateway` resolves to ALL containers with that alias on the network. If both blue and green environments are running, DNS returns two IPs and nginx round-robins between them.
+- **Ephemeral-to-ephemeral traffic should stay on the ephemeral network**: Conceptually, frontend→api-gateway should use the ephemeral network (where only one `api-gateway` exists). However, Docker DNS doesn't let containers choose which network to resolve on — a container sees all aliases from all its networks. So if a container is on both networks, the ambiguous service name is unavoidable.
+- **Use explicit container names in CI**: In blue/green environments, always use the full container name (e.g., `echobase-green-api-gateway`) instead of the service name (`api-gateway`). This ensures requests go to the correct environment's container.
+- **Parameterize hostnames**: Use environment variables (e.g., `API_GATEWAY_HOST`) to make hostnames configurable per environment. The base docker-compose.yml can default to the service name, while CI overrides specify the explicit container name.
+- **Verify DNS resolution**: When debugging CI connectivity issues, always check `nslookup <service-name>` from the requesting container. Multiple IP addresses in the response indicates the shared-network DNS round-robin problem.
+
+---
+
 ## Docker Compose and Environment Variables
 
 - **Don't use `${VAR}` for per-environment values**: If a variable like `CORS_ORIGIN` differs between environments (devlocal, blue, green), don't use `${CORS_ORIGIN}` in the base docker-compose.yml. Docker Compose substitutes `${VAR}` from .env file BEFORE merging with override files, so the .env value wins.

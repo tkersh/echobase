@@ -523,7 +523,7 @@ test:target-e2e:
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         -w /work \
         mcr.microsoft.com/playwright:v1.56.0-noble \
-        /bin/bash -c "npx playwright install chromium && npx playwright test --grep 'full flow via UI|register, logout, login|multiple consecutive orders'")
+        /bin/bash -c "npx playwright install chromium && npm test")
 
       if [ -z "$CONTAINER_ID" ]; then
         echo "ERROR: Failed to create container"

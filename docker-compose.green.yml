@@ -53,6 +53,8 @@ services:
     container_name: echobase-green-frontend
     environment:
       - DEPLOYMENT_COLOR=green
+      # Use explicit container name to avoid DNS round-robin on shared durable-network
+      - API_GATEWAY_HOST=echobase-green-api-gateway
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=green"
