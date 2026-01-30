@@ -1,81 +1,81 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="37" failures="0" errors="0" time="6.527">
-  <testsuite name="API Gateway Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-01-15T23:42:58" time="5.257" tests="22">
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject POST /api/v1/orders without authentication" time="0.014">
+<testsuites name="jest tests" tests="37" failures="0" errors="0" time="7.505">
+  <testsuite name="API Gateway Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-01-30T18:24:19" time="5.861" tests="22">
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject POST /api/v1/orders without authentication" time="0.017">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject with missing Authorization header" time="0.015">
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject with missing Authorization header" time="0.014">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should not leak sensitive information in error messages" time="0.012">
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should not leak sensitive information in error messages" time="0.018">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject invalid JWT token format" time="0.011">
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject invalid JWT token format" time="0.014">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject JWT token with wrong secret" time="0.013">
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject JWT token with wrong secret" time="0.017">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject expired JWT token" time="0.02">
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject expired JWT token" time="0.014">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject malformed Authorization header" time="0.012">
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject malformed Authorization header" time="0.019">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject empty Bearer token" time="0.011">
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject empty Bearer token" time="0.014">
     </testcase>
     <testcase classname="API Gateway Security Tests › 3. Rate Limiting Security" name="should apply rate limiting to API endpoints" time="0.021">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should enforce CORS restrictions" time="0.02">
+    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should enforce CORS restrictions" time="0.013">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should allow configured origin" time="0.013">
+    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should allow configured origin" time="0.017">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with missing required fields" time="0.013">
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with missing required fields" time="0.017">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid quantity" time="0.011">
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid quantity" time="0.012">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with XSS attempt in product name" time="0.014">
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with XSS attempt in product name" time="0.012">
     </testcase>
     <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order exceeding maximum value" time="0.012">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 6. Security Headers" name="should include security headers (Helmet)" time="0.016">
+    <testcase classname="API Gateway Security Tests › 6. Security Headers" name="should include security headers (Helmet)" time="0.015">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect all sensitive endpoints" time="0.01">
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect all sensitive endpoints" time="0.013">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to health endpoint" time="0.014">
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to health endpoint" time="0.016">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to auth endpoints" time="0.013">
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to auth endpoints" time="0.015">
     </testcase>
     <testcase classname="API Gateway Security Tests › 8. Token Payload Security" name="should not include sensitive data in JWT payload" time="0.002">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should not expose stack traces in production errors" time="0.01">
+    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should not expose stack traces in production errors" time="0.012">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should provide generic error messages" time="0.012">
+    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should provide generic error messages" time="0.013">
     </testcase>
   </testsuite>
-  <testsuite name="SQS Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-01-15T23:43:03" time="1.189" tests="15">
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with invalid AWS credentials" time="0.045">
+  <testsuite name="SQS Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-01-30T18:24:25" time="1.549" tests="15">
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with invalid AWS credentials" time="0.054">
     </testcase>
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with missing credentials" time="0.015">
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with missing credentials" time="0.018">
     </testcase>
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with expired credentials" time="0.015">
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with expired credentials" time="0.016">
     </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to non-existent queue" time="0.028">
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to non-existent queue" time="0.03">
     </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to queue in different account" time="0.016">
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to queue in different account" time="0.013">
     </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject malformed queue URLs" time="0.044">
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject malformed queue URLs" time="0.042">
     </testcase>
-    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should handle malicious message content safely" time="0.038">
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should handle malicious message content safely" time="0.04">
     </testcase>
-    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should reject oversized messages" time="0.02">
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should reject oversized messages" time="0.042">
     </testcase>
-    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should verify queue exists and is accessible with valid credentials" time="0.02">
+    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should verify queue exists and is accessible with valid credentials" time="0.019">
     </testcase>
     <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should not allow unauthorized actions" time="0.012">
     </testcase>
-    <testcase classname="SQS Security Tests › 5. Rate Limiting and Throttling" name="should handle burst of messages without data loss" time="0.698">
+    <testcase classname="SQS Security Tests › 5. Rate Limiting and Throttling" name="should handle burst of messages without data loss" time="0.989">
     </testcase>
     <testcase classname="SQS Security Tests › 6. Dead Letter Queue (DLQ) Security" name="should verify DLQ configuration for failed messages" time="0.016">
     </testcase>
-    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow deletion of messages without proper receipt handle" time="0.012">
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow deletion of messages without proper receipt handle" time="0.014">
     </testcase>
-    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow message tampering via visibility timeout" time="0.016">
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow message tampering via visibility timeout" time="0.017">
     </testcase>
-    <testcase classname="SQS Security Tests › 8. Encryption and Data Protection" name="should verify queue encryption settings" time="0.013">
+    <testcase classname="SQS Security Tests › 8. Encryption and Data Protection" name="should verify queue encryption settings" time="0.014">
     </testcase>
   </testsuite>
 </testsuites>

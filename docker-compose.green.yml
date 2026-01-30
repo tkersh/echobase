@@ -41,6 +41,8 @@ services:
       - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
       # Use CI durable MariaDB (correct hostname for CI environment)
       - DB_HOST=echobase-ci-durable-mariadb
+      # Use CI durable MCP server for product recommendations
+      - MCP_SERVER_ENDPOINT=http://echobase-ci-durable-mcp-server:3002
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=green"

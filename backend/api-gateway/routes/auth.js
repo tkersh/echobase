@@ -15,6 +15,7 @@ const {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
 } = require('../../shared/constants');
+const { getRecommendedProducts } = require('../services/mcpClient');
 
 const router = express.Router();
 
@@ -181,6 +182,13 @@ router.post('/register', registerValidation, async (req, res) => {
 
     log(`New user registered: ${username} (${fullName}) - ID: ${result.insertId}`);
 
+    let recommendedProducts = [];
+    try {
+      recommendedProducts = await getRecommendedProducts();
+    } catch (err) {
+      logError('Failed to fetch recommended products during registration:', err);
+    }
+
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -191,6 +199,7 @@ router.post('/register', registerValidation, async (req, res) => {
         email,
         fullName,
       },
+      recommendedProducts,
     });
   } catch (error) {
     logError('Error during registration:', error);
@@ -314,6 +323,13 @@ router.post('/login', loginValidation, async (req, res) => {
 
     log(`User logged in: ${username} (${user.full_name}) - ID: ${user.id}`);
 
+    let recommendedProducts = [];
+    try {
+      recommendedProducts = await getRecommendedProducts();
+    } catch (err) {
+      logError('Failed to fetch recommended products during login:', err);
+    }
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -324,6 +340,7 @@ router.post('/login', loginValidation, async (req, res) => {
         email: user.email,
         fullName: user.full_name,
       },
+      recommendedProducts,
     });
   } catch (error) {
     logError('Error during login:', error);

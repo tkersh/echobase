@@ -246,7 +246,7 @@ This **one command** will:
 
 ```bash
 # 1. Generate credentials
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # 2. Run setup (includes durable database setup)
 ./setup.sh
@@ -288,7 +288,7 @@ docker compose down
 
 ```bash
 # Generate credentials
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # Setup CI durable database
 ./durable/setup.sh ci

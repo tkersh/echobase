@@ -18,7 +18,7 @@ trap cleanup SIGINT SIGTERM
 # Check if .env file exists
 if [ ! -f .env ]; then
   echo "ERROR: Root .env file not found!"
-  echo "Please run ./generate-credentials.sh first to create secure credentials."
+  echo "Please run ./scripts/generate-credentials.sh first to create secure credentials."
   exit 1
 fi
 

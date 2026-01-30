@@ -30,7 +30,7 @@ fi
 # Check if root .env file exists (for AWS credentials)
 if [ ! -f .env ]; then
   echo "ERROR: Root .env file not found!"
-  echo "Please run ./generate-credentials.sh first to generate AWS credentials."
+  echo "Please run ./scripts/generate-credentials.sh first to generate AWS credentials."
   exit 1
 fi
 
@@ -226,6 +226,9 @@ echo "# AWS credentials from root .env" >> "$TEMP_ENV_FILE"
 echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> "$TEMP_ENV_FILE"
 echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> "$TEMP_ENV_FILE"
 echo "AWS_REGION=${AWS_REGION:-us-east-1}" >> "$TEMP_ENV_FILE"
+echo "" >> "$TEMP_ENV_FILE"
+echo "# MCP Server" >> "$TEMP_ENV_FILE"
+echo "MCP_API_KEY=$MCP_API_KEY" >> "$TEMP_ENV_FILE"
 
 # Step 4: Check database and nginx status
 # Note: LocalStack is already running and Secrets Manager already has credentials

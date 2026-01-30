@@ -172,7 +172,7 @@ gitlab-runner list
 The pipeline requires a `.env` file with your credentials. Generate it first:
 
 ```bash
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ```
 
 This creates a `.env` file with:
@@ -405,7 +405,7 @@ sudo -u gitlab-runner docker ps
 **Solution:**
 ```bash
 # Generate credentials
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # Verify the file exists
 ls -la .env
@@ -539,7 +539,7 @@ To run tests on a schedule:
 1. **Never commit `.env` file** - Already in `.gitignore`
 2. **Use GitLab CI/CD variables** for sensitive data
 3. **Limit runner access** - Only allow specific projects
-4. **Rotate credentials regularly** - Run `./generate-credentials.sh` periodically
+4. **Rotate credentials regularly** - Run `./scripts/generate-credentials.sh` periodically
 5. **Monitor pipeline logs** - Check for exposed secrets
 6. **Use protected branches** - Require approvals for main/develop
 

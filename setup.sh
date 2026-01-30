@@ -26,12 +26,12 @@ echo "Checking root .env file..."
 if [ ! -f .env ]; then
   echo ""
   echo "ERROR: Root .env file not found!"
-  echo "You must run ./generate-credentials.sh first to generate secure credentials."
+  echo "You must run ./scripts/generate-credentials.sh first to generate secure credentials."
   echo ""
-  read -p "Would you like to run ./generate-credentials.sh now? (y/N): " -n 1 -r
+  read -p "Would you like to run ./scripts/generate-credentials.sh now? (y/N): " -n 1 -r
   echo
   if [[ $REPLY =~ ^[Yy]$ ]]; then
-    ./generate-credentials.sh
+    ./scripts/generate-credentials.sh
     if [ ! -f .env ]; then
       echo "ERROR: Failed to generate .env file."
       exit 1
@@ -56,6 +56,19 @@ if [ -d "node_modules" ]; then
 fi
 npm install || {
   echo "ERROR: Failed to install API Gateway dependencies"
+  exit 1
+}
+cd ../..
+
+echo "Installing MCP Server dependencies..."
+cd backend/mcp-server || exit 1
+# Clean node_modules if corrupted
+if [ -d "node_modules" ]; then
+  echo "Cleaning existing node_modules..."
+  rm -rf node_modules package-lock.json
+fi
+npm install || {
+  echo "ERROR: Failed to install MCP Server dependencies"
   exit 1
 }
 cd ../..
@@ -136,7 +149,7 @@ if command -v terraform &> /dev/null; then
   else
     echo "Warning: .env file not found!"
     echo "Database credentials will not be available to Terraform."
-    echo "Please run ./generate-credentials.sh first."
+    echo "Please run ./scripts/generate-credentials.sh first."
     exit 1
   fi
 

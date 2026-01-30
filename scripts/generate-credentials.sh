@@ -68,6 +68,9 @@ AWS_SECRET_ACCESS_KEY="test"
 # Generate a secret for future authentication (e.g., JWT)
 JWT_SECRET=$(generate_password 64)
 
+# Generate MCP API key for service-to-service auth
+MCP_API_KEY=$(generate_password 60)
+
 echo -e "${GREEN}Credentials generated successfully!${NC}"
 echo ""
 
@@ -123,6 +126,10 @@ REACT_APP_API_URL=
 # Security Configuration
 # JWT secret for future authentication implementation
 JWT_SECRET=${JWT_SECRET}
+
+# MCP Server Configuration
+MCP_SERVER_ENDPOINT=http://echobase-devlocal-durable-mcp-server:3002
+MCP_API_KEY=${MCP_API_KEY}
 EOF
 
 # Set restrictive permissions on .env file

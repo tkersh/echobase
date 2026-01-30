@@ -81,6 +81,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('recommendedProducts');
   };
 
   const register = (token, userData) => {

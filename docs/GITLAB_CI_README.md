@@ -63,7 +63,7 @@ gitlab-runner list
 ### Step 3: Push and Deploy
 ```bash
 # Ensure .env file exists
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # Commit the CI/CD configuration
 git add .gitlab-ci.yml GITLAB_CI_SETUP.md setup-gitlab-runner.sh
@@ -208,7 +208,7 @@ gitlab-runner unregister --all-runners
 |---------|----------|
 | Pipeline stuck in "pending" | `gitlab-runner restart` |
 | "Docker permission denied" | Check config.toml has privileged=true |
-| ".env file not found" | Run `./generate-credentials.sh` |
+| ".env file not found" | Run `./scripts/generate-credentials.sh` |
 | Port already in use | `docker compose down` |
 | Services not starting | Check `docker compose logs` |
 | Tests timeout | Increase sleep time in .gitlab-ci.yml |

@@ -164,7 +164,7 @@ fi
 print_status "Local environment shut down"
 echo ""
 echo "To rebuild the infrastructure, run:"
-echo "  ./generate-credentials.sh (ONLY on first run!)"
+echo "  ./scripts/generate-credentials.sh (ONLY on first run!)"
 echo "  ./setup.sh"
 #echo "  docker compose up -d"
 #echo "  cd terraform && terraform init && terraform apply -auto-approve"

@@ -52,6 +52,8 @@ services:
       # Each environment needs different allowed origins (localhost ports, internal container names)
       - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
       - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
+      - MCP_SERVER_ENDPOINT=${MCP_SERVER_ENDPOINT}
+      - MCP_API_KEY=${MCP_API_KEY}
     depends_on:
       localstack:
         condition: service_healthy

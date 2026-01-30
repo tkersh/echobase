@@ -24,7 +24,7 @@ Use the provided scripts that handle everything automatically:
 
 ```bash
 # Generate credentials
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # Setup everything (Docker + Terraform)
 ./setup.sh
@@ -196,7 +196,7 @@ export TF_VAR_db_name=$DB_NAME
 **Solution:**
 ```bash
 # Generate credentials first
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ```
 
 ### Error: Error acquiring the state lock
@@ -345,7 +345,7 @@ docker compose down -v
 
 **Usage:**
 ```bash
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ```
 
 ## Best Practices

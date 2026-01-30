@@ -34,6 +34,11 @@ function Login() {
       // Login the user
       login(data.token, data.user);
 
+      // Store recommended products if available
+      if (data.recommendedProducts && data.recommendedProducts.length > 0) {
+        localStorage.setItem('recommendedProducts', JSON.stringify(data.recommendedProducts));
+      }
+
       // Redirect to orders page
       navigate('/orders');
     } catch (err) {

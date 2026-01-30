@@ -199,7 +199,7 @@ This command:
 
 **Or Manual:**
 ```bash
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ./durable/setup.sh devlocal    # Dev-local database
 ./durable/setup.sh ci           # CI database (for CI environment)
 ```

@@ -94,7 +94,7 @@ if [ ! -f ".env" ]; then
     echo "You need to create a .env file before running tests."
     echo ""
     echo "Option 1 (Recommended): Generate secure credentials automatically"
-    echo "  ./generate-credentials.sh"
+    echo "  ./scripts/generate-credentials.sh"
     echo ""
     echo "Option 2: Create manually from example"
     echo "  cp .env.example .env"

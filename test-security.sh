@@ -41,7 +41,7 @@ echo "[2/8] Checking for .env file..."
 if [ ! -f ".env" ]; then
     echo "❌ Error: .env file not found."
     echo "   Please generate credentials first:"
-    echo "   ./generate-credentials.sh"
+    echo "   ./scripts/generate-credentials.sh"
     exit 1
 fi
 echo "✅ .env file found"

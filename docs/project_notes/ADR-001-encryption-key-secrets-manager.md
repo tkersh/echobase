@@ -13,7 +13,7 @@ Accepted
 MariaDB data-at-rest encryption requires an encryption key file (`keyfile.enc`) containing a 256-bit AES key. Previously, this key was:
 
 1. Generated locally by `mariadb/config/generate-keys.sh`
-2. Called during `./generate-credentials.sh` execution
+2. Called during `./scripts/generate-credentials.sh` execution
 3. `COPY`'d into the Docker image at build time (`mariadb/Dockerfile`)
 4. Protected from git commits via `.gitignore` entries
 
@@ -106,7 +106,7 @@ Store the MariaDB encryption key in AWS Secrets Manager (LocalStack in developme
 - `mariadb/Dockerfile` - Install AWS CLI, use entrypoint wrapper
 - `mariadb/docker-entrypoint-wrapper.sh` - New file to fetch key at startup
 - `mariadb/config/README.md` - Updated documentation
-- `generate-credentials.sh` - Removed local key generation
+- `scripts/generate-credentials.sh` - Removed local key generation
 - `.gitignore` - Removed `*.enc` entries (no longer needed)
 
 ## Files Removed

@@ -51,7 +51,7 @@ Comprehensive security documentation for the Echobase order processing system.
 **REQUIRED:** Generate all secure credentials before starting:
 
 ```bash
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ```
 
 This script generates:

@@ -107,7 +107,7 @@ check_prerequisites() {
     # Check if .env file exists
     if [ ! -f .env ]; then
         print_warning ".env file not found. Some tests may fail."
-        print_info "Run ./generate-credentials.sh to create it."
+        print_info "Run ./scripts/generate-credentials.sh to create it."
     else
         print_success ".env file exists"
     fi

@@ -88,6 +88,11 @@ function Register() {
       // Register and login the user
       register(data.token, data.user);
 
+      // Store recommended products if available
+      if (data.recommendedProducts && data.recommendedProducts.length > 0) {
+        localStorage.setItem('recommendedProducts', JSON.stringify(data.recommendedProducts));
+      }
+
       // Set flag to trigger navigation after user state updates
       setRegistrationSuccess(true);
     } catch (err) {

@@ -762,7 +762,7 @@ RATE_LIMIT_WINDOW_MS=900000      # 15 minutes in milliseconds
 RATE_LIMIT_MAX_REQUESTS=100       # Max requests per window
 
 # JWT Configuration
-JWT_SECRET=<generated-by-generate-credentials.sh>
+JWT_SECRET=<generated-by-scripts/generate-credentials.sh>
 
 # Secrets Manager
 DB_SECRET_NAME=echobase/database/credentials

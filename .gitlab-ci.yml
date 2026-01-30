@@ -122,7 +122,7 @@ validate:env-check:
     - node --version
     - npm --version
     - echo "Generating .env file for CI..."
-    - ./generate-credentials.sh
+    - ./scripts/generate-credentials.sh
     - echo "Verifying .env file was created..."
     - test -f .env || (echo "ERROR - .env file generation failed!" && exit 1)
 

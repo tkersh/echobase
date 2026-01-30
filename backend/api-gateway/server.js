@@ -27,6 +27,7 @@ const {
   PRODUCT_NAME_PATTERN,
 } = require('../shared/constants');
 const OrderService = require('./services/orderService');
+const { initMcpClient } = require('./services/mcpClient');
 
 // Validate environment variables at startup
 validateRequiredEnv(API_GATEWAY_REQUIRED_VARS, 'API Gateway');
@@ -526,7 +527,8 @@ if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
 log('Initializing dependencies (database and SQS) in parallel...');
 Promise.all([
   initDatabase(awsConfig),
-  verifySQSConnectivity()
+  verifySQSConnectivity(),
+  initMcpClient()
 ])
   .then(([pool]) => {
     dbPool = pool;

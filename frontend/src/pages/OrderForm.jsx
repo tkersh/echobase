@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { orders } from '../services/api';
@@ -14,8 +14,21 @@ function OrderForm() {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
 
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
+
   const { user, token, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('recommendedProducts');
+      if (stored) {
+        setRecommendedProducts(JSON.parse(stored));
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -154,6 +167,17 @@ function OrderForm() {
         {message.text && (
           <div className={`message ${message.type}`}>
             {message.text}
+          </div>
+        )}
+
+        {recommendedProducts.length > 0 && (
+          <div className="info-section">
+            <h3>Recommended for you</h3>
+            {recommendedProducts.map((product) => (
+              <div key={product.sku} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+                {product.name} &mdash; ${product.cost.toFixed(2)} (SKU: {product.sku})
+              </div>
+            ))}
           </div>
         )}
 

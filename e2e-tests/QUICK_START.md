@@ -11,7 +11,7 @@
 cd /Users/tadk/work/echobase
 
 # Option 1 (Recommended): Auto-generate secure credentials
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 
 # Option 2: Create manually from template
 cp .env.example .env

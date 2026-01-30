@@ -177,7 +177,7 @@ By separating the database into durable infrastructure:
 
 ```bash
 # Initial setup
-./generate-credentials.sh
+./scripts/generate-credentials.sh
 ./durable/setup.sh devlocal
 ./setup.sh
 ./start.sh

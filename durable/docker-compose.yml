@@ -80,6 +80,32 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  mcp-server:
+    build:
+      context: ..
+      dockerfile: backend/mcp-server/Dockerfile
+    image: echobase-mcp-server:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-mcp-server
+    environment:
+      - PORT=3002
+      - MCP_API_KEY=${MCP_API_KEY}
+    networks:
+      - durable-network
+    ports:
+      - "${DURABLE_MCP_SERVER_PORT:-3002}:3002"
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=mcp-server"
+      - "echobase.port=${DURABLE_MCP_SERVER_PORT:-3002}"
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); http.get({host:'127.0.0.1',port:3002,path:'/health'}, (r) => {process.exit(r.statusCode === 200 ? 0 : 1)}).on('error', () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
   nginx:
     build:
       context: ..
