@@ -5,7 +5,7 @@ describe('getRecommendedProducts', () => {
   let products: Product[];
 
   beforeAll(() => {
-    products = getRecommendedProducts();
+    products = getRecommendedProducts('42');
   });
 
   it('should return exactly 5 products', () => {

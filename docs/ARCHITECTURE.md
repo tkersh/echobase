@@ -184,37 +184,34 @@ User → Frontend (with JWT)
 
 ## Blue-Green Deployment Workflow
 
-### Phase 1: Setup Durable Infrastructure (One-Time)
+### Phase 1: Start Everything (Idempotent)
 
-**Recommended - Single Command:**
 ```bash
-./setup.sh
+./start.sh
 ```
 
-This command:
-- Generates credentials (prompts if needed)
+This single command:
+- Generates credentials if `.env` is missing
+- Installs Node.js dependencies (skips if present)
 - Sets up devlocal durable database (idempotent)
-- Installs dependencies and provisions infrastructure
-- Builds and starts application services
+- Provisions Terraform resources
+- Builds and starts all application services
+- Tails logs (Ctrl+C to stop following)
 
-**Or Manual:**
+**Manual durable setup (CI or advanced):**
 ```bash
-./scripts/generate-credentials.sh
 ./durable/setup.sh devlocal    # Dev-local database
 ./durable/setup.sh ci           # CI database (for CI environment)
 ```
 
 Databases are now ready and will persist across all deployments.
 
-**Note:** The setup is idempotent - running `./setup.sh` multiple times is safe and won't recreate existing databases.
+**Note:** `./start.sh` is idempotent - safe to run multiple times. Durable databases won't be recreated.
 
-### Phase 2: Deploy Application (Repeatable)
-
-#### Dev-Local Deployment
+### Phase 2: Daily Development (Repeatable)
 
 ```bash
-./setup.sh     # Install deps, setup app infrastructure
-./start.sh     # Start application services
+./start.sh     # Skips what's already running, rebuilds and starts app
 ```
 
 Application connects to existing `echobase-devlocal-durable-mariadb`.

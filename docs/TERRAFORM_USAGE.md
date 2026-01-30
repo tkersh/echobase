@@ -23,11 +23,8 @@ Terraform is used to provision:
 Use the provided scripts that handle everything automatically:
 
 ```bash
-# Generate credentials
-./scripts/generate-credentials.sh
-
-# Setup everything (Docker + Terraform)
-./setup.sh
+# Setup and start everything (credentials, Docker, Terraform)
+./start.sh
 
 # Teardown everything when done
 ./teardown.sh
@@ -297,22 +294,23 @@ curl -k https://localhost:3001/health
 
 ## Script Reference
 
-### setup.sh
+### start.sh
 
-**Purpose:** Complete application setup including Terraform provisioning
+**Purpose:** Single entrypoint -- complete setup and start, idempotent
 
 **What it does:**
 1. Checks Docker is running
-2. Verifies `.env` file exists
-3. Starts Docker containers
-4. Initializes Terraform
-5. Exports database variables from `.env`
-6. Applies Terraform configuration
-7. Installs Node.js dependencies
+2. Generates `.env` if missing
+3. Installs Node.js dependencies (skips if present)
+4. Sets up durable infrastructure (idempotent)
+5. Starts Docker containers
+6. Initializes and applies Terraform
+7. Builds and starts application containers
+8. Tails logs
 
 **Usage:**
 ```bash
-./setup.sh
+./start.sh
 ```
 
 ### teardown.sh
@@ -352,7 +350,7 @@ docker compose down -v
 
 ### DO ✅
 
-- Always use `setup.sh` for initial setup
+- Always use `start.sh` for initial setup
 - Always use `teardown.sh` before stopping containers
 - Run `terraform plan` before `apply` in production
 - Keep `.env` file backed up securely

@@ -102,66 +102,17 @@ See [durable/README.md](durable/README.md) for complete durable infrastructure d
 
 ## Quick Start
 
-### One-Command Setup
-
-The easiest way to get started:
-
-```bash
-./setup.sh
-```
-
-This **single command** will:
-1. Prompt to generate credentials if missing (or run `./generate-credentials.sh` first)
-2. Install Node.js dependencies for all services
-3. **Set up durable database infrastructure** (persistent, idempotent)
-4. Start LocalStack (AWS service simulation)
-5. Initialize Terraform and provision AWS resources (SQS, KMS, Secrets Manager)
-6. Build and start all application containers
-
-**Note:** The setup is **idempotent** - safe to run multiple times. The durable database won't be recreated if it already exists.
-
-### Alternative: Step-by-Step Setup
-
-If you prefer manual control:
-
-#### 1. Generate Secure Credentials
-
-```bash
-./generate-credentials.sh
-```
-
-This script will:
-- Generate strong random passwords for the database
-- Generate 256-bit AES encryption keys for database encryption at rest
-- Create a `.env` file with all necessary credentials
-- Set restrictive file permissions (600)
-- Display a credential summary
-
-**Note:** Database encryption at rest is enabled by default. All data stored in MariaDB is encrypted using AES-256.
-
-#### 2. Run Setup
-
-```bash
-./setup.sh
-```
-
-This script will:
-- Install Node.js dependencies for all services
-- **Set up durable database infrastructure** (persistent layer, idempotent)
-- Start Docker containers (LocalStack and application services)
-- Initialize Terraform and provision SQS queues
-- Build Docker images with updated dependencies
-
-### 3. Start the Application
-
 ```bash
 ./start.sh
 ```
 
-This will:
-- Start all services in Docker containers
-- Display service status
-- Follow logs from all containers (Ctrl+C to stop)
+This **single command** handles everything -- first-time setup and daily restarts:
+1. Generates credentials if `.env` is missing
+2. Installs Node.js dependencies (skips if `node_modules` exists)
+3. Sets up durable infrastructure (database, secrets -- idempotent)
+4. Starts LocalStack and provisions Terraform resources (SQS, KMS)
+5. Builds and starts all application containers
+6. Tails logs (Ctrl+C to stop following; services keep running)
 
 Services will be available at:
 - React Frontend: https://localhost:3443
@@ -170,26 +121,15 @@ Services will be available at:
 - Localstack: http://localhost:4566
 - MariaDB: localhost:3306
 
-### 4. Access the Application
-
-Open your browser and navigate to:
-```
-https://localhost:3443
-```
-
-**Note:** The database runs in durable infrastructure (`echobase-devlocal-durable-mariadb`) and persists across application deployments.
-
-**Tip:** You can run `./setup.sh` multiple times safely - it's idempotent and won't recreate existing infrastructure.
+**Idempotent:** Safe to run repeatedly. Durable infrastructure (database) persists and won't be recreated.
 
 To manage durable infrastructure separately, see [durable/README.md](durable/README.md).
 
 ## Daily Development Workflow
 
-Since the durable infrastructure (database) persists across sessions:
-
 ```bash
 # Start your day
-./start.sh              # Start application services (database already running)
+./start.sh              # Idempotent - skips what's already running
 
 # Develop, test, iterate...
 
@@ -197,10 +137,8 @@ Since the durable infrastructure (database) persists across sessions:
 docker compose down     # Stop application services (database keeps running)
 
 # Next day
-./start.sh              # Database is already there, just start app services
+./start.sh              # Database is already there, rebuilds and starts app services
 ```
-
-**Database is always ready!** The durable infrastructure persists, so you only need to start/stop application services.
 
 ## Advanced: Manual Component Management
 
@@ -263,8 +201,14 @@ echobase/
 │   │   ├── server.js         # Main server with Secrets Manager integration
 │   │   ├── routes/           # API routes (auth, orders)
 │   │   ├── middleware/       # JWT authentication middleware
+│   │   ├── services/         # Service layer (orders, MCP client)
 │   │   ├── package.json
 │   │   └── .env.example
+│   ├── mcp-server/           # MCP Server (durable - product recommendations)
+│   │   ├── src/              # TypeScript source
+│   │   ├── __tests__/        # Unit and security tests
+│   │   ├── Dockerfile
+│   │   └── package.json
 │   ├── order-processor/      # Background processor
 │   │   ├── processor.js      # Main processor with Secrets Manager integration
 │   │   ├── package.json
@@ -306,8 +250,9 @@ echobase/
 ├── docker-compose.override.yml # Dev-local environment ports (auto-loaded)
 ├── docker-compose.green.yml    # Green environment ports (CI)
 ├── init-db.sql                # Database schema
-├── setup.sh                   # Setup script (includes durable setup)
-├── start.sh                   # Start script (devlocal environment)
+├── scripts/
+│   └── generate-credentials.sh # Credential generation (called by start.sh)
+├── start.sh                   # Single entrypoint: setup + start (idempotent)
 ├── teardown.sh                # Teardown script
 ├── .gitlab-ci.yml             # GitLab CI/CD pipeline
 ├── SECURITY.md                # Security overview and best practices

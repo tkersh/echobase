@@ -53,7 +53,7 @@ async function initMcpClient() {
  * Get recommended products from the MCP server.
  * Returns empty array on any error (graceful degradation).
  */
-async function getRecommendedProducts() {
+async function getRecommendedProducts(userId) {
   if (!mcpClient) {
     return [];
   }
@@ -61,7 +61,7 @@ async function getRecommendedProducts() {
   try {
     const result = await mcpClient.callTool({
       name: 'getRecommendedProducts',
-      arguments: {},
+      arguments: { userId: String(userId) },
     });
 
     if (result && result.content && result.content.length > 0) {

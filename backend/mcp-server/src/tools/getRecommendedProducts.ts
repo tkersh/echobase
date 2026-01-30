@@ -1,6 +1,6 @@
 import { Product } from '../types';
 
-export function getRecommendedProducts(): Product[] {
+export function getRecommendedProducts(userId: string): Product[] {
   return [
     { name: 'Quantum Stabilizer', cost: 249.99, sku: 'QS-001' },
     { name: 'Plasma Conduit', cost: 89.50, sku: 'PC-042' },

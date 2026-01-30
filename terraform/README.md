@@ -35,11 +35,11 @@ This approach ensures:
 
 ### Automated (Recommended)
 
-The `setup.sh` script automatically exports the necessary variables:
+The `start.sh` script automatically exports the necessary variables:
 
 ```bash
 cd /Users/tadk/work/echobase
-./setup.sh
+./start.sh
 ```
 
 ### Manual

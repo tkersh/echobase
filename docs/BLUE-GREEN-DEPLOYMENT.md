@@ -232,7 +232,7 @@ The system supports **two simultaneous environments** (devlocal and CI green):
 
 ```bash
 # Single command setup (recommended)
-./setup.sh
+./start.sh
 ```
 
 This **one command** will:
@@ -245,13 +245,7 @@ This **one command** will:
 **Or step-by-step:**
 
 ```bash
-# 1. Generate credentials
-./scripts/generate-credentials.sh
-
-# 2. Run setup (includes durable database setup)
-./setup.sh
-
-# 3. Start application
+# Single command handles credentials, setup, and start
 ./start.sh
 ```
 

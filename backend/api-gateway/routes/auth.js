@@ -184,7 +184,7 @@ router.post('/register', registerValidation, async (req, res) => {
 
     let recommendedProducts = [];
     try {
-      recommendedProducts = await getRecommendedProducts();
+      recommendedProducts = await getRecommendedProducts(result.insertId);
     } catch (err) {
       logError('Failed to fetch recommended products during registration:', err);
     }
@@ -325,7 +325,7 @@ router.post('/login', loginValidation, async (req, res) => {
 
     let recommendedProducts = [];
     try {
-      recommendedProducts = await getRecommendedProducts();
+      recommendedProducts = await getRecommendedProducts(user.id);
     } catch (err) {
       logError('Failed to fetch recommended products during login:', err);
     }

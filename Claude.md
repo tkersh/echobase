@@ -22,8 +22,7 @@ This document provides critical context for AI assistants working on this codeba
 
 ### Quick Start
 ```bash
-./setup.sh                    # One-command setup (credentials, deps, durable infra, containers)
-./start.sh                    # Start application services (assumes durable infra exists)
+./start.sh                    # Single entrypoint: setup + start (idempotent)
 ```
 
 ### Testing

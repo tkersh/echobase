@@ -176,10 +176,7 @@ By separating the database into durable infrastructure:
 ### Local Development Workflow
 
 ```bash
-# Initial setup
-./scripts/generate-credentials.sh
-./durable/setup.sh devlocal
-./setup.sh
+# Initial setup (single command handles everything)
 ./start.sh
 
 # Develop, test, iterate...

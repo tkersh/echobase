@@ -1,5 +1,6 @@
 import express from 'express';
 import helmet from 'helmet';
+import { z } from 'zod';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { apiKeyAuth } from './middleware/apiKeyAuth';
@@ -37,9 +38,9 @@ app.get('/sse', async (req, res) => {
   server.tool(
     'getRecommendedProducts',
     'Get recommended products for the user',
-    {},
-    async () => {
-      const products = getRecommendedProducts();
+    { userId: z.string().describe('The ID of the user to get recommendations for') },
+    async ({ userId }) => {
+      const products = getRecommendedProducts(userId);
       return {
         content: [
           {
