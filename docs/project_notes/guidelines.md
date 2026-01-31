@@ -40,6 +40,14 @@ Lessons learned from past bugs - check these before modifying related code.
 
 ---
 
+## Durable Infrastructure and Per-Pipeline Credentials
+
+- **Durable services must be refreshed when credentials change**: Each CI pipeline generates a fresh `.env` with new secrets (e.g., `MCP_API_KEY`). Durable containers persist across pipelines but may hold stale credentials. The `durable/setup.sh` "already running" path must update any durable service whose config comes from `.env`, not just skip them.
+- **`docker compose up -d <service>` is safe for credential sync**: It's idempotent — only recreates the container if its environment has changed. No-op if the config matches.
+- **When adding new durable services**: Ensure the service is (1) started in `durable/setup.sh`'s NEEDS_START path, (2) refreshed in the "already running" path, and (3) included in `teardown-all.sh`'s service list.
+
+---
+
 ## Test Suite Consistency
 
 - **Apply fixes across all test suites**: When fixing an issue in one test suite (smoke tests, E2E tests, API Gateway unit tests), check if the same issue could affect the others. Common patterns that need cross-suite fixes:

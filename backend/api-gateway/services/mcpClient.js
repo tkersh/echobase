@@ -24,6 +24,7 @@ async function initMcpClient() {
 
   try {
     log(`Connecting to MCP server at ${endpoint}...`);
+    log(`MCP API key configured: ${apiKey ? 'yes (' + apiKey.substring(0, 8) + '...)' : 'NO'}`);
 
     const transport = new SSEClientTransport(
       new URL(`${endpoint}/sse`),
@@ -42,9 +43,10 @@ async function initMcpClient() {
     });
 
     await mcpClient.connect(transport);
-    log('MCP client connected successfully');
+    log('MCP client connected successfully - product recommendations enabled');
   } catch (err) {
     warn(`Failed to connect to MCP server: ${err.message}`);
+    warn('Product recommendations will be unavailable. If this is an auth error, the MCP server and API gateway may have different MCP_API_KEY values (see docs/Troubleshooting.md)');
     mcpClient = null;
   }
 }

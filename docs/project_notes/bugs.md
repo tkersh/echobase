@@ -47,6 +47,21 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 - **Prevention**: Don't use `${VAR}` substitution in base docker-compose.yml for values that differ per environment. Define them explicitly in each environment-specific file instead.
 - **Files**: `docker-compose.yml`, `docker-compose.override.yml`
 
+### 2026-01-31 - Recommended Products Missing in CI
+- **Issue**: "Recommended for you" section not appearing on the order form in CI green environment
+- **Root Cause**: Each CI pipeline generates a new `MCP_API_KEY` in `generate-credentials.sh`. The durable MCP server retains the key from the first pipeline that created it. When `durable/setup.sh` finds durable infrastructure already running, it exits early without updating the MCP server. The API gateway gets the new key, the MCP server still has the old one, authentication fails silently, and `getRecommendedProducts` returns an empty array.
+- **Solution**: Added `docker compose up -d mcp-server` in the "already running" path of `durable/setup.sh` to sync the MCP server's API key with the current `.env`. This is idempotent — Docker Compose only recreates the container if config changed. Also added diagnostic logging in `mcpClient.js` (key prefix, auth failure hint).
+- **Prevention**: Durable services that receive credentials from per-pipeline `.env` files must be refreshed during durable setup, even when the rest of the infrastructure is already running. Don't assume durable containers have current credentials just because they're healthy.
+- **Files**: `durable/setup.sh` (lines 298-316), `backend/api-gateway/services/mcpClient.js`
+- **See also**: `docs/Troubleshooting.md` "Recommended Products Not Showing"
+
+### 2026-01-31 - Teardown Script Not Removing All Containers
+- **Issue**: `./scripts/teardown-all.sh --volumes --include-ci` left 6 containers running (MCP server, devlocal ephemeral services)
+- **Root Cause**: Two bugs: (1) `teardown_durable()` service list was missing `mcp-server`, (2) no teardown path existed for devlocal ephemeral containers which use hardcoded container names without a `-p` flag
+- **Solution**: Added `mcp-server` to the durable service list. Added `teardown_devlocal_ephemeral()` function that runs `docker compose down` from the project root and cleans up remaining `echobase-devlocal-*` containers.
+- **Prevention**: When adding new durable services, update both `durable/docker-compose.yml` and the teardown script's service list.
+- **File**: `scripts/teardown-all.sh`
+
 <!-- Example entry format:
 
 ### 2026-01-23 - Container Failing to Start

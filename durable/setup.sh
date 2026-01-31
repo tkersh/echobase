@@ -306,9 +306,17 @@ else
     echo "  LocalStack: $LOCALSTACK_CONTAINER (running)"
     if [ "$CHECK_NGINX" = true ]; then
         echo "  Nginx: $NGINX_CONTAINER ($NGINX_STATUS)"
-    else
-        echo "  Nginx: Skipped in CI (using direct container ports)"
     fi
+
+    # Ensure MCP server is running with current API key.
+    # Each pipeline generates a new MCP_API_KEY, but durable containers persist.
+    # docker compose up -d is idempotent — only recreates if config changed.
+    MCP_CONTAINER="${CONTAINER_PREFIX}-mcp-server"
+    echo "  Ensuring MCP server has current API key..."
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d mcp-server
+    MCP_STATUS=$(docker inspect -f '{{.State.Status}}' "$MCP_CONTAINER" 2>/dev/null || echo "not-found")
+    echo "  MCP Server: $MCP_CONTAINER ($MCP_STATUS)"
+
     echo ""
     rm "$TEMP_ENV_FILE"
     print_infrastructure_details
