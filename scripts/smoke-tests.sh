@@ -293,7 +293,7 @@ test_order_submission() {
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
         -H "Authorization: Bearer ${AUTH_TOKEN}" \
-        -d '{"productName":"Smoke Test Product","quantity":1,"totalPrice":99.99}' \
+        -d '{"productId":1,"quantity":1}' \
         --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
 
     http_code=$(echo "$response" | tail -n1)

@@ -42,7 +42,7 @@ test.describe('SQL Injection Protection', () => {
     }
   });
 
-  test('should prevent SQL injection in order product name', async ({ apiHelper, dbHelper, testUsers }) => {
+  test('should prevent SQL injection in order productId field', async ({ apiHelper, dbHelper, testUsers }) => {
     const userData = createValidUser();
     testUsers.push(userData);
     await apiHelper.register(userData);
@@ -51,13 +51,12 @@ test.describe('SQL Injection Protection', () => {
 
     for (const payload of sqlInjectionPayloads) {
       const response = await apiHelper.submitOrder({
-        productName: payload,
-        quantity: 1,
-        totalPrice: 10.00
+        productId: payload,
+        quantity: 1
       });
 
-      // Should either accept and sanitize or reject with validation
-      expect([201, 400]).toContain(response.status);
+      // Should reject with validation error (productId must be an integer)
+      expect(response.status).toBe(400);
     }
 
     // Verify database integrity

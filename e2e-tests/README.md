@@ -110,7 +110,7 @@ This E2E test suite provides comprehensive testing coverage for the Echobase app
 #### SQL Injection Protection
 - Username field
 - Login credentials
-- Order product name
+- Order product ID field
 
 #### XSS Protection
 - Registration form
@@ -467,9 +467,8 @@ await apiHelper.login({ username: 'testuser', password: 'TestPass123' });
 
 // Submit order (token automatically included)
 await apiHelper.submitOrder({
-  productName: 'Test Product',
-  quantity: 1,
-  totalPrice: 99.99
+  productId: 1,
+  quantity: 1
 });
 
 // Clear token
@@ -555,10 +554,9 @@ test.describe('My Test Suite', () => {
 test('should display and submit form', async ({ page }) => {
   await page.goto('/orders');
 
-  // Fill form
-  await page.fill('input[name="productName"]', 'Test Product');
+  // Fill form (product is a dropdown, total price is auto-calculated)
+  await page.selectOption('select[name="productName"]', '1');
   await page.fill('input[name="quantity"]', '1');
-  await page.fill('input[name="totalPrice"]', '99.99');
 
   // Submit
   await page.click('button[type="submit"]');
@@ -587,14 +585,14 @@ test('should complete full flow', async ({ page }) => {
 
   // Submit order
   const orderData = createValidOrder();
-  await page.fill('input[name="productName"]', orderData.productName);
-  // ... fill other fields
+  await page.selectOption('select[name="productName"]', String(orderData.productId));
+  await page.fill('input[name="quantity"]', orderData.quantity.toString());
   await page.click('button[type="submit"]');
 
   // Wait for async processing
   const dbOrder = await dbHelper.waitForOrder(dbUser.id, 15000, 500);
   expect(dbOrder).toBeTruthy();
-  expect(dbOrder.product_name).toBe(orderData.productName);
+  expect(parseInt(dbOrder.product_id)).toBe(orderData.productId);
 });
 ```
 

@@ -64,10 +64,10 @@ async function createAPIKey(keyName, expiresInDays = null) {
     console.log('⚠️  IMPORTANT: Save this API key securely. It will not be shown again.');
     console.log('   Use it in API requests via the X-API-Key header.\n');
     console.log('Example usage with curl:');
-    console.log(`  curl -X POST https://localhost:3001/api/orders \\`);
-    console.log(`    -H "X-API-Key: ${apiKey}" \\`);
+    console.log(`  curl -X POST https://localhost:3001/api/v1/orders \\`);
+    console.log(`    -H "Authorization: Bearer <JWT_TOKEN>" \\`);
     console.log(`    -H "Content-Type: application/json" \\`);
-    console.log(`    -d '{"customerName":"John Doe","productName":"Widget","quantity":5,"totalPrice":49.95}'\n`);
+    console.log(`    -d '{"productId":1,"quantity":5}'\n`);
 
     return {
       id: result.insertId,

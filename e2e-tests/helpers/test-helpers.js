@@ -89,18 +89,10 @@ export function verifyOrderMatches(dbOrder, orderData) {
     throw new Error('Order not found in database');
   }
 
-  // Compare product name (handle HTML escaping)
-  const dbProductName = dbOrder.product_name;
-  const expectedName = orderData.productName;
-
-  const nameMatches =
-    dbProductName === expectedName ||
-    dbProductName === expectedName.replace(/'/g, '&#x27;') ||
-    dbProductName === expectedName.replace(/'/g, '&#039;');
-
-  if (!nameMatches) {
+  // Compare product ID
+  if (orderData.productId != null && parseInt(dbOrder.product_id) !== parseInt(orderData.productId)) {
     throw new Error(
-      `Product name mismatch: expected "${expectedName}" but got "${dbProductName}"`
+      `Product ID mismatch: expected ${orderData.productId} but got ${dbOrder.product_id}`
     );
   }
 
@@ -126,10 +118,10 @@ export async function loginViaUI(page, credentials) {
 /**
  * Submit order via UI (for frontend tests)
  * @param {Page} page - Playwright page instance
- * @param {Object} orderData - {productName, quantity}
+ * @param {Object} orderData - {productId, quantity}
  */
 export async function submitOrderViaUI(page, orderData) {
-  await page.fill('input[name="productName"]', orderData.productName);
+  await page.selectOption('select[name="productName"]', String(orderData.productId));
   await page.fill('input[name="quantity"]', orderData.quantity.toString());
   await page.click('button[type="submit"]');
 }

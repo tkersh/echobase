@@ -5,9 +5,8 @@ test.describe('Authentication & Authorization', () => {
     apiHelper.clearToken();
 
     const response = await apiHelper.submitOrder({
-      productName: 'Test Product',
-      quantity: 1,
-      totalPrice: 10
+      productId: 1,
+      quantity: 1
     });
 
     expect(response.status).toBe(401);
@@ -18,9 +17,8 @@ test.describe('Authentication & Authorization', () => {
     apiHelper.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpbnZhbGlkIjoidG9rZW4ifQ.invalid');
 
     const response = await apiHelper.submitOrder({
-      productName: 'Test Product',
-      quantity: 1,
-      totalPrice: 10
+      productId: 1,
+      quantity: 1
     });
 
     expect(response.status).toBe(401);
@@ -30,9 +28,8 @@ test.describe('Authentication & Authorization', () => {
     apiHelper.setToken('not-a-jwt');
 
     const response = await apiHelper.submitOrder({
-      productName: 'Test Product',
-      quantity: 1,
-      totalPrice: 10
+      productId: 1,
+      quantity: 1
     });
 
     expect(response.status).toBe(401);

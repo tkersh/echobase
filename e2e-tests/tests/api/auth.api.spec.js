@@ -280,9 +280,8 @@ test.describe('Authentication API Tests', () => {
 
       // Try to access protected endpoint
       const orderResponse = await apiHelper.submitOrder({
-        productName: 'Test Product',
-        quantity: 1,
-        totalPrice: 100
+        productId: 1,
+        quantity: 1
       });
 
       // Should succeed (or fail with validation error, but not auth error)
@@ -294,9 +293,8 @@ test.describe('Authentication API Tests', () => {
       apiHelper.clearToken();
 
       const response = await apiHelper.submitOrder({
-        productName: 'Test Product',
-        quantity: 1,
-        totalPrice: 100
+        productId: 1,
+        quantity: 1
       });
 
       expect(response.status).toBe(401);
@@ -307,9 +305,8 @@ test.describe('Authentication API Tests', () => {
       apiHelper.setToken('invalid.jwt.token');
 
       const response = await apiHelper.submitOrder({
-        productName: 'Test Product',
-        quantity: 1,
-        totalPrice: 100
+        productId: 1,
+        quantity: 1
       });
 
       expect(response.status).toBe(401);
@@ -320,9 +317,8 @@ test.describe('Authentication API Tests', () => {
       apiHelper.setToken('not-a-valid-jwt-format');
 
       const response = await apiHelper.submitOrder({
-        productName: 'Test Product',
-        quantity: 1,
-        totalPrice: 100
+        productId: 1,
+        quantity: 1
       });
 
       expect(response.status).toBe(401);
