@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { orders } from '../services/api';
+import { orders, products } from '../services/api';
 import { debug, error as logError } from '../utils/logger';
 
 function OrderForm() {
-  const [formData, setFormData] = useState({
-    productName: '',
-    quantity: 1,
-    totalPrice: 0,
-  });
+  const [selectedProductId, setSelectedProductId] = useState('');
+  const [quantity, setQuantity] = useState(1);
 
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
+
+  const [productsList, setProductsList] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
 
   const [recommendedProducts, setRecommendedProducts] = useState([]);
 
@@ -30,40 +30,50 @@ function OrderForm() {
     }
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'quantity' || name === 'totalPrice' ? parseFloat(value) || 0 : value,
-    }));
-  };
+  useEffect(() => {
+    async function fetchProducts() {
+      try {
+        const { data } = await products.getAll(token);
+        if (data.success) {
+          setProductsList(data.products);
+        }
+      } catch (err) {
+        logError('[OrderForm] Failed to fetch products:', err);
+      } finally {
+        setProductsLoading(false);
+      }
+    }
+    if (token) {
+      fetchProducts();
+    }
+  }, [token]);
+
+  const selectedProduct = productsList.find(p => p.id === Number(selectedProductId));
+  const totalPrice = selectedProduct ? parseFloat((selectedProduct.cost * quantity).toFixed(2)) : 0;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
 
-    // Debug logging (only when VITE_LOG_LEVEL=DEBUG)
-    debug('[OrderForm] Submitting order:', formData);
+    const orderData = { productId: Number(selectedProductId), quantity };
+
+    debug('[OrderForm] Submitting order:', orderData);
     debug('[OrderForm] User from context:', user);
     debug('[OrderForm] Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
 
     try {
-      const { data } = await orders.create(formData, token);
+      const { data } = await orders.create(orderData, token);
 
       debug('[OrderForm] Order submitted successfully:', data);
       setMessage({
         type: 'success',
         text: `Order submitted successfully! Message ID: ${data.messageId}`,
       });
-      setFormData({
-        productName: '',
-        quantity: 1,
-        totalPrice: 0,
-      });
+      setSelectedProductId('');
+      setQuantity(1);
     } catch (err) {
       logError('[OrderForm] Order submission error:', err);
-      // Handle authentication errors
       if (err.message.includes('Authentication') || err.message.includes('Token')) {
         setMessage({
           type: 'error',
@@ -82,6 +92,14 @@ function OrderForm() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRecommendedClick = (product) => {
+    if (!product.id) {
+      setMessage({ type: 'error', text: 'This recommendation is outdated. Please log out and log back in to refresh.' });
+      return;
+    }
+    setSelectedProductId(String(product.id));
   };
 
   const handleLogout = () => {
@@ -120,16 +138,24 @@ function OrderForm() {
 
         <form onSubmit={handleSubmit} className="order-form">
           <div className="form-group">
-            <label htmlFor="productName">Product Name</label>
-            <input
-              type="text"
+            <label htmlFor="productName">Product</label>
+            <select
               id="productName"
               name="productName"
-              value={formData.productName}
-              onChange={handleChange}
+              value={selectedProductId}
+              onChange={(e) => setSelectedProductId(e.target.value)}
               required
-              placeholder="Enter product name"
-            />
+              disabled={productsLoading}
+            >
+              <option value="">
+                {productsLoading ? 'Loading products...' : 'Select a product'}
+              </option>
+              {productsList.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name} — ${Number(product.cost).toFixed(2)}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">
@@ -138,8 +164,8 @@ function OrderForm() {
               type="number"
               id="quantity"
               name="quantity"
-              value={formData.quantity}
-              onChange={handleChange}
+              value={quantity}
+              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
               required
               min="1"
             />
@@ -151,15 +177,13 @@ function OrderForm() {
               type="number"
               id="totalPrice"
               name="totalPrice"
-              value={formData.totalPrice}
-              onChange={handleChange}
-              required
-              min="0"
+              value={totalPrice}
+              readOnly
               step="0.01"
             />
           </div>
 
-          <button type="submit" disabled={loading} className="submit-btn">
+          <button type="submit" disabled={loading || !selectedProductId} className="submit-btn">
             {loading ? 'Submitting...' : 'Submit Order'}
           </button>
         </form>
@@ -174,7 +198,14 @@ function OrderForm() {
           <div className="info-section">
             <h3>Recommended for you</h3>
             {recommendedProducts.map((product) => (
-              <div key={product.sku} style={{ padding: '6px 0', borderBottom: '1px solid #eee' }}>
+              <div
+                key={product.sku}
+                onClick={() => handleRecommendedClick(product)}
+                style={{ padding: '6px 0', borderBottom: '1px solid #eee', cursor: 'pointer' }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleRecommendedClick(product); }}
+              >
                 {product.name} &mdash; ${product.cost.toFixed(2)} (SKU: {product.sku})
               </div>
             ))}

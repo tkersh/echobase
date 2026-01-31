@@ -49,14 +49,17 @@ async function insertOrder(order) {
     log(`Verified user exists: ${user.username} (ID: ${user.id})`);
 
     // All orders must have a user_id from JWT authentication
+    // productId and sku are nullable for backward compatibility with in-flight messages
     const query = `
-      INSERT INTO orders (user_id, product_name, quantity, total_price, order_status)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO orders (user_id, product_id, product_name, sku, quantity, total_price, order_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
 
     const [result] = await dbPool.execute(query, [
       order.userId,
+      order.productId || null,
       order.productName,
+      order.sku || null,
       order.quantity,
       order.totalPrice,
       'completed',

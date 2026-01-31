@@ -43,9 +43,8 @@ test.describe('Input Validation', () => {
 
     // Missing fields
     const invalidOrders = [
-      { quantity: 1, totalPrice: 10 }, // missing productName
-      { productName: 'Test', totalPrice: 10 }, // missing quantity
-      { productName: 'Test', quantity: 1 }, // missing totalPrice
+      { quantity: 1 }, // missing productId
+      { productId: 1 }, // missing quantity
     ];
 
     for (const order of invalidOrders) {
@@ -60,17 +59,33 @@ test.describe('Input Validation', () => {
     await apiHelper.register(userData);
 
     const negativeQuantity = await apiHelper.submitOrder({
-      productName: 'Test',
-      quantity: -5,
-      totalPrice: 10
+      productId: 1,
+      quantity: -5
     });
     expect(negativeQuantity.status).toBe(400);
 
-    const negativeTotalPrice = await apiHelper.submitOrder({
-      productName: 'Test',
-      quantity: 1,
-      totalPrice: -10
+    const negativeProductId = await apiHelper.submitOrder({
+      productId: -1,
+      quantity: 1
     });
-    expect(negativeTotalPrice.status).toBe(400);
+    expect(negativeProductId.status).toBe(400);
+  });
+
+  test('should reject invalid product IDs in orders', async ({ apiHelper, testUsers }) => {
+    const userData = createValidUser();
+    testUsers.push(userData);
+    await apiHelper.register(userData);
+
+    const nonexistentProduct = await apiHelper.submitOrder({
+      productId: 99999,
+      quantity: 1
+    });
+    expect(nonexistentProduct.status).toBe(400);
+
+    const stringProductId = await apiHelper.submitOrder({
+      productId: 'invalid',
+      quantity: 1
+    });
+    expect(stringProductId.status).toBe(400);
   });
 });

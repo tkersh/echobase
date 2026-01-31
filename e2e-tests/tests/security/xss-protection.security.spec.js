@@ -30,7 +30,7 @@ test.describe('XSS Protection', () => {
     expect(dialogTriggered).toBe(false);
   });
 
-  test('should sanitize XSS in order product name', async ({ apiHelper, testUsers, page }) => {
+  test('should not allow XSS via recommended products in localStorage', async ({ apiHelper, testUsers, page }) => {
     const userData = createValidUser();
     testUsers.push(userData);
 
@@ -38,20 +38,14 @@ test.describe('XSS Protection', () => {
 
     await page.goto('/');
 
-    // Set both token and user in localStorage (AuthContext requires both)
-    await page.evaluate(({ token, user }) => {
+    // Set auth and inject XSS payloads as recommended product names in localStorage
+    await page.evaluate(({ token, user, xss }) => {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ username: user.username, email: user.email }));
-    }, { token: apiHelper.token, user: userData });
-
-    // Reload page to pick up the authentication state
-    await page.reload();
-
-    await page.goto('/orders');
-
-    // Wait for the page to load and form to be visible
-    await expect(page).toHaveURL(/\/orders/, { timeout: 10000 });
-    await page.waitForSelector('input[name="productName"]', { timeout: 10000 });
+      localStorage.setItem('recommendedProducts', JSON.stringify([
+        { id: 1, name: xss, cost: 9.99, sku: 'XSS-001' },
+      ]));
+    }, { token: apiHelper.token, user: userData, xss: xssPayloads[0] });
 
     let dialogTriggered = false;
     page.on('dialog', async dialog => {
@@ -59,11 +53,10 @@ test.describe('XSS Protection', () => {
       await dialog.dismiss();
     });
 
-    await page.fill('input[name="productName"]', xssPayloads[0]);
-    await page.fill('input[name="quantity"]', '1');
-    await page.fill('input[name="totalPrice"]', '10');
-    await page.click('button[type="submit"]');
+    await page.goto('/orders');
+    await expect(page).toHaveURL(/\/orders/, { timeout: 10000 });
 
+    // Wait for recommended products to render
     await page.waitForTimeout(2000);
 
     expect(dialogTriggered).toBe(false);

@@ -20,11 +20,6 @@ const { validateRequiredEnv, API_GATEWAY_REQUIRED_VARS } = require('../shared/en
 const { logBuildMetadata } = require('../shared/build-metadata');
 const {
   ORDER_MAX_QUANTITY,
-  ORDER_MIN_PRICE,
-  ORDER_MAX_PRICE,
-  PRODUCT_NAME_MIN_LENGTH,
-  PRODUCT_NAME_MAX_LENGTH,
-  PRODUCT_NAME_PATTERN,
 } = require('../shared/constants');
 const OrderService = require('./services/orderService');
 const { initMcpClient } = require('./services/mcpClient');
@@ -191,6 +186,7 @@ async function verifySQSConnectivity(maxRetries = 10) {
 
 // Import routes and middleware
 const authRoutes = require('./routes/auth');
+const productsRoutes = require('./routes/products');
 const { authenticateJWT } = require('./middleware/auth');
 
 /**
@@ -296,25 +292,20 @@ app.use('/api/auth', (req, res, next) => {
   next();
 }, authRoutes);
 
+// Products routes (requires authentication)
+app.use('/api/v1/products', authenticateJWT, productsRoutes);
+
 // Input validation and sanitization middleware
 const orderValidation = [
-  body('productName')
-    .trim()
-    .isLength({ min: PRODUCT_NAME_MIN_LENGTH, max: PRODUCT_NAME_MAX_LENGTH })
-    .withMessage(`Product name must be between ${PRODUCT_NAME_MIN_LENGTH} and ${PRODUCT_NAME_MAX_LENGTH} characters`)
-    .matches(PRODUCT_NAME_PATTERN)
-    .withMessage('Product name contains invalid characters')
-    .escape(),
+  body('productId')
+    .isInt({ min: 1 })
+    .withMessage('Product ID must be a positive integer')
+    .toInt(),
 
   body('quantity')
     .isInt({ min: 1, max: ORDER_MAX_QUANTITY })
     .withMessage(`Quantity must be an integer between 1 and ${ORDER_MAX_QUANTITY.toLocaleString()}`)
     .toInt(),
-
-  body('totalPrice')
-    .isFloat({ min: ORDER_MIN_PRICE, max: ORDER_MAX_PRICE })
-    .withMessage(`Total price must be between ${ORDER_MIN_PRICE} and ${ORDER_MAX_PRICE.toLocaleString()}`)
-    .toFloat(),
 ];
 
 /**
@@ -390,7 +381,7 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
       });
     }
 
-    const { productName, quantity, totalPrice } = req.body;
+    const { productId, quantity } = req.body;
 
     // Validate userId from JWT token
     if (!req.user || !req.user.userId) {
@@ -400,10 +391,26 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
       });
     }
 
+    // Look up product by ID
+    const [products] = await req.db.execute(
+      'SELECT id, name, cost, sku FROM products WHERE id = ?',
+      [productId]
+    );
+
+    if (products.length === 0) {
+      return res.status(400).json({
+        error: 'Invalid product',
+        message: `Product with ID ${productId} not found`,
+      });
+    }
+
+    const product = products[0];
+    const totalPrice = parseFloat((product.cost * quantity).toFixed(2));
+
     // Use order service to handle business logic
     const result = await orderService.submitOrder(
       req.user.userId,
-      { productName, quantity, totalPrice },
+      { productId: product.id, productName: product.name, sku: product.sku, quantity, totalPrice },
       { fullName: req.user.fullName, username: req.user.username }
     );
 

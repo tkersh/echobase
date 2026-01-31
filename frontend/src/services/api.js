@@ -150,6 +150,16 @@ export const auth = {
     apiClient.post('/api/v1/auth/register', userData),
 };
 
+// Products API methods (v1)
+export const products = {
+  getAll: (token) =>
+    apiClient.get('/api/v1/products', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    }),
+};
+
 // Orders API methods (v1)
 export const orders = {
   create: (orderData, token) =>

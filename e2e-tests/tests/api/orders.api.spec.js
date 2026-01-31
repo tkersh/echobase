@@ -72,23 +72,8 @@ test.describe('Orders API Tests', () => {
       const regResponse = await apiHelper.register(userData);
       expect(regResponse.status).toBe(201);
 
-      // Large quantity but total (9999 * 100 = 999,900) stays under business logic limit
-      const orderData = createValidOrder({ quantity: 9999, totalPrice: 100.00 });
-      const response = await apiHelper.submitOrder(orderData);
-
-      expect(response.status).toBe(201);
-      expect(response.ok).toBeTruthy();
-    });
-
-    test('should submit order with large total price', async () => {
-      const userData = createValidUser();
-      testUsers.push(userData);
-
-      const regResponse = await apiHelper.register(userData);
-      expect(regResponse.status).toBe(201);
-
-      // Large price but total (1 * 999999 = 999,999) stays under business logic limit
-      const orderData = createValidOrder({ quantity: 1, totalPrice: 999999 });
+      // Use Mouse (id=10, $29.99) so total stays under ORDER_MAX_VALUE ($1M)
+      const orderData = createValidOrder({ productId: 10, quantity: 9999 });
       const response = await apiHelper.submitOrder(orderData);
 
       expect(response.status).toBe(201);
@@ -105,25 +90,37 @@ test.describe('Orders API Tests', () => {
       expect(response.ok).toBeFalsy();
     });
 
-    test('should reject order with missing product name', async () => {
+    test('should reject order with missing product ID', async () => {
       const userData = createValidUser();
       testUsers.push(userData);
 
       await apiHelper.register(userData);
 
-      const response = await apiHelper.submitOrder(invalidOrders.missingProductName);
+      const response = await apiHelper.submitOrder(invalidOrders.missingProductId);
 
       expect(response.status).toBe(400);
       expect(response.ok).toBeFalsy();
     });
 
-    test('should reject order with empty product name', async () => {
+    test('should reject order with invalid (nonexistent) product ID', async () => {
       const userData = createValidUser();
       testUsers.push(userData);
 
       await apiHelper.register(userData);
 
-      const response = await apiHelper.submitOrder(invalidOrders.emptyProductName);
+      const response = await apiHelper.submitOrder(invalidOrders.invalidProductId);
+
+      expect(response.status).toBe(400);
+      expect(response.ok).toBeFalsy();
+    });
+
+    test('should reject order with negative product ID', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      const response = await apiHelper.submitOrder(invalidOrders.negativeProductId);
 
       expect(response.status).toBe(400);
       expect(response.ok).toBeFalsy();
@@ -136,18 +133,6 @@ test.describe('Orders API Tests', () => {
       await apiHelper.register(userData);
 
       const response = await apiHelper.submitOrder(invalidOrders.missingQuantity);
-
-      expect(response.status).toBe(400);
-      expect(response.ok).toBeFalsy();
-    });
-
-    test('should reject order with missing total price', async () => {
-      const userData = createValidUser();
-      testUsers.push(userData);
-
-      await apiHelper.register(userData);
-
-      const response = await apiHelper.submitOrder(invalidOrders.missingTotalPrice);
 
       expect(response.status).toBe(400);
       expect(response.ok).toBeFalsy();
@@ -177,18 +162,6 @@ test.describe('Orders API Tests', () => {
       expect(response.ok).toBeFalsy();
     });
 
-    test('should reject order with negative total price', async () => {
-      const userData = createValidUser();
-      testUsers.push(userData);
-
-      await apiHelper.register(userData);
-
-      const response = await apiHelper.submitOrder(invalidOrders.negativeTotalPrice);
-
-      expect(response.status).toBe(400);
-      expect(response.ok).toBeFalsy();
-    });
-
     test('should reject order with invalid quantity type', async () => {
       const userData = createValidUser();
       testUsers.push(userData);
@@ -200,17 +173,68 @@ test.describe('Orders API Tests', () => {
       expect(response.status).toBe(400);
       expect(response.ok).toBeFalsy();
     });
+  });
 
-    test('should reject order with invalid total price type', async () => {
+  test.describe('Products API', () => {
+    test('should return products when authenticated', async () => {
       const userData = createValidUser();
       testUsers.push(userData);
 
       await apiHelper.register(userData);
 
-      const response = await apiHelper.submitOrder(invalidOrders.invalidTotalPriceType);
+      const response = await apiHelper.getProducts();
 
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
+      expect(response.ok).toBeTruthy();
+      expect(response.data.success).toBe(true);
+      expect(response.data.products).toBeDefined();
+      expect(response.data.products.length).toBe(11);
+    });
+
+    test('should reject products request without authentication', async () => {
+      apiHelper.clearToken();
+
+      const response = await apiHelper.getProducts();
+
+      expect(response.status).toBe(401);
       expect(response.ok).toBeFalsy();
+    });
+
+    test('should return products sorted alphabetically', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      const response = await apiHelper.getProducts();
+
+      expect(response.status).toBe(200);
+      const names = response.data.products.map(p => p.name);
+      const sortedNames = [...names].sort();
+      expect(names).toEqual(sortedNames);
+    });
+
+    test('should return all 11 seeded products', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      const response = await apiHelper.getProducts();
+
+      expect(response.status).toBe(200);
+      const names = response.data.products.map(p => p.name);
+      expect(names).toContain('Quantum Stabilizer');
+      expect(names).toContain('Plasma Conduit');
+      expect(names).toContain('Neural Interface Module');
+      expect(names).toContain('Gravity Dampener');
+      expect(names).toContain('Chrono Sync Unit');
+      expect(names).toContain('Headphones');
+      expect(names).toContain('Keyboard');
+      expect(names).toContain('Laptop');
+      expect(names).toContain('Monitor');
+      expect(names).toContain('Mouse');
+      expect(names).toContain('Webcam');
     });
   });
 

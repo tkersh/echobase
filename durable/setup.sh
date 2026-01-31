@@ -105,12 +105,18 @@ if [ "$LS_STATUS" != "running" ]; then
     echo "Starting LocalStack (required for Secrets Manager)..."
 
     # Create minimal env file for LocalStack only
+    # Placeholder MYSQL_* values suppress Compose warnings — only LocalStack is started here,
+    # so the mariadb service (which references these) is never created with these values.
     TEMP_ENV_FILE=$(mktemp)
     cat "durable/.env.${DURABLE_ENV}" > "$TEMP_ENV_FILE"
     echo "" >> "$TEMP_ENV_FILE"
     echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> "$TEMP_ENV_FILE"
     echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> "$TEMP_ENV_FILE"
     echo "AWS_REGION=${AWS_REGION:-us-east-1}" >> "$TEMP_ENV_FILE"
+    echo "MYSQL_ROOT_PASSWORD=placeholder" >> "$TEMP_ENV_FILE"
+    echo "MYSQL_DATABASE=placeholder" >> "$TEMP_ENV_FILE"
+    echo "MYSQL_USER=placeholder" >> "$TEMP_ENV_FILE"
+    echo "MYSQL_PASSWORD=placeholder" >> "$TEMP_ENV_FILE"
 
     # Start only LocalStack
     docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d localstack

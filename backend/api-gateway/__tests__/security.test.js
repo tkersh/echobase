@@ -116,12 +116,11 @@ describe('API Gateway Security Tests', () => {
   describe('1. Unauthenticated Access', () => {
     test('should reject POST /api/v1/orders without authentication', async () => {
       const response = await request(API_GATEWAY_URL)
-        
+
         .post('/api/v1/orders')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // May get 429 if rate limited, or 401 for auth required
@@ -134,12 +133,11 @@ describe('API Gateway Security Tests', () => {
 
     test('should reject with missing Authorization header', async () => {
       const response = await request(API_GATEWAY_URL)
-        
+
         .post('/api/v1/orders')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // May get 429 if rate limited, or 401 for auth required
@@ -151,12 +149,11 @@ describe('API Gateway Security Tests', () => {
 
     test('should not leak sensitive information in error messages', async () => {
       const response = await request(API_GATEWAY_URL)
-        
+
         .post('/api/v1/orders')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // Should not expose internal details
@@ -173,9 +170,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', 'Bearer invalid-token-format')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       expect([401, 429]).toContain(response.status);
@@ -196,9 +192,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${wrongToken}`)
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       expect([401, 429]).toContain(response.status);
@@ -219,9 +214,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${expiredToken}`)
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       expect([401, 429]).toContain(response.status);
@@ -237,9 +231,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', 'InvalidFormat token123')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       expect([401, 429]).toContain(response.status);
@@ -253,9 +246,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', 'Bearer ')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       expect([401, 429]).toContain(response.status);
@@ -286,9 +278,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          productName: 'Rate Limit Test',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // Rate limiting is configured if we get either:
@@ -344,7 +335,7 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          // Missing productName, quantity, totalPrice
+          // Missing productId and quantity
         });
 
       // May get 429 if rate limited, or 400 for validation
@@ -365,9 +356,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: -1, // Invalid negative quantity
-          totalPrice: 10.00,
         });
 
       // May get 429 if rate limited, or 400 for validation
@@ -377,7 +367,7 @@ describe('API Gateway Security Tests', () => {
       }
     });
 
-    test('should reject order with XSS attempt in product name', async () => {
+    test('should reject order with invalid product ID', async () => {
       const validToken = jwt.sign(
         { userId: global.testUserId, username: 'testuser', fullName: 'Test User' },
         TEST_JWT_SECRET,
@@ -388,19 +378,18 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          productName: '<script>alert("xss")</script>',
+          productId: 99999,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
-      // May get 429 if rate limited, or 400 for validation
+      // May get 429 if rate limited, or 400 for invalid product
       expect([400, 429]).toContain(response.status);
       if (response.status === 400) {
-        expect(response.body.error).toBe('Validation failed');
+        expect(response.body.error).toMatch(/Invalid product|Validation failed/);
       }
     });
 
-    test('should reject order exceeding maximum value', async () => {
+    test('should reject order with non-integer product ID', async () => {
       const validToken = jwt.sign(
         { userId: global.testUserId, username: 'testuser', fullName: 'Test User' },
         TEST_JWT_SECRET,
@@ -411,18 +400,36 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          productName: 'Test Product',
-          quantity: 10000,
-          totalPrice: 1000001, // Exceeds maximum (1000000)
+          productId: '<script>alert("xss")</script>',
+          quantity: 1,
         });
 
       // May get 429 if rate limited, or 400 for validation
       expect([400, 429]).toContain(response.status);
       if (response.status === 400) {
         expect(response.body.error).toBe('Validation failed');
-        // Check that the details contain a message about maximum/price
-        const detailsStr = JSON.stringify(response.body.details || []);
-        expect(detailsStr).toMatch(/maximum|price|exceed/i);
+      }
+    });
+
+    test('should reject order exceeding maximum quantity', async () => {
+      const validToken = jwt.sign(
+        { userId: global.testUserId, username: 'testuser', fullName: 'Test User' },
+        TEST_JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      const response = await request(API_GATEWAY_URL)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${validToken}`)
+        .send({
+          productId: 1,
+          quantity: 10001, // Exceeds maximum (10000)
+        });
+
+      // May get 429 if rate limited, or 400 for validation
+      expect([400, 429]).toContain(response.status);
+      if (response.status === 400) {
+        expect(response.body.error).toBe('Validation failed');
       }
     });
   });
@@ -445,13 +452,20 @@ describe('API Gateway Security Tests', () => {
       const orderResponse = await request(API_GATEWAY_URL)
         .post('/api/v1/orders')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // May get 429 if rate limited, or 401 for auth required
       expect([401, 429]).toContain(orderResponse.status);
+    });
+
+    test('should protect products endpoint', async () => {
+      const productsResponse = await request(API_GATEWAY_URL)
+        .get('/api/v1/products');
+
+      // May get 429 if rate limited, or 401 for auth required
+      expect([401, 429]).toContain(productsResponse.status);
     });
 
     test('should allow public access to health endpoint', async () => {
@@ -502,9 +516,8 @@ describe('API Gateway Security Tests', () => {
       const response = await request(API_GATEWAY_URL)
         .post('/api/v1/orders')
         .send({
-          productName: 'Test Product',
+          productId: 1,
           quantity: 1,
-          totalPrice: 10.00,
         });
 
       // Error response should not contain stack traces
@@ -525,9 +538,8 @@ describe('API Gateway Security Tests', () => {
         .post('/api/v1/orders')
         .set('Authorization', `Bearer ${validToken}`)
         .send({
-          productName: null,
+          productId: null,
           quantity: 'invalid',
-          totalPrice: 'invalid',
         });
 
       // Should return generic validation error, not internal details

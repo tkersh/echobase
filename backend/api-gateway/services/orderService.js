@@ -40,18 +40,20 @@ class OrderService {
   /**
    * Submit an order to the processing queue
    * @param {number} userId - User ID from JWT token
-   * @param {Object} orderData - Order data (productName, quantity, totalPrice)
+   * @param {Object} orderData - Order data (productId, productName, sku, quantity, totalPrice)
    * @param {Object} userInfo - User information for audit logging
    * @returns {Promise<Object>} - { success: boolean, messageId: string, order: Object }
    */
   async submitOrder(userId, orderData, userInfo) {
     try {
-      const { productName, quantity, totalPrice } = orderData;
+      const { productId, productName, sku, quantity, totalPrice } = orderData;
 
       // Create order object with user_id from JWT token
       const order = {
         userId,
+        productId,
         productName,
+        sku,
         quantity,
         totalPrice,
         timestamp: new Date().toISOString(),
@@ -88,7 +90,9 @@ class OrderService {
         success: true,
         messageId: result.MessageId,
         order: {
+          productId: order.productId,
           productName: order.productName,
+          sku: order.sku,
           quantity: order.quantity,
           totalPrice: order.totalPrice,
           timestamp: order.timestamp,

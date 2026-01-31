@@ -80,10 +80,16 @@ test.describe('Full End-to-End Integration Tests', () => {
     // Step 5: Wait for order to be processed and appear in database
     const dbOrder = await dbHelper.waitForOrder(userId, 15000, 500);
     expect(dbOrder).toBeTruthy();
-    expect(dbOrder.product_name).toBe(orderData.productName);
+    expect(dbOrder.product_id).toBe(orderData.productId);
+    expect(dbOrder.product_name).toBeTruthy();
     expect(Number(dbOrder.quantity)).toBe(Number(orderData.quantity));
-    expect(Number(dbOrder.total_price)).toBeCloseTo(Number(orderData.totalPrice), 2);
     expect(dbOrder.user_id).toBe(userId);
+    expect(dbOrder.sku).toBeTruthy();
+
+    // Verify server-calculated total price = product cost * quantity
+    const product = await dbHelper.getProductById(orderData.productId);
+    const expectedTotal = parseFloat((product.cost * orderData.quantity).toFixed(2));
+    expect(Number(dbOrder.total_price)).toBeCloseTo(expectedTotal, 2);
   });
 
   test('should complete full flow via UI', async ({ page }) => {
@@ -107,11 +113,12 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
-    // Step 3: Submit order via UI
-    const orderData = createValidOrder();
-    await page.fill('input[name="productName"]', orderData.productName);
-    await page.fill('input[name="quantity"]', orderData.quantity.toString());
-    await page.fill('input[name="totalPrice"]', orderData.totalPrice.toString());
+    // Step 3: Submit order via UI - select from dropdown
+    // Wait for products to load
+    await expect(page.locator('select[name="productName"] option')).not.toHaveCount(1, { timeout: 5000 });
+
+    await page.selectOption('select[name="productName"]', { index: 1 });
+    await page.fill('input[name="quantity"]', '2');
     await page.click('button[type="submit"]');
 
     // Should show success message
@@ -120,9 +127,9 @@ test.describe('Full End-to-End Integration Tests', () => {
     // Step 4: Wait for order to appear in database
     const dbOrder = await dbHelper.waitForOrder(userId, 15000, 500);
     expect(dbOrder).toBeTruthy();
-    expect(dbOrder.product_name).toBe(orderData.productName);
-    expect(Number(dbOrder.quantity)).toBe(Number(orderData.quantity));
-    expect(Number(dbOrder.total_price)).toBeCloseTo(Number(orderData.totalPrice), 2);
+    expect(dbOrder.product_id).toBeTruthy();
+    expect(dbOrder.sku).toBeTruthy();
+    expect(Number(dbOrder.quantity)).toBe(2);
   });
 
   test('should handle register, logout, login, and order flow', async ({ page }) => {
@@ -154,11 +161,10 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
-    // Step 5: Submit order
-    const orderData = createValidOrder();
-    await page.fill('input[name="productName"]', orderData.productName);
-    await page.fill('input[name="quantity"]', orderData.quantity.toString());
-    await page.fill('input[name="totalPrice"]', orderData.totalPrice.toString());
+    // Step 5: Submit order via dropdown
+    await expect(page.locator('select[name="productName"] option')).not.toHaveCount(1, { timeout: 5000 });
+    await page.selectOption('select[name="productName"]', { index: 1 });
+    await page.fill('input[name="quantity"]', '1');
     await page.click('button[type="submit"]');
 
     await expect(page.locator('.message.success')).toBeVisible({ timeout: 5000 });
@@ -178,10 +184,10 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(dbUser).toBeTruthy();
     const userId = dbUser.id;
 
-    // Submit 3 orders
-    const order1 = createValidOrder();
-    const order2 = createValidOrder();
-    const order3 = createValidOrder();
+    // Submit 3 orders with different products
+    const order1 = createValidOrder({ productId: 1 });
+    const order2 = createValidOrder({ productId: 2 });
+    const order3 = createValidOrder({ productId: 3 });
 
     await apiHelper.submitOrder(order1);
     await apiHelper.submitOrder(order2);
@@ -194,11 +200,11 @@ test.describe('Full End-to-End Integration Tests', () => {
     const orders = await dbHelper.getOrdersByUserId(userId);
     expect(orders.length).toBeGreaterThanOrEqual(3);
 
-    // Verify order data
-    const orderProducts = orders.map(o => o.product_name);
-    expect(orderProducts).toContain(order1.productName);
-    expect(orderProducts).toContain(order2.productName);
-    expect(orderProducts).toContain(order3.productName);
+    // Verify order data - check product IDs
+    const orderProductIds = orders.map(o => o.product_id);
+    expect(orderProductIds).toContain(1);
+    expect(orderProductIds).toContain(2);
+    expect(orderProductIds).toContain(3);
   });
 
   test('should handle concurrent orders from different users', async () => {
@@ -219,9 +225,9 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(dbUser1).toBeTruthy();
     expect(dbUser2).toBeTruthy();
 
-    // Submit orders concurrently
-    const order1 = createValidOrder();
-    const order2 = createValidOrder();
+    // Submit orders concurrently with different products
+    const order1 = createValidOrder({ productId: 1 });
+    const order2 = createValidOrder({ productId: 2 });
 
     await Promise.all([
       apiHelper1.submitOrder(order1),
@@ -238,8 +244,8 @@ test.describe('Full End-to-End Integration Tests', () => {
     expect(user1Orders.length).toBeGreaterThanOrEqual(1);
     expect(user2Orders.length).toBeGreaterThanOrEqual(1);
 
-    expect(user1Orders[0].product_name).toBe(order1.productName);
-    expect(user2Orders[0].product_name).toBe(order2.productName);
+    expect(user1Orders[0].product_id).toBe(1);
+    expect(user2Orders[0].product_id).toBe(2);
   });
 
   test('should preserve session across page refreshes', async ({ page }) => {

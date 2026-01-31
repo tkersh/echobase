@@ -80,10 +80,12 @@ test.describe('Debug UI Registration Flow', () => {
 
     // Step 4: Submit an order
     console.log('\n=== STEP 4: Submit order ===');
+    // Wait for products dropdown to load
+    await expect(page.locator('select[name="productName"] option')).not.toHaveCount(1, { timeout: 5000 });
+
     const orderData = createValidOrder();
-    await page.fill('input[name="productName"]', orderData.productName);
+    await page.selectOption('select[name="productName"]', String(orderData.productId));
     await page.fill('input[name="quantity"]', orderData.quantity.toString());
-    await page.fill('input[name="totalPrice"]', orderData.totalPrice.toString());
 
     console.log('Order data being submitted:', JSON.stringify(orderData, null, 2));
 

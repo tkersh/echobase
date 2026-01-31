@@ -131,6 +131,34 @@ class ApiHelper {
   }
 
   /**
+   * Get all products (requires authentication)
+   */
+  async getProducts() {
+    const context = await this.createContext();
+    const response = await context.get('/api/v1/products', {
+      headers: this.token ? {
+        'Authorization': `Bearer ${this.token}`
+      } : {}
+    });
+
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      responseData = await response.text();
+    }
+
+    await context.dispose();
+
+    return {
+      status: response.status(),
+      ok: response.ok(),
+      data: responseData,
+      headers: response.headers()
+    };
+  }
+
+  /**
    * Get orders info (unauthenticated endpoint)
    */
   async getOrdersInfo() {

@@ -80,6 +80,41 @@ class DatabaseHelper {
   }
 
   /**
+   * Get a product by name
+   */
+  async getProductByName(name) {
+    const conn = await this.connect();
+    const [rows] = await conn.execute(
+      'SELECT * FROM products WHERE name = ?',
+      [name]
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * Get a product by ID
+   */
+  async getProductById(id) {
+    const conn = await this.connect();
+    const [rows] = await conn.execute(
+      'SELECT * FROM products WHERE id = ?',
+      [id]
+    );
+    return rows[0] || null;
+  }
+
+  /**
+   * Get all products
+   */
+  async getAllProducts() {
+    const conn = await this.connect();
+    const [rows] = await conn.execute(
+      'SELECT * FROM products ORDER BY name ASC'
+    );
+    return rows;
+  }
+
+  /**
    * Get all orders for a user
    */
   async getOrdersByUserId(userId) {

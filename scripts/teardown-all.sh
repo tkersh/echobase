@@ -5,8 +5,9 @@
 # This script tears down EVERYTHING for local development cleanup:
 #   - Blue ephemeral environment
 #   - Green ephemeral environment
-#   - CI durable
-#   - Devlocal durable infrastructure (MariaDB, LocalStack, nginx)
+#   - Devlocal ephemeral environment (api-gateway, frontend, order-processor, localstack)
+#   - Devlocal durable infrastructure (MariaDB, LocalStack, nginx, MCP server)
+#   - CI durable infrastructure (with --include-ci)
 #
 # Options:
 #   --volumes     Also remove data volumes (WARNING: Deletes all data!)
@@ -40,7 +41,8 @@ for arg in "$@"; do
             echo "Components removed:"
             echo "  - echobase-blue-* (blue ephemeral environment)"
             echo "  - echobase-green-* (green ephemeral environment)"
-            echo "  - echobase-devlocal-durable-* (devlocal durable infrastructure)"
+            echo "  - echobase-devlocal-* (devlocal ephemeral: api-gateway, frontend, etc.)"
+            echo "  - echobase-devlocal-durable-* (devlocal durable: MariaDB, LocalStack, nginx, MCP)"
             echo "  - echobase-ci-durable-* (CI durable, only with --include-ci)"
             exit 0
             ;;
@@ -120,7 +122,7 @@ teardown_durable() {
         echo "  Found durable containers for $durable_env"
 
         # Stop and remove durable containers
-        for service in mariadb localstack nginx; do
+        for service in mariadb localstack nginx mcp-server; do
             container_name="${container_prefix}-${service}"
             if docker inspect "$container_name" >/dev/null 2>&1; then
                 echo "  Removing: $container_name"
@@ -188,12 +190,48 @@ cleanup_orphans() {
     echo ""
 }
 
+# Function to teardown devlocal ephemeral environment
+# Devlocal uses the base docker-compose.yml with hardcoded container names (echobase-devlocal-*)
+# and no explicit -p flag, so we tear it down using docker compose down + direct container removal
+teardown_devlocal_ephemeral() {
+    echo "----------------------------------------"
+    echo "Tearing down DEVLOCAL ephemeral environment..."
+    echo "----------------------------------------"
+
+    local prefix="echobase-devlocal"
+
+    # Check if any devlocal ephemeral containers exist (exclude durable containers)
+    if docker ps -a --format '{{.Names}}' | grep "^${prefix}-" | grep -v "${prefix}-durable" | grep -q .; then
+        echo "  Found devlocal ephemeral containers"
+
+        # Use docker compose down from the project root (matches how start.sh brings them up)
+        if [ -f "$PROJECT_ROOT/docker-compose.yml" ]; then
+            docker compose -f "$PROJECT_ROOT/docker-compose.yml" down --remove-orphans 2>/dev/null || true
+        fi
+
+        # Also clean up any remaining containers directly
+        for container in $(docker ps -a --format '{{.Names}}' | grep "^${prefix}-" | grep -v "${prefix}-durable"); do
+            echo "  Removing container: $container"
+            docker stop "$container" 2>/dev/null || true
+            docker rm "$container" 2>/dev/null || true
+        done
+
+        REMOVED_ITEMS+=("devlocal ephemeral")
+        echo "  ✓ DEVLOCAL ephemeral environment removed"
+    else
+        SKIPPED_ITEMS+=("devlocal ephemeral (not running)")
+        echo "  Skipped: No devlocal ephemeral containers found"
+    fi
+    echo ""
+}
+
 # Execute teardowns
 echo ""
 
 # 1. Teardown ephemeral environments
 teardown_ephemeral "blue"
 teardown_ephemeral "green"
+teardown_devlocal_ephemeral
 
 # 2. Teardown devlocal durable infrastructure
 teardown_durable "devlocal"

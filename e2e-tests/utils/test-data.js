@@ -71,15 +71,13 @@ export function createLoginCredentials(username, password) {
  * Create a valid order object
  */
 export function createValidOrder(customFields = {}) {
-  const products = ['Laptop', 'Mouse', 'Keyboard', 'Monitor', 'Headphones', 'Webcam'];
-  const randomProduct = products[Math.floor(Math.random() * products.length)];
+  // Product IDs 1-11 match the seeded products table
+  const randomProductId = Math.floor(Math.random() * 11) + 1;
   const randomQuantity = Math.floor(Math.random() * 10) + 1;
-  const randomPrice = (Math.random() * 1000 + 10).toFixed(2);
 
   return {
-    productName: randomProduct,
+    productId: randomProductId,
     quantity: randomQuantity,
-    totalPrice: parseFloat(randomPrice),
     ...customFields
   };
 }
@@ -88,52 +86,39 @@ export function createValidOrder(customFields = {}) {
  * Invalid order data for validation testing
  */
 export const invalidOrders = {
-  missingProductName: {
-    quantity: 1,
-    totalPrice: 100
-  },
-  missingQuantity: {
-    productName: 'Test Product',
-    totalPrice: 100
-  },
-  missingTotalPrice: {
-    productName: 'Test Product',
+  missingProductId: {
     quantity: 1
   },
+  invalidProductId: {
+    productId: 99999,
+    quantity: 1
+  },
+  negativeProductId: {
+    productId: -1,
+    quantity: 1
+  },
+  zeroProductId: {
+    productId: 0,
+    quantity: 1
+  },
+  stringProductId: {
+    productId: 'invalid',
+    quantity: 1
+  },
+  missingQuantity: {
+    productId: 1
+  },
   negativeQuantity: {
-    productName: 'Test Product',
-    quantity: -1,
-    totalPrice: 100
+    productId: 1,
+    quantity: -1
   },
   zeroQuantity: {
-    productName: 'Test Product',
-    quantity: 0,
-    totalPrice: 100
-  },
-  negativeTotalPrice: {
-    productName: 'Test Product',
-    quantity: 1,
-    totalPrice: -100
+    productId: 1,
+    quantity: 0
   },
   invalidQuantityType: {
-    productName: 'Test Product',
-    quantity: 'invalid',
-    totalPrice: 100
-  },
-  invalidTotalPriceType: {
-    productName: 'Test Product',
-    quantity: 1,
-    totalPrice: 'invalid'
-  },
-  emptyProductName: {
-    productName: '',
-    quantity: 1,
-    totalPrice: 100
-  },
-  veryLongProductName: {
-    productName: 'A'.repeat(300),
-    quantity: 1,
-    totalPrice: 100
+    productId: 1,
+    quantity: 'invalid'
   }
 };
 

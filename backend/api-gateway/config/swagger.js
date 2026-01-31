@@ -67,16 +67,41 @@ const options = {
             },
           },
         },
+        Product: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'integer',
+              description: 'Product ID',
+              example: 1,
+            },
+            name: {
+              type: 'string',
+              description: 'Product name',
+              example: 'Quantum Stabilizer',
+            },
+            cost: {
+              type: 'number',
+              format: 'float',
+              description: 'Unit cost in USD',
+              example: 249.99,
+            },
+            sku: {
+              type: 'string',
+              description: 'Stock keeping unit',
+              example: 'QS-001',
+            },
+          },
+        },
         Order: {
           type: 'object',
-          required: ['productName', 'quantity', 'totalPrice'],
+          required: ['productId', 'quantity'],
           properties: {
-            productName: {
-              type: 'string',
-              description: 'Product name (1-255 characters, alphanumeric and common punctuation)',
-              example: 'Widget Pro 2000',
-              minLength: 1,
-              maxLength: 255,
+            productId: {
+              type: 'integer',
+              description: 'Product ID (must reference an existing product)',
+              example: 1,
+              minimum: 1,
             },
             quantity: {
               type: 'integer',
@@ -84,14 +109,6 @@ const options = {
               example: 5,
               minimum: 1,
               maximum: 10000,
-            },
-            totalPrice: {
-              type: 'number',
-              format: 'float',
-              description: 'Total order price in USD (0.01-1,000,000)',
-              example: 149.99,
-              minimum: 0.01,
-              maximum: 1000000,
             },
           },
         },
@@ -166,6 +183,10 @@ const options = {
       {
         name: 'Authentication',
         description: 'User registration and authentication endpoints',
+      },
+      {
+        name: 'Products',
+        description: 'Product catalog endpoints',
       },
       {
         name: 'Orders',
