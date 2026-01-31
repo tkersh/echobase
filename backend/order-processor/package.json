@@ -15,5 +15,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
+  },
+  "overrides": {
+    "fast-xml-parser": "^5.3.4"
   }
 }

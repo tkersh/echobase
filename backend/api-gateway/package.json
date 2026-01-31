@@ -38,6 +38,7 @@
     "glob": "^10.3.10",
     "z-schema": "^6.0.2",
     "lodash.get": "npm:lodash@^4.17.21",
-    "lodash.isequal": "npm:lodash@^4.17.21"
+    "lodash.isequal": "npm:lodash@^4.17.21",
+    "fast-xml-parser": "^5.3.4"
   }
 }
