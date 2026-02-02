@@ -570,8 +570,18 @@ This project maintains institutional knowledge in `docs/project_notes/` for cons
 - **decisions.md** - Index of Architectural Decision Records (ADRs)
 - **key_facts.md** - Project configuration, ports, secrets paths, important URLs
 - **issues.md** - Work log with ticket IDs and descriptions
+- **DOD.md** - Definition of Done checklist (READ BEFORE marking any task complete)
+- **DOR.md** - Definition of Ready checklist (READ BEFORE starting any task)
 
 ### Memory-Aware Protocols
+
+**Before starting any task:**
+- Review `docs/project_notes/DOR.md` and work through the applicable readiness checklists
+- Gather context, understand architecture, and assess impact before writing code
+
+**When completing any task:**
+- Review `docs/project_notes/DOD.md` and work through the applicable checklists
+- General checklist applies to every task; additional checklists apply based on change type
 
 **Before proposing architectural changes:**
 - Check `docs/project_notes/decisions.md` for existing decisions
