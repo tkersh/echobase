@@ -28,8 +28,18 @@ export TF_VAR_db_host=${DB_HOST}
 export TF_VAR_db_port=${DB_PORT}
 export TF_VAR_db_name=${DB_NAME}
 
-# LocalStack endpoint (use docker:4566 for CI, localhost:4566 for local)
-export TF_VAR_localstack_endpoint=${TF_VAR_localstack_endpoint:-http://docker:4566}
+# LocalStack endpoint — MUST be set explicitly per environment; no silent fallback
+if [ -z "$TF_VAR_localstack_endpoint" ]; then
+    echo "WARNING: TF_VAR_localstack_endpoint is not set. Using SQS_ENDPOINT as fallback."
+    if [ -n "$SQS_ENDPOINT" ]; then
+        export TF_VAR_localstack_endpoint="$SQS_ENDPOINT"
+    else
+        echo "ERROR: Neither TF_VAR_localstack_endpoint nor SQS_ENDPOINT is set."
+        MISSING_VARS+=("TF_VAR_localstack_endpoint")
+    fi
+else
+    export TF_VAR_localstack_endpoint
+fi
 
 # Validate required variables
 MISSING_VARS=()

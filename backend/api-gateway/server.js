@@ -10,6 +10,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const csrfProtection = require('./middleware/csrf-middleware');
+const correlationId = require('./middleware/correlation-id');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 const { SQSClient } = require('@aws-sdk/client-sqs');
@@ -21,6 +22,7 @@ const { logBuildMetadata } = require('../shared/build-metadata');
 const {
   ORDER_MAX_QUANTITY,
 } = require('../shared/constants');
+const { parseAllowedOrigins } = require('../shared/cors-utils');
 const OrderService = require('./services/orderService');
 const { initMcpClient } = require('./services/mcpClient');
 
@@ -66,6 +68,9 @@ app.use((req, res, next) => {
  *   ✓ API key authentication - Service-to-service authentication
  */
 
+// Correlation ID for request tracing across services
+app.use(correlationId);
+
 // Performance: Compression middleware for response compression
 app.use(compression());
 
@@ -73,23 +78,7 @@ app.use(compression());
 app.use(helmet());
 
 // Security: CORS configuration - restrict to specific origins
-// Validate and parse CORS_ORIGIN
-let allowedOrigins = [];
-if (process.env.CORS_ORIGIN) {
-  allowedOrigins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
-
-  // Validate each origin URL format at startup
-  allowedOrigins.forEach((origin, index) => {
-    try {
-      new URL(origin);
-      log(`CORS origin ${index + 1}: ${origin}`);
-    } catch (e) {
-      logError(`Invalid CORS origin format at index ${index + 1}: ${origin}`, e);
-      logError('CORS_ORIGIN must be a comma-separated list of valid URLs (e.g., https://example.com:443)');
-      process.exit(1);
-    }
-  });
-}
+const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN, { exitOnError: true });
 
 const corsOptions = {
   // CORS_ORIGIN can be a comma-separated list of allowed origins
@@ -411,7 +400,8 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
     const result = await orderService.submitOrder(
       req.user.userId,
       { productId: product.id, productName: product.name, sku: product.sku, quantity, totalPrice },
-      { fullName: req.user.fullName, username: req.user.username }
+      { fullName: req.user.fullName, username: req.user.username },
+      req.correlationId
     );
 
     // Check if business validation failed
@@ -468,17 +458,10 @@ app.get('/api/v1/orders', (req, res) => {
   });
 });
 
-// Legacy route for backward compatibility
-app.post('/api/orders', (req, res) => {
+// Legacy route for backward compatibility — use 307 to preserve method and body
+app.all('/api/orders', (req, res) => {
   log('WARNING: Legacy API route accessed, please update to /api/v1/orders');
-  req.url = '/api/v1/orders';
-  app._router.handle(req, res);
-});
-
-app.get('/api/orders', (req, res) => {
-  log('WARNING: Legacy API route accessed, please update to /api/v1/orders');
-  req.url = '/api/v1/orders';
-  app._router.handle(req, res);
+  res.redirect(307, '/api/v1/orders');
 });
 
 // 404 handler

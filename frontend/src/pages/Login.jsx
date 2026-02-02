@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../services/api';
+import { setRecommendedProducts } from '../utils/storage';
 import styles from '../styles/AuthForms.module.css';
 
 function Login() {
@@ -36,7 +37,7 @@ function Login() {
 
       // Store recommended products if available
       if (data.recommendedProducts && data.recommendedProducts.length > 0) {
-        localStorage.setItem('recommendedProducts', JSON.stringify(data.recommendedProducts));
+        setRecommendedProducts(data.recommendedProducts);
       }
 
       // Redirect to orders page

@@ -91,8 +91,8 @@ test.describe('Debug UI Registration Flow', () => {
 
     await page.click('button[type="submit"]');
 
-    // Wait a moment for the response
-    await page.waitForTimeout(2000);
+    // Wait for success or error message to appear
+    await expect(page.locator('.message')).toBeVisible({ timeout: 5000 });
 
     // Step 5: Check what message appears
     console.log('\n=== STEP 5: Check result ===');

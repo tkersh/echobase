@@ -61,7 +61,7 @@ async function initDatabase(awsConfig) {
 
     // Configure connection pool with reasonable defaults for production
     // Can be overridden via DB_CONNECTION_LIMIT environment variable
-    const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT) || 50;
+    const connectionLimit = parseInt(process.env.DB_CONNECTION_LIMIT) || 10;
     const queueLimit = parseInt(process.env.DB_QUEUE_LIMIT) || 0; // 0 = unlimited queue
 
     const dbPool = mysql.createPool({

@@ -44,7 +44,7 @@ class OrderService {
    * @param {Object} userInfo - User information for audit logging
    * @returns {Promise<Object>} - { success: boolean, messageId: string, order: Object }
    */
-  async submitOrder(userId, orderData, userInfo) {
+  async submitOrder(userId, orderData, userInfo, correlationId) {
     try {
       const { productId, productName, sku, quantity, totalPrice } = orderData;
 
@@ -56,6 +56,7 @@ class OrderService {
         sku,
         quantity,
         totalPrice,
+        correlationId: correlationId || undefined,
         timestamp: new Date().toISOString(),
       };
 
@@ -78,6 +79,12 @@ class OrderService {
             DataType: 'String',
             StringValue: 'StandardOrder',
           },
+          ...(correlationId ? {
+            CorrelationId: {
+              DataType: 'String',
+              StringValue: correlationId,
+            },
+          } : {}),
         },
       });
 

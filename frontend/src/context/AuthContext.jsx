@@ -1,5 +1,10 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { info, error as logError } from '../utils/logger';
+import {
+  getToken, setToken as saveToken, removeToken,
+  getUser as loadUser, setUser as saveUser, removeUser,
+  clearAuth,
+} from '../utils/storage';
 
 const AuthContext = createContext(null);
 
@@ -44,26 +49,23 @@ export const AuthProvider = ({ children }) => {
   // Load token from localStorage on mount with validation
   useEffect(() => {
     try {
-      const storedToken = localStorage.getItem('token');
-      const storedUser = localStorage.getItem('user');
+      const storedToken = getToken();
+      const storedUser = loadUser();
 
       if (storedToken && storedUser) {
         // Check if token is expired
         if (isTokenExpired(storedToken)) {
           info('Stored token is expired, clearing session');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          clearAuth();
         } else {
           // Token is valid, restore session
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(storedUser);
         }
       }
     } catch (err) {
       logError('Failed to restore session from localStorage:', err);
-      // Clear potentially corrupted data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      clearAuth();
     } finally {
       setLoading(false);
     }
@@ -72,16 +74,14 @@ export const AuthProvider = ({ children }) => {
   const login = (token, userData) => {
     setToken(token);
     setUser(userData);
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(userData));
+    saveToken(token);
+    saveUser(userData);
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('recommendedProducts');
+    clearAuth();
   };
 
   const register = (token, userData) => {

@@ -152,23 +152,23 @@ Low-effort improvements that reduce cognitive load.
 
 | # | Item | Status |
 |---|------|--------|
-| 1 | Select type mismatch | Pending |
-| 2 | Hardcoded test waits | Pending |
-| 3 | Processor circuit breaker | Pending |
-| 4 | Processor healthcheck | Pending |
-| 5 | CORS parsing DRY | Pending |
-| 6 | localStorage consolidation | Pending |
-| 7 | Legacy route removal | Pending |
-| 8 | Dead APIClient methods | Pending |
-| 9 | Test cleanup dedup | Pending |
-| 10 | CSP hardening | Pending |
-| 11 | Rate limiting test | Pending |
-| 12 | CSRF log levels | Pending |
-| 13 | Correlation IDs | Pending |
-| 14 | Frontend fetch timeouts | Pending |
-| 15 | Products pagination | Pending |
-| 16 | Shell JSON parsing | Pending |
-| 17 | Hardcoded values | Pending |
-| 18 | AWS SDK update | Pending |
-| 19 | Connection pool sizing | Pending |
-| 20 | Documentation audit | Pending |
+| 1 | Select type mismatch | Done |
+| 2 | Hardcoded test waits | Done |
+| 3 | Processor circuit breaker | Done |
+| 4 | Processor healthcheck | Done |
+| 5 | CORS parsing DRY | Done |
+| 6 | localStorage consolidation | Done |
+| 7 | Legacy route removal | Done |
+| 8 | Dead APIClient methods | Done |
+| 9 | Test cleanup dedup | Done |
+| 10 | CSP hardening | Done |
+| 11 | Rate limiting test | Done |
+| 12 | CSRF log levels | Done |
+| 13 | Correlation IDs | Done |
+| 14 | Frontend fetch timeouts | Done |
+| 15 | Products pagination | Done |
+| 16 | Shell JSON parsing | Done |
+| 17 | Hardcoded values | Done |
+| 18 | AWS SDK update | Done |
+| 19 | Connection pool sizing | Done |
+| 20 | Documentation audit | Done |

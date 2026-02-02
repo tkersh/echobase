@@ -163,6 +163,6 @@ test.describe('User Login Frontend Tests', () => {
 
     // Might redirect to orders if already authenticated
     // (depends on implementation, this is optional)
-    await page.waitForTimeout(500);
+    await page.waitForLoadState('networkidle');
   });
 });

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { auth } from '../services/api';
+import { setRecommendedProducts } from '../utils/storage';
 import { validation } from '../constants/theme';
 import styles from '../styles/AuthForms.module.css';
 
@@ -90,7 +91,7 @@ function Register() {
 
       // Store recommended products if available
       if (data.recommendedProducts && data.recommendedProducts.length > 0) {
-        localStorage.setItem('recommendedProducts', JSON.stringify(data.recommendedProducts));
+        setRecommendedProducts(data.recommendedProducts);
       }
 
       // Set flag to trigger navigation after user state updates

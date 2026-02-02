@@ -34,6 +34,7 @@ function getCurrentLogLevel() {
   }
 
   // Check localStorage for runtime override (useful for debugging)
+  // NOTE: We use raw localStorage here to avoid circular dependency with storage.js
   if (typeof window !== 'undefined' && window.localStorage) {
     const storedLevel = localStorage.getItem('LOG_LEVEL')?.toUpperCase();
     if (storedLevel && LOG_LEVELS[storedLevel] !== undefined) {

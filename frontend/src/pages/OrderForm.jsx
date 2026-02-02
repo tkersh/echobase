@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { orders, products } from '../services/api';
 import { debug, error as logError } from '../utils/logger';
+import { getRecommendedProducts } from '../utils/storage';
 
 function OrderForm() {
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -20,13 +21,9 @@ function OrderForm() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem('recommendedProducts');
-      if (stored) {
-        setRecommendedProducts(JSON.parse(stored));
-      }
-    } catch {
-      // Ignore parse errors
+    const stored = getRecommendedProducts();
+    if (stored.length > 0) {
+      setRecommendedProducts(stored);
     }
   }, []);
 
@@ -151,7 +148,7 @@ function OrderForm() {
                 {productsLoading ? 'Loading products...' : 'Select a product'}
               </option>
               {productsList.map((product) => (
-                <option key={product.id} value={product.id}>
+                <option key={product.id} value={String(product.id)}>
                   {product.name} — ${Number(product.cost).toFixed(2)}
                 </option>
               ))}

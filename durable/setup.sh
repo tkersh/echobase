@@ -27,6 +27,12 @@ if ! docker info > /dev/null 2>&1; then
   exit 1
 fi
 
+# Check if jq is available (required for JSON parsing)
+if ! command -v jq > /dev/null 2>&1; then
+  echo "Error: jq is not installed. Install it with: brew install jq (macOS) or apk add jq (Alpine)"
+  exit 1
+fi
+
 # Check if root .env file exists (for AWS credentials)
 if [ ! -f .env ]; then
   echo "ERROR: Root .env file not found!"
@@ -149,16 +155,16 @@ if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value 
     # Retrieve credentials from Secrets Manager
     SECRET_JSON=$(docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/credentials --query SecretString --output text)
 
-    MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"root_password":"[^"]*"' | cut -d'"' -f4)
-    MYSQL_USER=$(echo "$SECRET_JSON" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
-    MYSQL_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
-    MYSQL_DATABASE=$(echo "$SECRET_JSON" | grep -o '"database":"[^"]*"' | cut -d'"' -f4)
+    MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.root_password')
+    MYSQL_USER=$(echo "$SECRET_JSON" | jq -r '.username')
+    MYSQL_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+    MYSQL_DATABASE=$(echo "$SECRET_JSON" | jq -r '.database')
 
     # Retrieve encryption key from Secrets Manager
     if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key > /dev/null 2>&1; then
         echo "✓ Found encryption key in Secrets Manager"
         ENCRYPTION_SECRET_JSON=$(docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key --query SecretString --output text)
-        DB_ENCRYPTION_KEY=$(echo "$ENCRYPTION_SECRET_JSON" | grep -o '"key_hex":"[^"]*"' | cut -d'"' -f4)
+        DB_ENCRYPTION_KEY=$(echo "$ENCRYPTION_SECRET_JSON" | jq -r '.key_hex')
     else
         echo "WARNING: Credentials exist but encryption key missing - will regenerate"
         DB_ENCRYPTION_KEY=""

@@ -17,27 +17,34 @@ import { API_URL } from '../config/api';
  * APIClient class for making HTTP requests
  * Provides standardized error handling and JSON parsing
  */
+const DEFAULT_TIMEOUT_MS = 30000;
+
 class APIClient {
   /**
    * Create an API client instance
    * @param {string} baseURL - Base URL for all API requests
+   * @param {number} timeoutMs - Default request timeout in milliseconds
    */
-  constructor(baseURL) {
+  constructor(baseURL, timeoutMs = DEFAULT_TIMEOUT_MS) {
     this.baseURL = baseURL;
+    this.timeoutMs = timeoutMs;
   }
 
   /**
-   * Make a fetch request with standardized error handling
+   * Make a fetch request with standardized error handling and timeout
    * @param {string} endpoint - API endpoint (without base URL)
    * @param {object} options - Fetch options
    * @returns {Promise<object>} Response data
    */
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
           ...options.headers,
@@ -52,10 +59,15 @@ class APIClient {
 
       return { data, status: response.status };
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(`Request timed out after ${this.timeoutMs}ms`);
+      }
       if (error instanceof Error) {
         throw error;
       }
       throw new Error('Network error occurred');
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -115,27 +127,6 @@ class APIClient {
     });
   }
 
-  /**
-   * Set authentication token for subsequent requests
-   * Note: Currently not used - tokens are passed manually per request
-   * Consider using this method for automatic token management
-   * @param {string} token - JWT token
-   */
-  setAuthToken(token) {
-    this.authToken = token;
-  }
-
-  /**
-   * Get headers with authentication if token is set
-   */
-  getAuthHeaders() {
-    if (this.authToken) {
-      return {
-        'Authorization': `Bearer ${this.authToken}`,
-      };
-    }
-    return {};
-  }
 }
 
 // Create singleton instance

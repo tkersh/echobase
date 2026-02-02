@@ -235,6 +235,28 @@ class DatabaseHelper {
   }
 
   /**
+   * Wait for a specific number of orders to appear for a user
+   * @param {number} userId - User ID
+   * @param {number} expectedCount - Number of orders to wait for
+   * @param {number} maxWaitMs - Maximum time to wait in milliseconds
+   * @param {number} checkIntervalMs - Interval between checks in milliseconds
+   * @returns {Promise<Array|null>} The orders if count met, null if timeout
+   */
+  async waitForOrders(userId, expectedCount, maxWaitMs = 15000, checkIntervalMs = 500) {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWaitMs) {
+      const orders = await this.getOrdersByUserId(userId);
+      if (orders.length >= expectedCount) {
+        return orders;
+      }
+      await new Promise(resolve => setTimeout(resolve, checkIntervalMs));
+    }
+
+    return null;
+  }
+
+  /**
    * Execute a raw SQL query (use with caution)
    */
   async query(sql, params = []) {

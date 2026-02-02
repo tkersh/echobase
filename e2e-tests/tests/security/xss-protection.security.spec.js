@@ -24,8 +24,8 @@ test.describe('XSS Protection', () => {
 
     await page.click('button[type="submit"]');
 
-    // Wait to see if any XSS triggers
-    await page.waitForTimeout(2000);
+    // Wait for page to finish processing the submission
+    await page.waitForLoadState('networkidle');
 
     expect(dialogTriggered).toBe(false);
   });
@@ -56,8 +56,8 @@ test.describe('XSS Protection', () => {
     await page.goto('/orders');
     await expect(page).toHaveURL(/\/orders/, { timeout: 10000 });
 
-    // Wait for recommended products to render
-    await page.waitForTimeout(2000);
+    // Wait for recommended products section to render
+    await page.waitForLoadState('networkidle');
 
     expect(dialogTriggered).toBe(false);
   });

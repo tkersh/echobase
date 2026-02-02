@@ -7,6 +7,7 @@
  */
 
 const { debug, info, warn, error: logError } = require('../../shared/logger');
+const { isOriginAllowed, parseAllowedOrigins } = require('../../shared/cors-utils');
 
 /**
  * CSRF Protection Middleware
@@ -29,9 +30,9 @@ function csrfProtection(req, res, next) {
   const host = req.get('host');
   const allowedOrigin = process.env.CORS_ORIGIN;
 
-  // Logging for CSRF validation (use info level so it always shows)
-  info(`CSRF check - ${req.method} ${req.path}`);
-  info(`  Origin: ${originHeader || '(not set)'}, Host: ${host || '(not set)'}, Referer: ${referer ? 'set' : '(not set)'}`);
+  // Logging for CSRF validation
+  debug(`CSRF check - ${req.method} ${req.path}`);
+  debug(`  Origin: ${originHeader || '(not set)'}, Host: ${host || '(not set)'}, Referer: ${referer ? 'set' : '(not set)'}`);
 
   let origin = originHeader;
   let originSource = 'origin-header';
@@ -100,44 +101,19 @@ function csrfProtection(req, res, next) {
 
   debug(`  Origin to validate: ${origin} (source: ${originSource})`);
 
-  // Extract hostname from origin URL and check against allowed origins
-  try {
-    const originUrl = new URL(origin);
-    // CORS_ORIGIN can be a comma-separated list of allowed origins
-    const allowedOrigins = allowedOrigin.split(',').map(o => o.trim());
+  // Check against allowed origins using shared utility
+  const allowedOrigins = parseAllowedOrigins(allowedOrigin);
 
-    // Check if the origin matches any of the allowed origins
-    const isAllowed = allowedOrigins.some(allowed => {
-      try {
-        const allowedUrl = new URL(allowed);
-        const matches = originUrl.origin === allowedUrl.origin;
-        if (matches) {
-          debug(`  Origin matches allowed: ${allowed}`);
-        }
-        return matches;
-      } catch (e) {
-        logError(`CSRF: Invalid allowed origin format: ${allowed}`, e);
-        return false;
-      }
-    });
-
-    if (!isAllowed) {
-      warn(`CSRF: Rejected request from unauthorized origin: ${origin}`);
-      warn(`  Allowed origins: ${allowedOrigins.join(', ')}`);
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: 'Origin validation failed',
-      });
-    }
-
-    info(`CSRF: Validation passed for origin: ${origin}`);
-  } catch (err) {
-    warn(`CSRF: Error parsing origin URL (origin="${origin}"): ${err.message}`);
+  if (!isOriginAllowed(origin, allowedOrigins)) {
+    warn(`CSRF: Rejected request from unauthorized origin: ${origin}`);
+    warn(`  Allowed origins: ${allowedOrigins.join(', ')}`);
     return res.status(403).json({
       error: 'Forbidden',
       message: 'Origin validation failed',
     });
   }
+
+  debug(`CSRF: Validation passed for origin: ${origin}`);
 
   next();
 }

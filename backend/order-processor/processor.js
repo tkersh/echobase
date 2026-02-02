@@ -19,6 +19,25 @@ const sqsClient = new SQSClient(awsConfig);
 let dbPool;
 let pollIntervalId;
 
+// Circuit breaker state
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+const CIRCUIT_BREAKER_BASE_DELAY_MS = 5000;
+const CIRCUIT_BREAKER_MAX_DELAY_MS = 120000;
+let consecutiveFailures = 0;
+let circuitOpen = false;
+
+// Healthcheck state — written to file so Docker can check freshness
+const HEALTHCHECK_FILE = '/tmp/last-successful-poll';
+const HEALTHCHECK_STALE_SECONDS = 120;
+
+function touchHealthcheck() {
+  try {
+    require('fs').writeFileSync(HEALTHCHECK_FILE, new Date().toISOString());
+  } catch (err) {
+    logError('Failed to write healthcheck file:', err);
+  }
+}
+
 async function insertOrder(order) {
   try {
     // Validate required fields - all must be defined (not undefined)
@@ -76,10 +95,12 @@ async function insertOrder(order) {
 async function processMessage(message) {
   try {
     const order = JSON.parse(message.Body);
-    log('Processing order:', order);
+    const correlationId = message.MessageAttributes?.CorrelationId?.StringValue
+      || order.correlationId || 'none';
+    log(`[${correlationId}] Processing order:`, order);
 
     const orderId = await insertOrder(order);
-    log(`Successfully processed order ${orderId}`);
+    log(`[${correlationId}] Successfully processed order ${orderId}`);
 
     // Delete message from queue after successful processing
     await sqsClient.send(
@@ -97,6 +118,16 @@ async function processMessage(message) {
 }
 
 async function pollQueue() {
+  // Circuit breaker: if open, wait with exponential backoff before retrying
+  if (circuitOpen) {
+    const backoffDelay = Math.min(
+      CIRCUIT_BREAKER_BASE_DELAY_MS * Math.pow(2, consecutiveFailures - CIRCUIT_BREAKER_THRESHOLD),
+      CIRCUIT_BREAKER_MAX_DELAY_MS
+    );
+    log(`Circuit open (${consecutiveFailures} consecutive failures). Waiting ${Math.round(backoffDelay / 1000)}s before retry...`);
+    await new Promise(resolve => setTimeout(resolve, backoffDelay));
+  }
+
   try {
     const command = new ReceiveMessageCommand({
       QueueUrl: process.env.SQS_QUEUE_URL,
@@ -116,8 +147,22 @@ async function pollQueue() {
         await processMessage(message);
       }
     }
+
+    // Successful poll — reset circuit breaker
+    if (circuitOpen) {
+      log('Circuit closed — polling resumed normally');
+    }
+    consecutiveFailures = 0;
+    circuitOpen = false;
+    touchHealthcheck();
   } catch (error) {
-    logError('Error polling queue:', error);
+    consecutiveFailures++;
+    logError(`Error polling queue (failure ${consecutiveFailures}):`, error);
+
+    if (consecutiveFailures >= CIRCUIT_BREAKER_THRESHOLD && !circuitOpen) {
+      circuitOpen = true;
+      logError(`Circuit breaker opened after ${consecutiveFailures} consecutive failures`);
+    }
   }
 }
 

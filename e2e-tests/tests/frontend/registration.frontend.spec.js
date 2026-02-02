@@ -101,15 +101,12 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="confirmPassword"]', userData.password);
     await page.click('button[type="submit"]');
 
-    // Should show error message and stay on registration page
-    await page.waitForTimeout(2000);
-
-    // Check if error is shown or if we stayed on registration page
-    const onRegisterPage = page.url().includes('/register');
-    const hasAlert = await page.locator('[role="alert"]').isVisible().catch(() => false);
-
-    // Either should show alert OR stay on registration page (not redirect to orders)
-    expect(onRegisterPage || hasAlert).toBe(true);
+    // Wait for either an error alert or for the page to settle
+    await expect(async () => {
+      const onRegisterPage = page.url().includes('/register');
+      const hasAlert = await page.locator('[role="alert"]').isVisible().catch(() => false);
+      expect(onRegisterPage || hasAlert).toBe(true);
+    }).toPass({ timeout: 5000 });
   });
 
   test('should validate password requirements', async ({ page }) => {
@@ -129,8 +126,8 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="confirmPassword"]', invalidPasswords.tooShort);
     await page.click('button[type="submit"]');
 
-    await page.waitForTimeout(1000);
-    expect(page.url()).toContain('/register');
+    // Should remain on registration page
+    await expect(page).toHaveURL(/\/register/, { timeout: 3000 });
   });
 
   test('should validate required fields', async ({ page }) => {
@@ -193,13 +190,13 @@ test.describe('User Registration Frontend Tests', () => {
     await page.fill('input[name="confirmPassword"]', userData.password);
     await page.click('button[type="submit"]');
 
-    // Wait a bit to see if XSS triggers
-    await page.waitForTimeout(1000);
-
-    // Check no alert dialogs
+    // Set up dialog listener and wait for page to settle
     page.on('dialog', async dialog => {
       throw new Error('Unexpected alert dialog: XSS vulnerability detected!');
     });
+
+    // Wait for page to finish processing the submission
+    await page.waitForLoadState('networkidle');
   });
 
   test('should handle long input values', async ({ page }) => {
@@ -216,9 +213,8 @@ test.describe('User Registration Frontend Tests', () => {
     await page.click('button[type="submit"]');
 
     // Should either accept or show validation error, but not crash
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
     // Page should still be responsive (h1 on registration, or redirected to orders)
-    const h1Visible = await page.locator('h1').isVisible();
-    expect(h1Visible).toBe(true);
+    await expect(page.locator('h1')).toBeVisible({ timeout: 5000 });
   });
 });

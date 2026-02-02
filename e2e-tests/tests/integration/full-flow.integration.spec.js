@@ -16,8 +16,8 @@ test.describe('Full End-to-End Integration Tests', () => {
         'docker exec echobase-localstack-1 awslocal sqs purge-queue --queue-url http://sqs.us-east-1.localhost.localstack.cloud:4566/000000000000/order-processing-queue',
         { stdio: 'ignore' }
       );
-      // Wait a moment for queue to be fully purged
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Brief pause for purge propagation
+      await new Promise(resolve => setTimeout(resolve, 200));
     } catch (error) {
       console.warn('Failed to purge SQS queue (this may be okay if queue is already empty):', error.message);
     }
@@ -194,10 +194,8 @@ test.describe('Full End-to-End Integration Tests', () => {
     await apiHelper.submitOrder(order3);
 
     // Wait for all orders to be processed
-    await new Promise(resolve => setTimeout(resolve, 10000));
-
-    // Verify all orders in database
-    const orders = await dbHelper.getOrdersByUserId(userId);
+    const orders = await dbHelper.waitForOrders(userId, 3, 30000);
+    expect(orders).toBeTruthy();
     expect(orders.length).toBeGreaterThanOrEqual(3);
 
     // Verify order data - check product IDs
@@ -235,7 +233,8 @@ test.describe('Full End-to-End Integration Tests', () => {
     ]);
 
     // Wait for processing
-    await new Promise(resolve => setTimeout(resolve, 10000));
+    await dbHelper.waitForOrders(dbUser1.id, 1, 30000);
+    await dbHelper.waitForOrders(dbUser2.id, 1, 30000);
 
     // Verify orders are associated with correct users
     const user1Orders = await dbHelper.getOrdersByUserId(dbUser1.id);

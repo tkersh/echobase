@@ -44,11 +44,15 @@ export const test = base.extend({
     // Provide the users array to the test
     await use(users);
 
-    // Cleanup: Delete all test users and their orders
+    // Cleanup: Delete orders first (foreign key), then users
     for (const user of users) {
       try {
         if (user.username) {
-          await dbHelper.deleteUserByUsername(user.username);
+          const dbUser = await dbHelper.getUserByUsername(user.username);
+          if (dbUser) {
+            await dbHelper.deleteOrdersByUserId(dbUser.id);
+            await dbHelper.deleteUserByUsername(user.username);
+          }
         }
       } catch (e) {
         console.error(`Cleanup error for user ${user.username}:`, e.message);

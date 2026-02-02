@@ -36,13 +36,18 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+
     const [products] = await req.db.execute(
-      'SELECT id, name, cost, sku FROM products ORDER BY name ASC'
+      'SELECT id, name, cost, sku FROM products ORDER BY name ASC LIMIT ? OFFSET ?',
+      [limit, offset]
     );
 
     res.json({
       success: true,
       products,
+      pagination: { limit, offset },
     });
   } catch (error) {
     logError('Error fetching products:', error);

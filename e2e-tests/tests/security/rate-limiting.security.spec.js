@@ -1,24 +1,24 @@
 import { test, expect } from '../../fixtures/test-fixtures.js';
 
 test.describe('Rate Limiting', () => {
-  test.skip('should rate limit excessive requests', async ({ apiHelper }) => {
-    // This test is skipped by default as it may take time
-    // and depends on your rate limiting configuration
-
+  test('should rate limit excessive requests', async ({ apiHelper }) => {
+    // Hit a rate-limited endpoint (rate limiter applies to /api/v1/ routes only)
+    // Default config: RATE_LIMIT_MAX_REQUESTS=100 per RATE_LIMIT_WINDOW_MS=900000
     const requests = [];
 
-    // Make 150 requests rapidly (assuming 100/15min limit)
+    // Make 150 requests rapidly (exceeds 100/15min default limit)
     for (let i = 0; i < 150; i++) {
-      requests.push(apiHelper.healthCheck());
+      const context = await apiHelper.createContext();
+      requests.push(
+        context.get('/api/v1/orders').then(r => ({ status: r.status }))
+      );
     }
 
     const responses = await Promise.all(requests);
 
-    // Some requests should be rate limited
+    // Some requests should be rate limited (HTTP 429)
     const rateLimitedCount = responses.filter(r => r.status === 429).length;
 
-    // At least some should be rate limited
-    // Exact number depends on your configuration
     expect(rateLimitedCount).toBeGreaterThan(0);
   });
 });
