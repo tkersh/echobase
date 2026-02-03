@@ -289,7 +289,7 @@ durable:setup-ci:
   tags:
     - docker-local
   before_script:
-    - apk add --no-cache bash curl docker-cli-compose unzip
+    - apk add --no-cache bash curl docker-cli-compose unzip jq
     - *install_terraform
     - *setup_scripts
   # NOTE: Durable infrastructure is independent of Docker image builds
@@ -428,7 +428,7 @@ test:target-e2e:
   tags:
     - docker-local
   before_script:
-    - apk add --no-cache bash curl git docker-cli-compose
+    - apk add --no-cache bash curl git docker-cli-compose jq
     - *setup_scripts
   dependencies:
     - build:dependencies
@@ -464,9 +464,9 @@ test:target-e2e:
         --query SecretString \
         --output text)
 
-      export DB_USER=$(echo "$SECRET_JSON" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
-      export DB_PASSWORD=$(echo "$SECRET_JSON" | grep -o '"password":"[^"]*"' | cut -d'"' -f4)
-      export DB_NAME=$(echo "$SECRET_JSON" | grep -o '"dbname":"[^"]*"' | cut -d'"' -f4)
+      export DB_USER=$(echo "$SECRET_JSON" | jq -r '.username')
+      export DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+      export DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname')
 
       echo "Database user: $DB_USER"
       echo "Database name: $DB_NAME"
