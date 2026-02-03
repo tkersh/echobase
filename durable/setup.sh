@@ -160,6 +160,29 @@ if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value 
     MYSQL_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
     MYSQL_DATABASE=$(echo "$SECRET_JSON" | jq -r '.dbname')
 
+    # Validate that all required fields were parsed successfully
+    PARSE_ERRORS=()
+    [ "$MYSQL_ROOT_PASSWORD" = "null" ] || [ -z "$MYSQL_ROOT_PASSWORD" ] && PARSE_ERRORS+=("root_password")
+    [ "$MYSQL_USER" = "null" ] || [ -z "$MYSQL_USER" ] && PARSE_ERRORS+=("username")
+    [ "$MYSQL_PASSWORD" = "null" ] || [ -z "$MYSQL_PASSWORD" ] && PARSE_ERRORS+=("password")
+    [ "$MYSQL_DATABASE" = "null" ] || [ -z "$MYSQL_DATABASE" ] && PARSE_ERRORS+=("dbname")
+
+    if [ ${#PARSE_ERRORS[@]} -gt 0 ]; then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: Failed to parse credentials from Secrets Manager"
+        echo "=========================================="
+        echo ""
+        echo "Missing or null fields: ${PARSE_ERRORS[*]}"
+        echo ""
+        echo "Raw secret JSON:"
+        echo "$SECRET_JSON" | jq . 2>/dev/null || echo "$SECRET_JSON"
+        echo ""
+        echo "Expected fields: root_password, username, password, dbname"
+        echo "Check durable/terraform/secrets.tf for the canonical field names."
+        exit 1
+    fi
+
     # Retrieve encryption key from Secrets Manager
     if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key > /dev/null 2>&1; then
         echo "✓ Found encryption key in Secrets Manager"

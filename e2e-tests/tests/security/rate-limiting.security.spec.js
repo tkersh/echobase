@@ -1,12 +1,14 @@
 import { test, expect } from '../../fixtures/test-fixtures.js';
 
-test.describe('Rate Limiting', () => {
+// Skipped in E2E: CI sets RATE_LIMIT_MAX_REQUESTS=100000 to avoid interfering with
+// other test suites. This test can't send enough requests to hit that limit, and the
+// rate limit is a process-level config on the running API gateway — can't be changed
+// per-test. Rate limiting is covered at the unit level in:
+//   backend/api-gateway/__tests__/security.test.js
+test.describe.skip('Rate Limiting', () => {
   test('should rate limit excessive requests', async ({ apiHelper }) => {
-    // Hit a rate-limited endpoint (rate limiter applies to /api/v1/ routes only)
-    // Default config: RATE_LIMIT_MAX_REQUESTS=100 per RATE_LIMIT_WINDOW_MS=900000
     const requests = [];
 
-    // Make 150 requests rapidly (exceeds 100/15min default limit)
     for (let i = 0; i < 150; i++) {
       const context = await apiHelper.createContext();
       requests.push(
@@ -15,8 +17,6 @@ test.describe('Rate Limiting', () => {
     }
 
     const responses = await Promise.all(requests);
-
-    // Some requests should be rate limited (HTTP 429)
     const rateLimitedCount = responses.filter(r => r.status === 429).length;
 
     expect(rateLimitedCount).toBeGreaterThan(0);
