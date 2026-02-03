@@ -1,5 +1,6 @@
 import { request } from '@playwright/test';
 import { validateRequiredEnv } from './env-validator.js';
+import { API_ENDPOINTS } from './api-endpoints.js';
 
 /**
  * API helper for making authenticated and unauthenticated requests
@@ -54,7 +55,7 @@ class ApiHelper {
    */
   async register(userData) {
     const context = await this.createContext();
-    const response = await context.post('/api/v1/auth/register', {
+    const response = await context.post(API_ENDPOINTS.AUTH.REGISTER, {
       data: userData
     });
 
@@ -80,7 +81,7 @@ class ApiHelper {
    */
   async login(credentials) {
     const context = await this.createContext();
-    const response = await context.post('/api/v1/auth/login', {
+    const response = await context.post(API_ENDPOINTS.AUTH.LOGIN, {
       data: credentials
     });
 
@@ -106,7 +107,7 @@ class ApiHelper {
    */
   async submitOrder(orderData) {
     const context = await this.createContext();
-    const response = await context.post('/api/v1/orders', {
+    const response = await context.post(API_ENDPOINTS.ORDERS, {
       data: orderData,
       headers: this.token ? {
         'Authorization': `Bearer ${this.token}`
@@ -135,7 +136,7 @@ class ApiHelper {
    */
   async getProducts() {
     const context = await this.createContext();
-    const response = await context.get('/api/v1/products', {
+    const response = await context.get(API_ENDPOINTS.PRODUCTS, {
       headers: this.token ? {
         'Authorization': `Bearer ${this.token}`
       } : {}
@@ -163,7 +164,7 @@ class ApiHelper {
    */
   async getOrdersInfo() {
     const context = await this.createContext();
-    const response = await context.get('/api/v1/orders');
+    const response = await context.get(API_ENDPOINTS.ORDERS);
 
     const responseData = await response.json();
 
@@ -182,7 +183,7 @@ class ApiHelper {
    */
   async healthCheck() {
     const context = await this.createContext();
-    const response = await context.get('/health');
+    const response = await context.get(API_ENDPOINTS.HEALTH);
 
     let responseData;
     try {

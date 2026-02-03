@@ -12,6 +12,7 @@
  */
 
 import { API_URL } from '../config/api';
+import { API_ENDPOINTS } from '../config/endpoints';
 
 /**
  * APIClient class for making HTTP requests
@@ -135,16 +136,16 @@ const apiClient = new APIClient(API_URL);
 // Auth API methods (v1)
 export const auth = {
   login: (credentials) =>
-    apiClient.post('/api/v1/auth/login', credentials),
+    apiClient.post(API_ENDPOINTS.AUTH.LOGIN, credentials),
 
   register: (userData) =>
-    apiClient.post('/api/v1/auth/register', userData),
+    apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData),
 };
 
 // Products API methods (v1)
 export const products = {
   getAll: (token) =>
-    apiClient.get('/api/v1/products', {
+    apiClient.get(API_ENDPOINTS.PRODUCTS, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },
@@ -154,7 +155,7 @@ export const products = {
 // Orders API methods (v1)
 export const orders = {
   create: (orderData, token) =>
-    apiClient.post('/api/v1/orders', orderData, {
+    apiClient.post(API_ENDPOINTS.ORDERS, orderData, {
       headers: {
         'Authorization': `Bearer ${token}`,
       },

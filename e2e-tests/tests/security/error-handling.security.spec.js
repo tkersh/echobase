@@ -20,7 +20,7 @@ test.describe('Error Handling', () => {
   test('should handle database errors gracefully', async ({ apiHelper }) => {
     // This test depends on what triggers DB errors in your system
     // For now, just ensure malformed requests don't crash
-    const response = await apiHelper.request('POST', '/api/orders', {
+    const response = await apiHelper.request('POST', '/api/v1/orders', {
       data: { invalid: 'data' }
     });
 

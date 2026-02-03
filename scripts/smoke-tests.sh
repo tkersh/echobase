@@ -8,7 +8,7 @@
 #   1. API Health - GET /health returns 200
 #   2. Frontend Load - Homepage returns 200
 #   3. Auth Flow - Register + Login works
-#   4. Order Submission - POST /api/orders returns 201
+#   4. Order Submission - POST /api/v1/orders returns 201
 #
 # Exit codes:
 #   0 - All tests passed
@@ -30,6 +30,12 @@ TESTS_FAILED=0
 
 # Timing
 MAX_RESPONSE_TIME=5  # seconds
+
+# API Endpoint paths (centralized for consistency)
+HEALTH_ENDPOINT="/health"
+ORDERS_ENDPOINT="/api/v1/orders"
+AUTH_REGISTER_ENDPOINT="/api/v1/auth/register"
+AUTH_LOGIN_ENDPOINT="/api/v1/auth/login"
 
 log_test() {
     local status=$1
@@ -167,9 +173,9 @@ test_api_health() {
     start_time=$(date +%s)
 
     # Make request and capture both body and status code
-    # Use FRONTEND_URL/health which nginx routes to backend /health endpoint
+    # Use FRONTEND_URL + HEALTH_ENDPOINT which nginx routes to backend /health endpoint
     # (API_URL/health would route to /api/health which doesn't exist)
-    response=$(do_curl -sk -w "\n%{http_code}" "${FRONTEND_URL}/health" --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
+    response=$(do_curl -sk -w "\n%{http_code}" "${FRONTEND_URL}${HEALTH_ENDPOINT}" --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
     http_code=$(echo "$response" | tail -n1)
 
     end_time=$(date +%s)
@@ -232,7 +238,7 @@ test_auth_flow() {
 
     # 3a: Register
     response=$(do_curl -sk -w "\n%{http_code}" \
-        -X POST "${API_URL}/v1/auth/register" \
+        -X POST "${FRONTEND_URL}${AUTH_REGISTER_ENDPOINT}" \
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
         -d "{\"username\":\"${username}\",\"email\":\"${email}\",\"fullName\":\"Smoke Test User\",\"password\":\"${password}\"}" \
@@ -249,7 +255,7 @@ test_auth_flow() {
 
     # 3b: Login
     response=$(do_curl -sk -w "\n%{http_code}" \
-        -X POST "${API_URL}/v1/auth/login" \
+        -X POST "${FRONTEND_URL}${AUTH_LOGIN_ENDPOINT}" \
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
         -d "{\"username\":\"${username}\",\"password\":\"${password}\"}" \
@@ -289,7 +295,7 @@ test_order_submission() {
     local http_code
 
     response=$(do_curl -sk -w "\n%{http_code}" \
-        -X POST "${API_URL}/orders" \
+        -X POST "${FRONTEND_URL}${ORDERS_ENDPOINT}" \
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
         -H "Authorization: Bearer ${AUTH_TOKEN}" \
