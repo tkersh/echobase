@@ -158,7 +158,7 @@ if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value 
     MYSQL_ROOT_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.root_password')
     MYSQL_USER=$(echo "$SECRET_JSON" | jq -r '.username')
     MYSQL_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
-    MYSQL_DATABASE=$(echo "$SECRET_JSON" | jq -r '.database')
+    MYSQL_DATABASE=$(echo "$SECRET_JSON" | jq -r '.dbname')
 
     # Retrieve encryption key from Secrets Manager
     if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/database/encryption-key > /dev/null 2>&1; then

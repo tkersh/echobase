@@ -90,6 +90,13 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 - **Prevention**: After any API format change, run a codebase-wide search for old field names before considering the migration complete. Check: test files, helpers, fixtures, documentation, example code, and shell scripts.
 - **Files**: `e2e-tests/tests/api/auth.api.spec.js`, `e2e-tests/tests/security/authentication.security.spec.js`, `e2e-tests/tests/security/sql-injection.security.spec.js`, `e2e-tests/helpers/test-helpers.js`, `backend/api-gateway/utils/generate-api-key.js`, `e2e-tests/README.md`
 
+### 2026-02-02 - durable:setup-ci Fails with Credential Mismatch After jq Migration
+- **Issue**: CI pipeline `durable:setup-ci` job fails with "Database Credential Mismatch" even though durable infra was already running with valid credentials
+- **Root Cause**: Cleanup plan Item #16 replaced `grep -o`/`cut` JSON parsing with `jq` in `durable/setup.sh`, but used wrong field name `.database` instead of `.dbname` (the actual key in Secrets Manager, defined in `durable/terraform/secrets.tf` line 28). `jq -r '.database'` returned `null`, so the credential verification tried to connect to database `null` instead of `orders_db`. Additionally, `jq` was not installed in the CI Alpine image (`durable:setup-ci` before_script missing `jq` package).
+- **Solution**: (1) Fixed field name from `.database` to `.dbname` in `setup.sh` line 161. (2) Added `jq` to `apk add` in `durable:setup-ci` and `test:target-e2e` jobs in `.gitlab-ci.yml`. (3) Also migrated `test:target-e2e` JSON parsing from `grep`/`cut` to `jq` for consistency.
+- **Prevention**: When migrating parsing approaches (grep→jq, etc.), verify field names against the source of truth (Terraform schema). Don't assume variable names in shell match JSON key names — check `dbname` vs `database`, `db_name` vs `dbname`, etc.
+- **Files**: `durable/setup.sh` line 161, `.gitlab-ci.yml` lines 292, 431, 467-469
+
 <!-- Example entry format:
 
 ### 2026-01-23 - Container Failing to Start
