@@ -42,10 +42,12 @@ fi
 
 # Load config and secrets from root
 echo "Loading environment from root .env and .env.secrets..."
+set -a
 # shellcheck source=/dev/null
 source .env
 # shellcheck source=/dev/null
 source .env.secrets
+set +a
 
 # Determine project name and paths based on environment
 if [ "$DURABLE_ENV" = "devlocal" ]; then

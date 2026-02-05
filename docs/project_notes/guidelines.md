@@ -149,6 +149,12 @@ When CI and devlocal behave differently, debugging becomes harder and kludges ac
 
 3. **Network and hostname resolution**: If CI uses container names (`echobase-ci-durable-mariadb`), devlocal config files should use `localhost` only as a fallback that gets overridden by env vars, not as a hardcoded default.
 
+4. **Shared scripts over inline logic**: If CI uses a shared script (e.g., `scripts/terraform-apply.sh`, `scripts/wait-for-endpoint.sh`, `scripts/wait-for-services.sh`), devlocal should call the same script — not inline equivalent logic. Inline logic drifts from the shared version over time.
+
+5. **`set -a`/`set +a` around env sourcing**: All scripts that source `.env`/`.env.secrets` should wrap them with `set -a`/`set +a` so variables are exported to subprocesses. Inconsistent export behavior causes subtle bugs.
+
+6. **Health checks over sleeps**: Use `scripts/wait-for-endpoint.sh` and `scripts/wait-for-services.sh` instead of `sleep N`. Fixed sleeps are either too long (wasted time) or too short (race conditions), and provide no failure diagnostics.
+
 **Anti-pattern**: Writing CI-specific code that overwrites files, deletes configs, or patches values because "devlocal does it differently." Instead, make devlocal work the same way.
 
 **Example (dotenv)**:

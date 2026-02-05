@@ -7,13 +7,15 @@ import { validateRequiredEnv } from './utils/env-validator.js';
 // Load environment variables:
 // 1. Root .env for base config (DB_NAME, AWS settings, etc.)
 // 2. Root .env.secrets for secrets (JWT_SECRET, MCP_API_KEY)
-// 3. Local e2e-tests/.env for test-specific values (DB_HOST=localhost, credentials)
+// 3. Local e2e-tests/.env for test-specific overrides (DB_HOST=localhost, WEB_BASE_URL)
+// 4. Local e2e-tests/.env.secrets for test credentials (DB_USER, DB_PASSWORD)
 // Note: No 'override: true' — CI's -e flags take precedence over file values.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '../.env.secrets'), quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env.secrets'), quiet: true });
 
 validateRequiredEnv(['WEB_BASE_URL'], 'Playwright configuration');
 

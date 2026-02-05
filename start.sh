@@ -98,32 +98,27 @@ echo ""
 echo "Starting ephemeral LocalStack..."
 docker compose up -d localstack
 
-echo "Waiting for LocalStack to be ready..."
-sleep 10
+scripts/wait-for-endpoint.sh http://localhost:4576/_localstack/health 150 "Ephemeral LocalStack"
 
 # ── Terraform (SQS queues) ───────────────────────────────────────
 if command -v terraform &> /dev/null; then
   echo ""
   echo "Applying Terraform configuration..."
-  (
-    cd terraform
-    terraform init -input=false > /dev/null 2>&1
-    terraform providers lock \
-      -platform=linux_amd64 -platform=linux_arm64 \
-      -platform=darwin_amd64 -platform=darwin_arm64 \
-      -platform=windows_amd64 > /dev/null 2>&1
 
-    source ../.env
-    source ../.env.secrets
-    export TF_VAR_db_user=$DB_USER
-    export TF_VAR_db_password=$DB_PASSWORD
-    export TF_VAR_db_host=$DB_HOST
-    export TF_VAR_db_port=$DB_PORT
-    export TF_VAR_db_name=$DB_NAME
-    export TF_VAR_localstack_endpoint=http://localhost:4576
+  # Multi-platform provider lock (only needed in devlocal for cross-platform .terraform.lock.hcl)
+  if [ ! -f terraform/.terraform.lock.hcl ]; then
+    echo "Locking Terraform providers for multiple platforms..."
+    (
+      cd terraform
+      terraform init -input=false > /dev/null 2>&1
+      terraform providers lock \
+        -platform=linux_amd64 -platform=linux_arm64 \
+        -platform=darwin_amd64 -platform=darwin_arm64 \
+        -platform=windows_amd64 > /dev/null 2>&1
+    )
+  fi
 
-    terraform apply -auto-approve
-  )
+  scripts/terraform-apply.sh http://localhost:4576
 else
   echo ""
   echo "Skipping Terraform (not installed)."
@@ -135,11 +130,7 @@ echo "Building and starting application containers..."
 docker compose up -d --build $REBUILD_FLAG api-gateway order-processor frontend
 
 echo ""
-echo "Waiting for services to be healthy..."
-sleep 10
-
-echo ""
-docker compose ps
+scripts/wait-for-services.sh echobase-devlocal api-gateway order-processor frontend
 
 echo ""
 echo "=========================================="

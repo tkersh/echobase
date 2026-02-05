@@ -1,0 +1,53 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__ide__getDiagnostics",
+      "WebSearch",
+      "WebFetch(domain:gitlab.com)",
+      "WebFetch(domain:docs.gitlab.com)",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebFetch(domain:github.com)",
+
+      "Bash(terraform:*)",
+      "Bash(docker:*)",
+      "Bash(docker-compose:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(git:*)",
+      "Bash(gitlab-runner:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(tree:*)",
+      "Bash(test:*)",
+      "Bash(tee:*)",
+      "Bash(lsof:*)",
+      "Bash(nc:*)",
+      "Bash(sips:*)",
+      "Bash(timeout:*)",
+      "Bash(launchctl:*)",
+      "Bash(bash:*)",
+      "Bash(perl:*)",
+
+      "Bash(./start.sh:*)",
+      "Bash(./durable/setup.sh:*)",
+      "Bash(./durable/teardown.sh:*)",
+      "Bash(./scripts/*)",
+      "Bash(./run-all-tests.sh:*)",
+      "Bash(./cleanup-test-data.sh:*)",
+      "Bash(./e2e-tests/scripts/*)"
+    ],
+    "deny": [],
+    "ask": []
+  },
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": false
+  }
+}
