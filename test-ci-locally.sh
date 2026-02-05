@@ -221,8 +221,10 @@ test_docker_compose_build() {
     echo ""
 
     if [ -f .env ]; then
+        set -a
         source .env
         [ -f .env.secrets ] && source .env.secrets
+        set +a
     fi
 
     if docker compose build --quiet 2>&1 | grep -v "^$"; then

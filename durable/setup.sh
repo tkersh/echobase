@@ -125,6 +125,7 @@ if [ "$LS_STATUS" != "running" ]; then
     echo "MYSQL_DATABASE=placeholder" >> "$TEMP_ENV_FILE"
     echo "MYSQL_USER=placeholder" >> "$TEMP_ENV_FILE"
     echo "MYSQL_PASSWORD=placeholder" >> "$TEMP_ENV_FILE"
+    echo "MCP_API_KEY=placeholder" >> "$TEMP_ENV_FILE"
 
     # Start only LocalStack
     docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d localstack

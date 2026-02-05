@@ -230,8 +230,7 @@ build:docker-images:
     - validate:env-check
   script:
     - echo "Building Docker images..."
-    - source .env
-    - source .env.secrets
+    - set -a && source .env && source .env.secrets && set +a
 
     # Set build metadata for Docker images (using GitLab CI predefined variables)
     - export GIT_SHORT_SHA=${CI_COMMIT_SHORT_SHA}
@@ -306,8 +305,10 @@ durable:setup-ci:
       echo "To rebuild: manually run 'teardown:durable-ci' job first"
       echo ""
 
+      set -a
       source .env
       source .env.secrets
+      set +a
       echo "Configuring environment for CI..."
       sed -i 's|DB_HOST=.*|DB_HOST=echobase-ci-durable-mariadb|g' .env
       echo "DB_HOST=$(grep DB_HOST .env)"
@@ -366,8 +367,10 @@ test:target-api-gateway:
       echo "=========================================="
       echo ""
       echo "Running all API Gateway tests (unit + security) against $DEPLOY_TARGET environment..."
+      set -a
       source .env
       source .env.secrets
+      set +a
 
       # Set environment-specific port variables with correct names for the container
       if [ "$DEPLOY_TARGET" = "blue" ]; then
@@ -442,8 +445,10 @@ test:target-e2e:
       echo "=========================================="
       echo ""
       echo "Running E2E tests against $DEPLOY_TARGET environment..."
+      set -a
       source .env
       source .env.secrets
+      set +a
 
       echo "Retrieving database credentials from Secrets Manager..."
       SECRET_JSON=$(docker exec echobase-ci-durable-localstack awslocal secretsmanager get-secret-value \
@@ -694,8 +699,10 @@ deploy:target:
       echo "=========================================="
       echo ""
 
+      set -a
       source .env
       source .env.secrets
+      set +a
 
       # Note: CORS_ORIGIN is defined in docker-compose.{blue,green}.yml, not in base file
       # Each environment has its own allowed origins (localhost ports + internal container names)
@@ -1064,8 +1071,7 @@ database:query:
     - docker-local
   script:
     - echo "Querying CI database for recent orders..."
-    - source .env
-    - source .env.secrets
+    - set -a && source .env && source .env.secrets && set +a
     - docker exec echobase-ci-durable-mariadb mariadb -u $DB_USER -p$DB_PASSWORD $DB_NAME -e "SELECT id, customer_name, product_name, order_status, created_at FROM orders ORDER BY created_at DESC LIMIT 10;"
   when: manual
   only:
