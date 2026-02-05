@@ -534,8 +534,8 @@ test:target-e2e:
         exit 1
       fi
 
-      echo "Removing .env file (CI uses environment variables instead)..."
-      docker exec $CONTAINER_ID rm -f /work/.env || echo "No .env file to remove"
+      # Note: e2e-tests/.env is copied but dotenv won't override CI's -e flags
+      # (no 'override: true' in playwright.config.js). CI env vars take precedence.
 
       echo "Starting tests..."
       set +e

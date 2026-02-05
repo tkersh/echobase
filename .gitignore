@@ -97,6 +97,9 @@ test-results.json
 localstack-data/
 
 ### Environment files ###
+# Root .env is tracked (no secrets). Ignore .env everywhere else.
+**/.env
+!/.env
 .env.secrets
 .env.local
 .env.*.local

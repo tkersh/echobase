@@ -135,6 +135,31 @@ Symptoms of multi-runner issues:
 - "nginx container not found" when nginx is clearly running
 - Different hostnames in diagnostic output between jobs
 
+### CI and Devlocal Parity
+
+**PRINCIPLE**: Always make CI match devlocal as closely as possible.
+
+When CI and devlocal behave differently, debugging becomes harder and kludges accumulate. If you find yourself writing CI-specific workarounds, step back and consider whether devlocal should work the same way.
+
+**Specific guidance**:
+
+1. **Environment variable precedence**: If CI uses `-e VAR=value` flags (environment variables), devlocal should use the same precedence model. Don't use `dotenv({ override: true })` which makes file values win over env vars — this forces CI to overwrite files instead of simply setting env vars.
+
+2. **File loading order**: Both environments should load config files in the same order. If CI loads `.env` then `.env.secrets`, devlocal should too.
+
+3. **Network and hostname resolution**: If CI uses container names (`echobase-ci-durable-mariadb`), devlocal config files should use `localhost` only as a fallback that gets overridden by env vars, not as a hardcoded default.
+
+**Anti-pattern**: Writing CI-specific code that overwrites files, deletes configs, or patches values because "devlocal does it differently." Instead, make devlocal work the same way.
+
+**Example (dotenv)**:
+```javascript
+// WRONG - file values override env vars, requires CI workarounds
+dotenv.config({ path: '.env', override: true });
+
+// CORRECT - env vars take precedence (CI's -e flags work naturally)
+dotenv.config({ path: '.env' });  // No override: true
+```
+
 ---
 
 ## Blue/Green Deployment Architecture
