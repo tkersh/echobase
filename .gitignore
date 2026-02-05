@@ -97,7 +97,7 @@ test-results.json
 localstack-data/
 
 ### Environment files ###
-.env
+.env.secrets
 .env.local
 .env.*.local
 .env.backup*

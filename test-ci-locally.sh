@@ -82,11 +82,11 @@ test_validate_env() {
         echo "  Node.js: $(node --version)" &&
         echo "  npm: $(npm --version)" &&
         echo "" &&
-        if [ ! -f .env ]; then
-            echo "WARNING: .env file not found"
+        if [ ! -f .env.secrets ]; then
+            echo "WARNING: .env.secrets file not found"
             exit 1
         fi &&
-        echo "✓ .env file exists" &&
+        echo "✓ .env.secrets file exists" &&
         echo "" &&
         echo "Environment check passed!"
     '
@@ -222,6 +222,7 @@ test_docker_compose_build() {
 
     if [ -f .env ]; then
         source .env
+        [ -f .env.secrets ] && source .env.secrets
     fi
 
     if docker compose build --quiet 2>&1 | grep -v "^$"; then

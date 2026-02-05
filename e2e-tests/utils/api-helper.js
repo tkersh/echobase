@@ -160,13 +160,22 @@ class ApiHelper {
   }
 
   /**
-   * Get orders info (unauthenticated endpoint)
+   * Get user's orders (requires authentication)
    */
-  async getOrdersInfo() {
+  async getOrders() {
     const context = await this.createContext();
-    const response = await context.get(API_ENDPOINTS.ORDERS);
+    const response = await context.get(API_ENDPOINTS.ORDERS, {
+      headers: this.token ? {
+        'Authorization': `Bearer ${this.token}`
+      } : {}
+    });
 
-    const responseData = await response.json();
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      responseData = await response.text();
+    }
 
     await context.dispose();
 

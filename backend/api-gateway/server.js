@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('dotenv').config({ path: '.env.secrets' });
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
@@ -434,28 +435,88 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
  * @swagger
  * /api/v1/orders:
  *   get:
- *     summary: Get order information
- *     description: Returns information about order processing (informational endpoint)
+ *     summary: Get user's order history
+ *     description: Returns all orders for the authenticated user, sorted by creation date (newest first)
  *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Information about order processing
+ *         description: User's orders retrieved successfully
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
- *                 message:
- *                   type: string
- *                 info:
- *                   type: string
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 orders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       productName:
+ *                         type: string
+ *                       sku:
+ *                         type: string
+ *                       quantity:
+ *                         type: integer
+ *                       totalPrice:
+ *                         type: number
+ *                       status:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 count:
+ *                   type: integer
+ *       401:
+ *         description: Authentication required or invalid token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
-// Get orders endpoint (for testing) - v1
-app.get('/api/v1/orders', (req, res) => {
-  res.json({
-    message: 'Orders are processed asynchronously. Check the database for order history.',
-    info: 'This endpoint is for informational purposes only.',
-  });
+// Get user's orders endpoint - v1
+app.get('/api/v1/orders', authenticateJWT, async (req, res) => {
+  try {
+    // Validate userId from JWT token
+    if (!req.user || !req.user.userId) {
+      return res.status(401).json({
+        error: 'Authentication failed',
+        message: 'User ID not found in token',
+      });
+    }
+
+    const [orders] = await req.db.execute(
+      `SELECT id, product_name as productName, sku, quantity,
+              total_price as totalPrice, order_status as status, created_at as createdAt
+       FROM orders WHERE user_id = ? ORDER BY created_at DESC`,
+      [req.user.userId]
+    );
+
+    res.json({
+      success: true,
+      orders,
+      count: orders.length,
+    });
+  } catch (error) {
+    logError('Error fetching orders:', error);
+
+    res.status(500).json({
+      error: 'Failed to fetch orders',
+      message: 'An error occurred while retrieving your orders. Please try again later.',
+    });
+  }
 });
 
 // Legacy route for backward compatibility — use 307 to preserve method and body

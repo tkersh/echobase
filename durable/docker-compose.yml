@@ -47,6 +47,10 @@ services:
       dockerfile: mariadb/Dockerfile
     image: echobase-mariadb:latest
     container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-mariadb
+    # Give MariaDB 5 minutes to flush InnoDB buffers on shutdown (default is 10s)
+    # This prevents database corruption from abrupt stops
+    # Use ./stop.sh --all for cleaner shutdown (sends mysqladmin shutdown first)
+    stop_grace_period: 5m
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}

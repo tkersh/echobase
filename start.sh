@@ -37,20 +37,21 @@ if ! command -v terraform &> /dev/null; then
 fi
 
 # ── Credentials ──────────────────────────────────────────────────
-echo "Checking root .env file..."
-if [ ! -f .env ]; then
+echo "Checking .env.secrets file..."
+if [ ! -f .env.secrets ]; then
   echo ""
-  echo "Root .env file not found — generating credentials..."
+  echo ".env.secrets not found — generating credentials..."
   ./scripts/generate-credentials.sh
-  if [ ! -f .env ]; then
-    echo "ERROR: Failed to generate .env file."
+  if [ ! -f .env.secrets ]; then
+    echo "ERROR: Failed to generate .env.secrets file."
     exit 1
   fi
 fi
 
-# Load environment variables
+# Load environment variables (config + secrets)
 set -a
 source .env
+source .env.secrets
 set +a
 
 # ── Parse flags ──────────────────────────────────────────────────
@@ -79,6 +80,14 @@ install_deps "backend/mcp-server"     "MCP Server"
 install_deps "backend/order-processor" "Order Processor"
 install_deps "frontend"               "Frontend"
 
+# ── Base Docker image ───────────────────────────────────────────
+# Build base image if it doesn't exist (other images depend on it)
+if ! docker image inspect echobase-node-base:latest > /dev/null 2>&1; then
+  echo ""
+  echo "Building base Docker image..."
+  docker build -t echobase-node-base:latest docker/base/
+fi
+
 # ── Durable infrastructure ───────────────────────────────────────
 echo ""
 echo "Ensuring durable infrastructure is running (idempotent)..."
@@ -105,6 +114,7 @@ if command -v terraform &> /dev/null; then
       -platform=windows_amd64 > /dev/null 2>&1
 
     source ../.env
+    source ../.env.secrets
     export TF_VAR_db_user=$DB_USER
     export TF_VAR_db_password=$DB_PASSWORD
     export TF_VAR_db_host=$DB_HOST

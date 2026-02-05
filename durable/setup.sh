@@ -33,17 +33,19 @@ if ! command -v jq > /dev/null 2>&1; then
   exit 1
 fi
 
-# Check if root .env file exists (for AWS credentials)
-if [ ! -f .env ]; then
-  echo "ERROR: Root .env file not found!"
-  echo "Please run ./scripts/generate-credentials.sh first to generate AWS credentials."
+# Check if .env.secrets file exists (for generated secrets)
+if [ ! -f .env.secrets ]; then
+  echo "ERROR: .env.secrets file not found!"
+  echo "Please run ./scripts/generate-credentials.sh first to generate credentials."
   exit 1
 fi
 
-# Load AWS credentials from root .env
-echo "Loading AWS credentials from root .env..."
+# Load config and secrets from root
+echo "Loading environment from root .env and .env.secrets..."
 # shellcheck source=/dev/null
 source .env
+# shellcheck source=/dev/null
+source .env.secrets
 
 # Determine project name and paths based on environment
 if [ "$DURABLE_ENV" = "devlocal" ]; then

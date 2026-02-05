@@ -65,6 +65,7 @@ fi
 if [ -f .env ] && [ -z "$AWS_ACCESS_KEY_ID" ]; then
     echo "Sourcing .env file..."
     source .env
+    [ -f .env.secrets ] && source .env.secrets
 fi
 
 cd terraform

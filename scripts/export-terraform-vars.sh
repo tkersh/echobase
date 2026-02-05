@@ -10,9 +10,11 @@ if [ -z "$AWS_ACCESS_KEY_ID" ]; then
     if [ -f .env ]; then
         echo "Sourcing .env file for Terraform variables..."
         source .env
+        [ -f .env.secrets ] && source .env.secrets
     elif [ -f ../.env ]; then
         echo "Sourcing ../.env file for Terraform variables..."
         source ../.env
+        [ -f ../.env.secrets ] && source ../.env.secrets
     fi
 fi
 

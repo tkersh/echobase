@@ -2,8 +2,9 @@ const { SQSClient, SendMessageCommand, ReceiveMessageCommand, GetQueueAttributes
 const path = require('path');
 const { validateRequiredEnv } = require('../../shared/env-validator');
 
-// Load environment variables from root .env file
+// Load environment variables from root .env and .env.secrets
 require('dotenv').config({ path: path.resolve(__dirname, '../../../.env') });
+require('dotenv').config({ path: path.resolve(__dirname, '../../../.env.secrets') });
 
 /**
  * SQS Security Test Suite

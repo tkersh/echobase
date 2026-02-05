@@ -46,6 +46,7 @@ print_success "Using durable environment: $DURABLE_ENV"
 if [ -f ".env" ]; then
     set -a
     source .env
+    [ -f .env.secrets ] && source .env.secrets
     set +a
 else
     print_error ".env file not found. Please run setup-tests.sh first."

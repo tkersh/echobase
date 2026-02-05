@@ -21,7 +21,7 @@ if [ "$ENVIRONMENT" != "devlocal" ] && [ "$ENVIRONMENT" != "ci" ]; then
     exit 1
 fi
 
-# Source environment variables from root .env
+# Source environment variables from root .env and .env.secrets
 # shellcheck source=/dev/null
 if [ -f .env ]; then
     echo "Sourcing .env file..."
@@ -30,6 +30,11 @@ if [ -f .env ]; then
 else
     echo "ERROR: .env file not found in project root"
     exit 1
+fi
+# shellcheck source=/dev/null
+if [ -f .env.secrets ]; then
+    echo "Sourcing .env.secrets file..."
+    source .env.secrets
 fi
 
 # Source durable environment-specific configuration

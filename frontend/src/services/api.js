@@ -160,6 +160,12 @@ export const orders = {
         'Authorization': `Bearer ${token}`,
       },
     }),
+  getAll: (token) =>
+    apiClient.get(API_ENDPOINTS.ORDERS, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    }),
 };
 
 export default apiClient;

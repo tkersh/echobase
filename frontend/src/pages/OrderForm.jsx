@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { orders, products } from '../services/api';
 import { debug, error as logError } from '../utils/logger';
@@ -217,6 +217,12 @@ function OrderForm() {
             <li>Background processor reads from the queue</li>
             <li>Order is stored in MariaDB database</li>
           </ol>
+        </div>
+
+        <div className="info-section">
+          <Link to="/my-orders" style={{ color: '#0056b3', textDecoration: 'none' }}>
+            View Order History
+          </Link>
         </div>
       </div>
     </div>

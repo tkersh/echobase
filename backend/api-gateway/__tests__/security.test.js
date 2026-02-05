@@ -6,8 +6,9 @@ const jwt = require('jsonwebtoken');
 const { validateRequiredEnv } = require('../../shared/env-validator');
 const { API_ENDPOINTS } = require('../../shared/api-endpoints');
 
-// Load environment variables from .env file
+// Load environment variables from .env and .env.secrets
 require('dotenv').config({ path: require('path').join(__dirname, '../../../.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '../../../.env.secrets') });
 
 /**
  * Security Test Suite for API Gateway

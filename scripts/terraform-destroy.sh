@@ -13,6 +13,7 @@ LOCALSTACK_ENDPOINT=$1
 if [ -f .env ] && [ -z "$AWS_ACCESS_KEY_ID" ]; then
     echo "Sourcing .env file..."
     source .env
+    [ -f .env.secrets ] && source .env.secrets
 fi
 
 # Set localstack endpoint if provided

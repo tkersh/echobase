@@ -7,6 +7,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import OrderForm from './pages/OrderForm';
+import OrdersPage from './pages/OrdersPage';
 import './App.css';
 
 // Landing page component that redirects based on auth status
@@ -40,6 +41,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <OrderForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/my-orders"
+            element={
+              <ProtectedRoute>
+                <OrdersPage />
               </ProtectedRoute>
             }
           />

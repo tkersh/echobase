@@ -238,15 +238,116 @@ test.describe('Orders API Tests', () => {
     });
   });
 
-  test.describe('Orders Info Endpoint', () => {
-    test('should get orders info without authentication', async () => {
+  test.describe('Get Orders Endpoint', () => {
+    test('should reject get orders without authentication', async () => {
       apiHelper.clearToken();
 
-      const response = await apiHelper.getOrdersInfo();
+      const response = await apiHelper.getOrders();
+
+      expect(response.status).toBe(401);
+      expect(response.ok).toBeFalsy();
+    });
+
+    test('should return empty array for new user with no orders', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      const response = await apiHelper.getOrders();
 
       expect(response.status).toBe(200);
       expect(response.ok).toBeTruthy();
-      expect(response.data).toHaveProperty('message');
+      expect(response.data.success).toBe(true);
+      expect(response.data.orders).toEqual([]);
+      expect(response.data.count).toBe(0);
+    });
+
+    test('should return orders for authenticated user', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      // Submit an order first
+      const orderData = createValidOrder();
+      const submitResponse = await apiHelper.submitOrder(orderData);
+      expect(submitResponse.status).toBe(201);
+
+      // Wait for order to be processed by polling the database
+      const dbUser = await dbHelper.waitForUser(userData.username);
+      await dbHelper.waitForOrder(dbUser.id);
+
+      // Get orders
+      const response = await apiHelper.getOrders();
+
+      expect(response.status).toBe(200);
+      expect(response.ok).toBeTruthy();
+      expect(response.data.success).toBe(true);
+      expect(response.data.orders.length).toBeGreaterThanOrEqual(1);
+      expect(response.data.count).toBe(response.data.orders.length);
+
+      // Check order structure
+      const order = response.data.orders[0];
+      expect(order).toHaveProperty('id');
+      expect(order).toHaveProperty('productName');
+      expect(order).toHaveProperty('sku');
+      expect(order).toHaveProperty('quantity');
+      expect(order).toHaveProperty('totalPrice');
+      expect(order).toHaveProperty('status');
+      expect(order).toHaveProperty('createdAt');
+    });
+
+    test('should not return other users orders', async () => {
+      // Create first user and submit an order
+      const user1Data = createValidUser();
+      testUsers.push(user1Data);
+      await apiHelper.register(user1Data);
+      await apiHelper.submitOrder(createValidOrder());
+
+      // Wait for order to be processed by polling the database
+      const dbUser1 = await dbHelper.waitForUser(user1Data.username);
+      await dbHelper.waitForOrder(dbUser1.id);
+
+      // Create second user
+      const user2Data = createValidUser();
+      testUsers.push(user2Data);
+      await apiHelper.register(user2Data);
+
+      // Second user should not see first user's orders
+      const response = await apiHelper.getOrders();
+
+      expect(response.status).toBe(200);
+      expect(response.data.orders).toEqual([]);
+      expect(response.data.count).toBe(0);
+    });
+
+    test('should return orders sorted by date descending', async () => {
+      const userData = createValidUser();
+      testUsers.push(userData);
+
+      await apiHelper.register(userData);
+
+      // Submit multiple orders
+      await apiHelper.submitOrder(createValidOrder({ productId: 1 }));
+      await apiHelper.submitOrder(createValidOrder({ productId: 2 }));
+
+      // Wait for both orders to be processed by polling the database
+      const dbUser = await dbHelper.waitForUser(userData.username);
+      await dbHelper.waitForOrders(dbUser.id, 2);
+
+      const response = await apiHelper.getOrders();
+
+      expect(response.status).toBe(200);
+
+      if (response.data.orders.length >= 2) {
+        const orders = response.data.orders;
+        for (let i = 0; i < orders.length - 1; i++) {
+          const currentDate = new Date(orders[i].createdAt);
+          const nextDate = new Date(orders[i + 1].createdAt);
+          expect(currentDate.getTime()).toBeGreaterThanOrEqual(nextDate.getTime());
+        }
+      }
     });
   });
 

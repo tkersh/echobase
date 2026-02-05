@@ -104,9 +104,10 @@ if [ ! -f ".env" ]; then
 fi
 print_success "Found .env file"
 
-# Load environment variables from .env
+# Load environment variables from .env and .env.secrets
 set -a
 source .env
+[ -f .env.secrets ] && source .env.secrets
 set +a
 
 # Retrieve database credentials from Secrets Manager (same as CI system)

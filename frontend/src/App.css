@@ -212,6 +212,62 @@ h1 {
   top: 0;
 }
 
+/* Orders Table Styles */
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.orders-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.orders-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.status-completed {
+  color: #155724;
+  background-color: #d4edda;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.status-pending {
+  color: #856404;
+  background-color: #fff3cd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.status-processing {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.status-failed {
+  color: #721c24;
+  background-color: #f8d7da;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
 @media (max-width: 640px) {
   .container {
     padding: 25px;
@@ -219,5 +275,14 @@ h1 {
 
   h1 {
     font-size: 1.6rem;
+  }
+
+  .orders-table {
+    font-size: 0.875rem;
+  }
+
+  .orders-table th,
+  .orders-table td {
+    padding: 8px;
   }
 }

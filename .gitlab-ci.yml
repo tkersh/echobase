@@ -121,18 +121,15 @@ validate:env-check:
     - docker compose version
     - node --version
     - npm --version
-    - echo "Generating .env file for CI..."
+    - echo "Generating .env.secrets for CI..."
     - ./scripts/generate-credentials.sh
-    - echo "Verifying .env file was created..."
-    - test -f .env || (echo "ERROR - .env file generation failed!" && exit 1)
+    - echo "Verifying .env.secrets was created..."
+    - test -f .env.secrets || (echo "ERROR - .env.secrets generation failed!" && exit 1)
 
-    # Configure environment for CI with Docker network
+    # Configure CI-specific overrides in tracked .env
+    # Only override values that differ from defaults (e.g., CORS_ORIGIN port)
     - echo "Configuring environment for CI..."
     - sed -i "s|CORS_ORIGIN=.*|CORS_ORIGIN=https://localhost:${GREEN_FRONTEND_PORT}|g" .env
-    # REACT_APP_API_URL should be empty - frontend uses same-origin and nginx proxies to backend
-    - sed -i "s|REACT_APP_API_URL=.*|REACT_APP_API_URL=|g" .env
-    - sed -i 's|RATE_LIMIT_MAX_REQUESTS=.*|RATE_LIMIT_MAX_REQUESTS=100000|g' .env
-    - sed -i 's|RATE_LIMIT_WINDOW_MS=.*|RATE_LIMIT_WINDOW_MS=900000|g' .env
     - echo "CI-specific configuration:"
     - grep -E "(CORS_ORIGIN|REACT_APP_API_URL|RATE_LIMIT)" .env
 
@@ -140,6 +137,7 @@ validate:env-check:
   artifacts:
     paths:
       - .env
+      - .env.secrets
       - mariadb/config/
     expire_in: 1 hour
   only:
@@ -171,31 +169,15 @@ validate:compose:
     - docker-local
   script:
     - echo "Validating Docker Compose configuration..."
-    # Create minimal .env file for validation
+    # Tracked .env is auto-loaded by docker compose; source .env.secrets for secret vars
     - |
-      cat > .env <<EOF
-      MYSQL_ROOT_PASSWORD=test
-      MYSQL_DATABASE=test_db
-      MYSQL_USER=testuser
-      MYSQL_PASSWORD=testpass
-      PORT=3001
-      AWS_REGION=us-east-1
-      AWS_ACCESS_KEY_ID=test
-      AWS_SECRET_ACCESS_KEY=test
-      SQS_ENDPOINT=http://localhost:4566
-      SQS_QUEUE_URL=http://localhost:4566/queue/test
-      DB_SECRET_NAME=test
+      cat > .env.secrets <<'EOF'
       JWT_SECRET=test
-      CORS_ORIGIN=http://localhost:3000
-      RATE_LIMIT_WINDOW_MS=60000
-      RATE_LIMIT_MAX_REQUESTS=100
-      DB_HOST=localhost
-      DB_PORT=3306
-      DB_NAME=test_db
-      POLL_INTERVAL=5000
-      MAX_MESSAGES=10
-      REACT_APP_API_URL=http://localhost:3001
+      MCP_API_KEY=test
       EOF
+      # Remove leading whitespace from heredoc
+      sed -i 's/^[[:space:]]*//' .env.secrets
+    - set -a && source .env.secrets && set +a
     - docker compose config > /dev/null
     - echo "Docker Compose configuration is valid!"
   only:
@@ -249,6 +231,7 @@ build:docker-images:
   script:
     - echo "Building Docker images..."
     - source .env
+    - source .env.secrets
 
     # Set build metadata for Docker images (using GitLab CI predefined variables)
     - export GIT_SHORT_SHA=${CI_COMMIT_SHORT_SHA}
@@ -324,6 +307,7 @@ durable:setup-ci:
       echo ""
 
       source .env
+      source .env.secrets
       echo "Configuring environment for CI..."
       sed -i 's|DB_HOST=.*|DB_HOST=echobase-ci-durable-mariadb|g' .env
       echo "DB_HOST=$(grep DB_HOST .env)"
@@ -342,6 +326,7 @@ durable:setup-ci:
   artifacts:
     paths:
       - .env
+      - .env.secrets
     expire_in: 1 hour
   only:
     - branches
@@ -382,6 +367,7 @@ test:target-api-gateway:
       echo ""
       echo "Running all API Gateway tests (unit + security) against $DEPLOY_TARGET environment..."
       source .env
+      source .env.secrets
 
       # Set environment-specific port variables with correct names for the container
       if [ "$DEPLOY_TARGET" = "blue" ]; then
@@ -457,6 +443,7 @@ test:target-e2e:
       echo ""
       echo "Running E2E tests against $DEPLOY_TARGET environment..."
       source .env
+      source .env.secrets
 
       echo "Retrieving database credentials from Secrets Manager..."
       SECRET_JSON=$(docker exec echobase-ci-durable-localstack awslocal secretsmanager get-secret-value \
@@ -708,6 +695,7 @@ deploy:target:
       echo ""
 
       source .env
+      source .env.secrets
 
       # Note: CORS_ORIGIN is defined in docker-compose.{blue,green}.yml, not in base file
       # Each environment has its own allowed origins (localhost ports + internal container names)
@@ -1077,6 +1065,7 @@ database:query:
   script:
     - echo "Querying CI database for recent orders..."
     - source .env
+    - source .env.secrets
     - docker exec echobase-ci-durable-mariadb mariadb -u $DB_USER -p$DB_PASSWORD $DB_NAME -e "SELECT id, customer_name, product_name, order_status, created_at FROM orders ORDER BY created_at DESC LIMIT 10;"
   when: manual
   only:

@@ -49,6 +49,7 @@ echo ""
 
 # Load environment variables
 source .env
+[ -f .env.secrets ] && source .env.secrets
 
 # Test KMS Key Configuration
 echo "[3/8] Verifying KMS encryption key..."

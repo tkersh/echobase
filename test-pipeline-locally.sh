@@ -104,12 +104,12 @@ check_prerequisites() {
     fi
     print_success "Docker is running"
 
-    # Check if .env file exists
-    if [ ! -f .env ]; then
-        print_warning ".env file not found. Some tests may fail."
+    # Check if .env.secrets file exists
+    if [ ! -f .env.secrets ]; then
+        print_warning ".env.secrets file not found. Some tests may fail."
         print_info "Run ./scripts/generate-credentials.sh to create it."
     else
-        print_success ".env file exists"
+        print_success ".env.secrets file exists"
     fi
 
     # Check if in correct directory

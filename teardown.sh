@@ -67,6 +67,7 @@ if [ -d "terraform" ]; then
     if [ -f ../.env ]; then
         print_status "Loading database credentials from .env file..."
         source ../.env
+        [ -f ../.env.secrets ] && source ../.env.secrets
         export TF_VAR_db_user=$DB_USER
         export TF_VAR_db_password=$DB_PASSWORD
         export TF_VAR_db_host=$DB_HOST
