@@ -142,6 +142,87 @@ services:
       timeout: 3s
       retries: 3
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ../otel/collector-config.yaml:/etc/otelcol/config.yaml:ro
+    networks:
+      - durable-network
+    ports:
+      - "${DURABLE_OTEL_GRPC_PORT:-4317}:4317"
+      - "${DURABLE_OTEL_HTTP_PORT:-4318}:4318"
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=otel-collector"
+    # Note: The contrib image is distroless (no wget/curl). The health_check
+    # extension listens on 13133 but we can't probe it from inside the container.
+    # Instead we use a TCP connect test via the collector's own gRPC port.
+    healthcheck:
+      test: ["CMD", "/otelcol-contrib", "validate", "--config=/etc/otelcol/config.yaml"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-jaeger
+    environment:
+      - SPAN_STORAGE_TYPE=badger
+      - BADGER_EPHEMERAL=false
+      - BADGER_DIRECTORY_VALUE=/badger/data
+      - BADGER_DIRECTORY_KEY=/badger/key
+    volumes:
+      - jaeger-badger-data:/badger
+    networks:
+      - durable-network
+    ports:
+      - "${DURABLE_JAEGER_UI_PORT:-16686}:16686"
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=jaeger"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:16686"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-remote-write-receiver"
+      - "--storage.tsdb.path=/prometheus"
+    volumes:
+      - ../otel/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - durable-network
+    ports:
+      - "${DURABLE_PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=prometheus"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   localstack-data:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-localstack-data
@@ -149,6 +230,10 @@ volumes:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-mariadb-data
   nginx-config:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-nginx-config
+  jaeger-badger-data:
+    name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-jaeger-badger-data
+  prometheus-data:
+    name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-prometheus-data
 
 networks:
   durable-network:

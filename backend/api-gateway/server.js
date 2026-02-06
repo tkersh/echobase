@@ -1,3 +1,4 @@
+require('../shared/tracing');
 require('dotenv').config();
 require('dotenv').config({ path: '.env.secrets' });
 const express = require('express');

@@ -107,6 +107,10 @@ fi
 | Frontend HTTP | 3000 |
 | LocalStack (ephemeral) | 4566 |
 | MariaDB | 3306 |
+| OTEL Collector (gRPC) | 4317 |
+| OTEL Collector (HTTP) | 4318 |
+| Jaeger UI | 16686 |
+| Prometheus | 9090 |
 
 ### CI Blue Environment
 | Service | Port |
@@ -125,6 +129,14 @@ fi
 | Frontend HTTP | 3100 |
 | LocalStack (ephemeral) | 4666 |
 | MariaDB | 3307 (shared) |
+
+### CI Durable (shared by Blue/Green)
+| Service | Port |
+|---------|------|
+| OTEL Collector (gRPC) | 4417 |
+| OTEL Collector (HTTP) | 4418 |
+| Jaeger UI | 16786 |
+| Prometheus | 9190 |
 
 **Note**: Blue and Green share the **same durable database** in CI (port 3307).
 

@@ -5,6 +5,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { apiKeyAuth } from './middleware/apiKeyAuth';
 import { getRecommendedProducts } from './tools/getRecommendedProducts';
+import { log, logError } from './logger';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '3002', 10);
@@ -77,12 +78,12 @@ app.post('/messages', async (req, res) => {
 
 // Error handler - no stack traces
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error('Server error:', err.message);
+  logError('Server error:', err.message);
   res.status(500).json({ error: 'Internal server error' });
 });
 
 app.listen(PORT, () => {
-  console.log(`MCP Server running on port ${PORT}`);
+  log(`MCP Server running on port ${PORT}`);
 });
 
 export { app };

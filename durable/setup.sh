@@ -83,6 +83,9 @@ print_infrastructure_details() {
         echo "  Database Port: 3306"
         echo "  LocalStack Port: 4566"
         echo "  Load Balancer: https://localhost (ports 443, 8080, 8081)"
+        echo "  OTEL Collector: echobase-devlocal-durable-otel-collector (gRPC: 4317, HTTP: 4318)"
+        echo "  Jaeger UI: http://localhost:16686"
+        echo "  Prometheus: http://localhost:9090"
     else
         echo "  Database Container: echobase-ci-durable-mariadb"
         echo "  LocalStack Container: echobase-ci-durable-localstack"
@@ -91,6 +94,9 @@ print_infrastructure_details() {
         echo "  Database Port: 3307"
         echo "  LocalStack Port: 4567"
         echo "  Load Balancer: https://localhost:1443 (ports 180, 1443, 8180, 8181)"
+        echo "  OTEL Collector: echobase-ci-durable-otel-collector (gRPC: 4417, HTTP: 4418)"
+        echo "  Jaeger UI: http://localhost:16786"
+        echo "  Prometheus: http://localhost:9190"
     fi
     echo ""
     echo "Credentials: Stored in AWS Secrets Manager (source of truth)"
@@ -350,6 +356,17 @@ else
     docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d mcp-server
     MCP_STATUS=$(docker inspect -f '{{.State.Status}}' "$MCP_CONTAINER" 2>/dev/null || echo "not-found")
     echo "  MCP Server: $MCP_CONTAINER ($MCP_STATUS)"
+
+    # Ensure OTEL stack is running (otel-collector, jaeger, prometheus).
+    # docker compose up -d is idempotent — only recreates if config changed.
+    echo "  Ensuring OTEL stack is running..."
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d otel-collector jaeger prometheus
+    OTEL_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-otel-collector" 2>/dev/null || echo "not-found")
+    JAEGER_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-jaeger" 2>/dev/null || echo "not-found")
+    PROM_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-prometheus" 2>/dev/null || echo "not-found")
+    echo "  OTEL Collector: ${CONTAINER_PREFIX}-otel-collector ($OTEL_STATUS)"
+    echo "  Jaeger: ${CONTAINER_PREFIX}-jaeger ($JAEGER_STATUS)"
+    echo "  Prometheus: ${CONTAINER_PREFIX}-prometheus ($PROM_STATUS)"
 
     echo ""
     rm "$TEMP_ENV_FILE"

@@ -122,7 +122,7 @@ teardown_durable() {
         echo "  Found durable containers for $durable_env"
 
         # Stop and remove durable containers
-        for service in mariadb localstack nginx mcp-server; do
+        for service in mariadb localstack nginx mcp-server otel-collector jaeger prometheus; do
             container_name="${container_prefix}-${service}"
             if docker inspect "$container_name" >/dev/null 2>&1; then
                 echo "  Removing: $container_name"
@@ -139,7 +139,7 @@ teardown_durable() {
 
         # Optionally remove volumes
         if [ "$REMOVE_VOLUMES" = true ]; then
-            for volume in mariadb-data localstack-data; do
+            for volume in mariadb-data localstack-data nginx-config jaeger-badger-data prometheus-data; do
                 volume_name="${volume_prefix}_${volume}"
                 if docker volume inspect "$volume_name" >/dev/null 2>&1; then
                     docker volume rm "$volume_name" 2>/dev/null || true

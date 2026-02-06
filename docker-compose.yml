@@ -54,6 +54,8 @@ services:
       - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
       - MCP_SERVER_ENDPOINT=${MCP_SERVER_ENDPOINT}
       - MCP_API_KEY=${MCP_API_KEY}
+      - OTEL_COLLECTOR_ENDPOINT=${OTEL_COLLECTOR_ENDPOINT}
+      - OTEL_SERVICE_NAME=api-gateway
     depends_on:
       localstack:
         condition: service_healthy
@@ -90,6 +92,8 @@ services:
       - POLL_INTERVAL=${POLL_INTERVAL}
       - MAX_MESSAGES=${MAX_MESSAGES}
       - DB_CONNECTION_LIMIT=2
+      - OTEL_COLLECTOR_ENDPOINT=${OTEL_COLLECTOR_ENDPOINT}
+      - OTEL_SERVICE_NAME=order-processor
     depends_on:
       localstack:
         condition: service_healthy
@@ -124,6 +128,8 @@ services:
       # CI overrides this in blue.yml/green.yml to use explicit container names,
       # preventing DNS round-robin when both environments share the durable-network.
       - API_GATEWAY_HOST=api-gateway
+      # OTEL Collector hostname for frontend nginx proxy (/v1/traces)
+      - OTEL_COLLECTOR_HOST=echobase-devlocal-durable-otel-collector
     depends_on:
       api-gateway:
         condition: service_healthy

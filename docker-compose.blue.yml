@@ -30,6 +30,7 @@ services:
     environment:
       - DEPLOYMENT_COLOR=blue
       - LOG_LEVEL=DEBUG
+      - LOG_FORMAT=json
       # Include both external (localhost) and internal (container name) origins for CORS
       # Include nginx LB ports (1443 HTTPS, 8180 blue direct), direct frontend port (3544), and internal container names
       - CORS_ORIGIN=https://localhost:1443,http://localhost:8180,https://localhost:3544,https://echobase-blue-frontend:443,https://echobase-blue-frontend
@@ -43,6 +44,9 @@ services:
       - DB_HOST=echobase-ci-durable-mariadb
       # Use CI durable MCP server for product recommendations
       - MCP_SERVER_ENDPOINT=http://echobase-ci-durable-mcp-server:3002
+      # OTEL Collector (CI durable)
+      - OTEL_COLLECTOR_ENDPOINT=http://echobase-ci-durable-otel-collector:4318
+      - OTEL_SERVICE_NAME=api-gateway
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=blue"
@@ -57,6 +61,8 @@ services:
       - DEPLOYMENT_COLOR=blue
       # Use explicit container name to avoid DNS round-robin on shared durable-network
       - API_GATEWAY_HOST=echobase-blue-api-gateway
+      # OTEL Collector (CI durable)
+      - OTEL_COLLECTOR_HOST=echobase-ci-durable-otel-collector
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=blue"
@@ -66,6 +72,7 @@ services:
     container_name: echobase-blue-order-processor
     environment:
       - DEPLOYMENT_COLOR=blue
+      - LOG_FORMAT=json
       # Use blue ephemeral LocalStack for SQS (created by Terraform in this environment)
       - SQS_ENDPOINT=http://echobase-blue-localstack:4566
       # SQS Queue URL must use container name for internal container-to-container communication
@@ -74,6 +81,9 @@ services:
       - SECRETS_MANAGER_ENDPOINT=http://echobase-ci-durable-localstack:4566
       # Use CI durable MariaDB (correct hostname for CI environment)
       - DB_HOST=echobase-ci-durable-mariadb
+      # OTEL Collector (CI durable)
+      - OTEL_COLLECTOR_ENDPOINT=http://echobase-ci-durable-otel-collector:4318
+      - OTEL_SERVICE_NAME=order-processor
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=blue"

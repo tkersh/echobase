@@ -9,13 +9,15 @@ import { validateRequiredEnv } from './utils/env-validator.js';
 // 2. Root .env.secrets for secrets (JWT_SECRET, MCP_API_KEY)
 // 3. Local e2e-tests/.env for test-specific overrides (DB_HOST=localhost, WEB_BASE_URL)
 // 4. Local e2e-tests/.env.secrets for test credentials (DB_USER, DB_PASSWORD)
-// Note: No 'override: true' — CI's -e flags take precedence over file values.
+// Local files use override:true so e2e-tests/.env (DB_HOST=localhost) wins over
+// root .env (DB_HOST=echobase-devlocal-durable-mariadb). In CI, environment
+// variables set via docker -e flags still take precedence over all file values.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, '../.env'), quiet: true });
 dotenv.config({ path: path.resolve(__dirname, '../.env.secrets'), quiet: true });
-dotenv.config({ path: path.resolve(__dirname, '.env'), quiet: true });
-dotenv.config({ path: path.resolve(__dirname, '.env.secrets'), quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env'), override: true, quiet: true });
+dotenv.config({ path: path.resolve(__dirname, '.env.secrets'), override: true, quiet: true });
 
 validateRequiredEnv(['WEB_BASE_URL'], 'Playwright configuration');
 

@@ -65,6 +65,12 @@ variables:
   BLUE_FRONTEND_PORT: "3544"
   BLUE_LOCALSTACK_PORT: "4667"
 
+  # CI Durable OTEL Ports (durable/docker-compose.yml with .env.ci)
+  CI_OTEL_GRPC_PORT: "4417"
+  CI_OTEL_HTTP_PORT: "4418"
+  CI_JAEGER_UI_PORT: "16786"
+  CI_PROMETHEUS_PORT: "9190"
+
 # Default settings for all jobs
 default:
   artifacts:
@@ -585,6 +591,9 @@ test:target-e2e:
         echo "=== Containers on $DEPLOY_TARGET network ==="
         docker network inspect echobase-$DEPLOY_TARGET-network --format='{{range .Containers}}{{.Name}} {{end}}' 2>&1 || echo "Could not inspect network"
         echo ""
+        echo "=== OTEL Collector Status ==="
+        curl -sf http://localhost:${CI_OTEL_HTTP_PORT:-4418}/v1/traces -o /dev/null -w '' 2>/dev/null && echo "Collector: healthy" || echo "Collector: unreachable (traces/metrics unavailable)"
+        echo ""
         echo "=== ALL running containers with 'api-gateway' in name ==="
         docker ps --filter "name=api-gateway" --format "{{.Names}} - {{.Status}} - {{.Ports}}" 2>&1 || echo "Could not list containers"
         echo ""
@@ -721,6 +730,14 @@ deploy:target:
       echo "Verifying durable infrastructure is running..."
       docker ps --filter "name=echobase-ci-durable" --format "{{.Names}}: {{.Status}}"
 
+      echo ""
+      echo "Verifying OTEL infrastructure..."
+      if curl -sf http://localhost:${CI_OTEL_HTTP_PORT:-4418}/v1/traces -o /dev/null -w '' 2>/dev/null; then
+        echo "  OTEL Collector: healthy"
+      else
+        echo "  WARNING: OTEL Collector not reachable (traces/metrics will be unavailable)"
+      fi
+
       echo "Cleaning up any existing $DEPLOY_TARGET environment..."
       docker compose -f docker-compose.yml -f docker-compose.$DEPLOY_TARGET.yml -p echobase-$DEPLOY_TARGET down || true
 
@@ -805,10 +822,15 @@ deploy:target:
       echo "  - LocalStack: echobase-$DEPLOY_TARGET-localstack:4566"
       echo "  - API Gateway: echobase-$DEPLOY_TARGET-api-gateway:3001"
       echo "  - Frontend: echobase-$DEPLOY_TARGET-frontend:443"
+      echo "  - OTEL Collector (Durable): echobase-ci-durable-otel-collector:4318"
+      echo "  - Jaeger (Durable): echobase-ci-durable-jaeger:16686"
+      echo "  - Prometheus (Durable): echobase-ci-durable-prometheus:9090"
       echo ""
       echo "External access ports:"
       echo "  - API Gateway: localhost:$ENV_API_PORT"
       echo "  - Frontend: localhost:$ENV_FRONTEND_PORT"
+      echo "  - Jaeger UI: localhost:${CI_JAEGER_UI_PORT}"
+      echo "  - Prometheus: localhost:${CI_PROMETHEUS_PORT}"
 
       echo ""
       echo "=== Network Connectivity Verification ==="
@@ -853,6 +875,9 @@ deploy:target:
         echo ""
         echo "=== Durable Infrastructure Status ==="
         docker ps --filter "name=echobase-ci-durable" --format "table {{.Names}}\t{{.Status}}" 2>&1 || echo "Failed to get durable status"
+        echo ""
+        echo "=== OTEL Collector Health ==="
+        curl -sf http://localhost:${CI_OTEL_HTTP_PORT:-4418}/v1/traces -o /dev/null -w '' 2>/dev/null && echo "Collector: healthy" || echo "Collector: unreachable"
       fi
   only:
     - branches

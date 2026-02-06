@@ -81,6 +81,35 @@ async function initDatabase(awsConfig) {
     log(`Connected to RDS MariaDB database at ${dbCredentials.host}:${dbCredentials.port}`);
     connection.release();
 
+    // Register OTEL observable gauges for connection pool stats
+    try {
+      const { metrics } = require('@opentelemetry/api');
+      const meter = metrics.getMeter('database');
+      const pool = dbPool.pool; // underlying pool from mysql2
+
+      meter.createObservableGauge('db.pool.active_connections', {
+        description: 'Number of active database connections',
+      }).addCallback((result) => {
+        result.observe(pool._allConnections?.length || 0);
+      });
+
+      meter.createObservableGauge('db.pool.idle_connections', {
+        description: 'Number of idle database connections',
+      }).addCallback((result) => {
+        result.observe(pool._freeConnections?.length || 0);
+      });
+
+      meter.createObservableGauge('db.pool.queued_requests', {
+        description: 'Number of queued connection requests',
+      }).addCallback((result) => {
+        result.observe(pool._connectionQueue?.length || 0);
+      });
+
+      log('Database pool metrics registered with OTEL');
+    } catch (_) {
+      // OTEL not available — metrics disabled
+    }
+
     return dbPool;
   } catch (error) {
     logError('Error initializing database:', error);

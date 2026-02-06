@@ -44,7 +44,8 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # NGINX_ENVSUBST_FILTER restricts substitution to only $API_GATEWAY_HOST,
 # preventing replacement of nginx's own variables ($host, $request_uri, etc.)
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
-ENV NGINX_ENVSUBST_FILTER=API_GATEWAY_HOST
+ENV NGINX_ENVSUBST_FILTER="API_GATEWAY_HOST|OTEL_COLLECTOR_HOST"
+ENV OTEL_COLLECTOR_HOST=otel-collector
 
 # Copy SSL certificates for HTTPS (MITM Protection)
 COPY ssl/localhost.crt /etc/nginx/ssl/localhost.crt

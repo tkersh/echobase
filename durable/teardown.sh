@@ -56,7 +56,7 @@ fi
 
 # Stop and remove containers
 echo "Stopping and removing containers..."
-for container in mariadb localstack nginx; do
+for container in mariadb localstack nginx mcp-server otel-collector jaeger prometheus; do
     container_name="${CONTAINER_PREFIX}-${container}"
     if docker inspect "$container_name" >/dev/null 2>&1; then
         echo "  Removing: $container_name"
@@ -80,7 +80,7 @@ fi
 if [ "$REMOVE_VOLUMES" = true ]; then
     echo ""
     echo "Removing data volumes..."
-    for volume in mariadb-data localstack-data; do
+    for volume in mariadb-data localstack-data nginx-config jaeger-badger-data prometheus-data; do
         volume_name="${VOLUME_PREFIX}-${volume}"
         if docker volume inspect "$volume_name" >/dev/null 2>&1; then
             docker volume rm "$volume_name" 2>/dev/null || true
@@ -100,7 +100,7 @@ else
     echo "=========================================="
     echo ""
     echo "Data volumes preserved:"
-    for volume in mariadb-data localstack-data; do
+    for volume in mariadb-data localstack-data nginx-config jaeger-badger-data prometheus-data; do
         volume_name="${VOLUME_PREFIX}-${volume}"
         if docker volume inspect "$volume_name" >/dev/null 2>&1; then
             size=$(docker volume inspect "$volume_name" --format '{{.Mountpoint}}' | xargs du -sh 2>/dev/null | cut -f1 || echo "unknown")

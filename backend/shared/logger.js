@@ -1,6 +1,7 @@
 /**
- * Structured Logging Utility with Levels
- * Provides consistent timestamp formatting and log levels across all backend services
+ * Structured Logging Utility with Levels + OTEL Log Bridge
+ * Provides consistent timestamp formatting and log levels across all backend services.
+ * When OTEL is active, log records are also emitted to the OTEL Collector.
  *
  * Log Levels:
  * - DEBUG: Detailed information for diagnosing problems
@@ -10,6 +11,17 @@
  * - FATAL: Very severe error events that will presumably lead the application to abort
  */
 
+// OTEL imports are optional — logger works without tracing SDK installed
+let trace, SeverityNumber;
+try {
+  trace = require('@opentelemetry/api').trace;
+  SeverityNumber = require('@opentelemetry/api-logs').SeverityNumber;
+} catch (_) {
+  // OTEL not available — log-only mode
+  trace = null;
+  SeverityNumber = null;
+}
+
 // Log level constants
 const LOG_LEVELS = {
   DEBUG: 0,
@@ -18,6 +30,15 @@ const LOG_LEVELS = {
   ERROR: 3,
   FATAL: 4,
 };
+
+// Map our log levels to OTEL severity numbers (only when OTEL is available)
+const OTEL_SEVERITY = SeverityNumber ? {
+  DEBUG: SeverityNumber.DEBUG,
+  INFO: SeverityNumber.INFO,
+  WARN: SeverityNumber.WARN,
+  ERROR: SeverityNumber.ERROR,
+  FATAL: SeverityNumber.FATAL,
+} : {};
 
 // Color codes for terminal output
 const COLORS = {
@@ -34,6 +55,9 @@ const currentLogLevel = LOG_LEVELS[process.env.LOG_LEVEL?.toUpperCase()] ?? LOG_
 
 // Enable/disable colors based on environment
 const useColors = process.env.LOG_COLORS !== 'false' && process.stdout.isTTY;
+
+// JSON output mode (set LOG_FORMAT=json for structured console output)
+const useJsonFormat = process.env.LOG_FORMAT === 'json';
 
 /**
  * Get formatted local timestamp
@@ -72,6 +96,38 @@ function formatMessage(level, args, context = {}) {
 }
 
 /**
+ * Emit a log record to the OTEL Collector (if tracing is initialized).
+ */
+function emitOtelLog(level, args, context) {
+  const loggerProvider = global.__otelLoggerProvider;
+  if (!loggerProvider) return;
+
+  try {
+    const logger = loggerProvider.getLogger('echobase-logger');
+    const body = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+
+    const attributes = { ...context };
+
+    // Attach trace context if available
+    const span = trace ? trace.getActiveSpan() : null;
+    if (span) {
+      const ctx = span.spanContext();
+      attributes['trace.id'] = ctx.traceId;
+      attributes['span.id'] = ctx.spanId;
+    }
+
+    logger.emit({
+      severityNumber: OTEL_SEVERITY[level] || SeverityNumber.INFO,
+      severityText: level,
+      body,
+      attributes,
+    });
+  } catch (_) {
+    // Silently ignore OTEL log emission failures — console output is the primary channel
+  }
+}
+
+/**
  * Core logging function
  * @param {string} level - Log level
  * @param {Array} args - Arguments to log
@@ -85,16 +141,35 @@ function logWithLevel(level, args, context = {}) {
     return;
   }
 
-  const formattedMessage = formatMessage(level, args, context);
-
-  // Use appropriate console method
-  if (level === 'ERROR' || level === 'FATAL') {
-    console.error(formattedMessage, ...args);
-  } else if (level === 'WARN') {
-    console.warn(formattedMessage, ...args);
+  // Console output (primary channel)
+  if (useJsonFormat) {
+    const record = {
+      timestamp: new Date().toISOString(),
+      level,
+      message: args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' '),
+    };
+    if (Object.keys(context).length > 0) record.context = context;
+    const output = JSON.stringify(record);
+    if (level === 'ERROR' || level === 'FATAL') {
+      console.error(output);
+    } else if (level === 'WARN') {
+      console.warn(output);
+    } else {
+      console.log(output);
+    }
   } else {
-    console.log(formattedMessage, ...args);
+    const formattedMessage = formatMessage(level, args, context);
+    if (level === 'ERROR' || level === 'FATAL') {
+      console.error(formattedMessage, ...args);
+    } else if (level === 'WARN') {
+      console.warn(formattedMessage, ...args);
+    } else {
+      console.log(formattedMessage, ...args);
+    }
   }
+
+  // OTEL log emission (secondary channel)
+  emitOtelLog(level, args, context);
 }
 
 /**

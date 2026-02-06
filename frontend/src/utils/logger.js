@@ -1,6 +1,7 @@
 /**
- * Frontend Logging Utility with Levels
- * Provides consistent log levels across the frontend application
+ * Frontend Logging Utility with Levels + OTEL Log Emission
+ * Provides consistent log levels across the frontend application.
+ * When OTEL tracing is active, log messages are also emitted as span events.
  *
  * Log Levels:
  * - DEBUG: Detailed information for diagnosing problems (default: disabled)
@@ -15,6 +16,8 @@
  *   warn('Deprecated feature used');
  *   error('Failed to load data', err);
  */
+
+import { trace } from '@opentelemetry/api';
 
 // Log level constants
 const LOG_LEVELS = {
@@ -65,6 +68,24 @@ function formatMessage(level, args) {
 }
 
 /**
+ * Emit log as OTEL span event (if an active span exists)
+ */
+function emitOtelLog(level, args) {
+  try {
+    const span = trace.getActiveSpan();
+    if (!span) return;
+
+    const message = args.map(a => (typeof a === 'string' ? a : JSON.stringify(a))).join(' ');
+    span.addEvent('log', {
+      'log.severity': level,
+      'log.message': message,
+    });
+  } catch (_) {
+    // Silently ignore OTEL failures
+  }
+}
+
+/**
  * Core logging function
  */
 function logWithLevel(level, consoleMethod, args) {
@@ -75,8 +96,12 @@ function logWithLevel(level, consoleMethod, args) {
     return;
   }
 
+  // Console output (primary channel)
   const formattedArgs = formatMessage(level, args);
   consoleMethod(...formattedArgs);
+
+  // OTEL log emission (secondary channel)
+  emitOtelLog(level, args);
 }
 
 /**

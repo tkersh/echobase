@@ -1,3 +1,4 @@
+require('../shared/tracing');
 require('dotenv').config();
 const { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } = require('@aws-sdk/client-sqs');
 const { log, logError } = require('../shared/logger');
@@ -5,6 +6,19 @@ const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
 const { validateRequiredEnv, ORDER_PROCESSOR_REQUIRED_VARS } = require('../shared/env-validator');
 const { logBuildMetadata } = require('../shared/build-metadata');
+
+// OTEL metrics (optional — no-op if OTEL SDK not available)
+let messagesReceived, messagesProcessed, messagesFailed, circuitBreakerGauge;
+try {
+  const { metrics } = require('@opentelemetry/api');
+  const meter = metrics.getMeter('order-processor');
+  messagesReceived = meter.createCounter('sqs.messages.received', { description: 'SQS messages received' });
+  messagesProcessed = meter.createCounter('sqs.messages.processed', { description: 'SQS messages successfully processed' });
+  messagesFailed = meter.createCounter('sqs.messages.failed', { description: 'SQS messages that failed processing' });
+  circuitBreakerGauge = meter.createObservableGauge('circuit_breaker.state', { description: '0=closed, 1=open' });
+} catch (_) {
+  // OTEL not available — metrics disabled
+}
 
 // Validate environment variables at startup
 validateRequiredEnv(ORDER_PROCESSOR_REQUIRED_VARS, 'Order Processor');
@@ -25,6 +39,13 @@ const CIRCUIT_BREAKER_BASE_DELAY_MS = 5000;
 const CIRCUIT_BREAKER_MAX_DELAY_MS = 120000;
 let consecutiveFailures = 0;
 let circuitOpen = false;
+
+// Register circuit breaker observable gauge callback
+if (circuitBreakerGauge) {
+  circuitBreakerGauge.addCallback((result) => {
+    result.observe(circuitOpen ? 1 : 0);
+  });
+}
 
 // Healthcheck state — written to file so Docker can check freshness
 const HEALTHCHECK_FILE = '/tmp/last-successful-poll';
@@ -111,8 +132,10 @@ async function processMessage(message) {
     );
 
     log('Message deleted from queue');
+    if (messagesProcessed) messagesProcessed.add(1);
   } catch (error) {
     logError('Error processing message:', error);
+    if (messagesFailed) messagesFailed.add(1);
     // Message will remain in queue and be retried
   }
 }
@@ -140,6 +163,7 @@ async function pollQueue() {
 
     if (response.Messages && response.Messages.length > 0) {
       log(`Received ${response.Messages.length} message(s)`);
+      if (messagesReceived) messagesReceived.add(response.Messages.length);
 
       // Process messages sequentially to avoid database connection pool exhaustion
       // This ensures we don't exceed the connection pool limit

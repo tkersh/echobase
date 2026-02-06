@@ -51,6 +51,20 @@ server {
         proxy_ssl_server_name on;
     }
 
+    # Proxy OTEL trace data to the collector (used by frontend tracing)
+    location /v1/traces {
+        # Docker's embedded DNS server for container name resolution
+        resolver 127.0.0.11 valid=30s ipv6=off;
+        # OTEL_COLLECTOR_HOST is set via environment variable (envsubst in Dockerfile)
+        set $otel_host ${OTEL_COLLECTOR_HOST};
+        proxy_pass http://$otel_host:4318/v1/traces;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header Content-Type application/json;
+    }
+
     # Proxy API requests to backend (prevents mixed content issues)
     # Backend uses HTTPS with self-signed cert for end-to-end encryption
     location /api/ {
