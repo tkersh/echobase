@@ -8,18 +8,9 @@ test.describe('SQL Injection Protection', () => {
 
       const response = await apiHelper.register(userData);
 
-      // Should either reject with validation error or sanitize
-      // Should NOT cause database error or succeed with malicious SQL
-      expect([400, 201]).toContain(response.status);
-
-      if (response.status === 201) {
-        // If accepted, verify username was sanitized/escaped
-        testUsers.push(userData);
-        const dbUser = await dbHelper.waitForUser(payload);
-        // SQL injection should not have affected database
-        const userCount = await dbHelper.getUserCount();
-        expect(userCount).toBeGreaterThan(0); // DB still functioning
-      }
+      // Must reject with validation error — SQL injection payloads should
+      // never pass input validation (username must match ^[a-zA-Z0-9_]+$)
+      expect(response.status).toBe(400);
     }
   });
 

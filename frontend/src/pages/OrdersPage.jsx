@@ -13,31 +13,37 @@ function OrdersPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let cancelled = false;
     async function fetchOrders() {
       try {
         const { data } = await orders.getAll(token);
-        if (data.success) {
+        if (!cancelled && data.success) {
           setOrdersList(data.orders);
         }
       } catch (err) {
-        logError('[OrdersPage] Failed to fetch orders:', err);
-        if (err.message.includes('Authentication') || err.message.includes('Token')) {
-          setError('Session expired. Please login again.');
-          setTimeout(() => {
-            logout();
-            navigate('/login');
-          }, 2000);
-        } else {
-          setError(err.message || 'Failed to load orders');
+        if (!cancelled) {
+          logError('[OrdersPage] Failed to fetch orders:', err);
+          if (err.message.includes('Authentication') || err.message.includes('Token')) {
+            setError('Session expired. Please login again.');
+            setTimeout(() => {
+              logout();
+              navigate('/login');
+            }, 2000);
+          } else {
+            setError(err.message || 'Failed to load orders');
+          }
         }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     if (token) {
       fetchOrders();
     }
+    return () => { cancelled = true; };
   }, [token, logout, navigate]);
 
   const handleLogout = () => {

@@ -1,242 +1,107 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="49" failures="27" errors="0" time="6.156">
-  <testsuite name="API Gateway Security Tests" errors="0" failures="23" skipped="0" timestamp="2026-02-06T17:17:41" time="4.949" tests="24">
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject POST /api/v1/orders without authentication" time="0.006">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+<testsuites name="jest tests" tests="49" failures="0" errors="0" time="14.558">
+  <testsuite name="API Gateway Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-02-12T01:38:04" time="5.757" tests="24">
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject POST /api/v1/orders without authentication" time="0.06">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject with missing Authorization header" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should reject with missing Authorization header" time="0.013">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should not leak sensitive information in error messages" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 1. Unauthenticated Access" name="should not leak sensitive information in error messages" time="0.011">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject invalid JWT token format" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject invalid JWT token format" time="0.011">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject JWT token with wrong secret" time="0.009">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject JWT token with wrong secret" time="0.018">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject expired JWT token" time="0.014">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject expired JWT token" time="0.043">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject malformed Authorization header" time="0.045">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject malformed Authorization header" time="0.013">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject empty Bearer token" time="0.013">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 2. JWT Authentication Failures" name="should reject empty Bearer token" time="0.012">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 3. Rate Limiting Security" name="should apply rate limiting to API endpoints" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 3. Rate Limiting Security" name="should apply rate limiting to API endpoints" time="0.082">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should enforce CORS restrictions" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should enforce CORS restrictions" time="0.01">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should allow configured origin" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 4. Cross-Origin Resource Sharing (CORS)" name="should allow configured origin" time="0.008">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with missing required fields" time="0.015">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with missing required fields" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid quantity" time="0.008">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid quantity" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid product ID" time="0.006">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with invalid product ID" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with non-integer product ID" time="0.01">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order with non-integer product ID" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order exceeding maximum quantity" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 5. Input Validation Security" name="should reject order exceeding maximum quantity" time="0.034">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 6. Security Headers" name="should include security headers (Helmet)" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 6. Security Headers" name="should include security headers (Helmet)" time="0.008">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect all sensitive endpoints" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect all sensitive endpoints" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect products endpoint" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should protect products endpoint" time="0.008">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to health endpoint" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to health endpoint" time="0.009">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to auth endpoints" time="0.006">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 7. Endpoint Protection Coverage" name="should allow public access to auth endpoints" time="0.011">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 8. Token Payload Security" name="should not include sensitive data in JWT payload" time="0.003">
+    <testcase classname="API Gateway Security Tests › 8. Token Payload Security" name="should not include sensitive data in JWT payload" time="0.002">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should not expose stack traces in production errors" time="0.01">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should not expose stack traces in production errors" time="0.015">
     </testcase>
-    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should provide generic error messages" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="API Gateway Security Tests › 9. Error Response Security" name="should provide generic error messages" time="0.048">
     </testcase>
   </testsuite>
-  <testsuite name="Orders API Tests - GET /api/v1/orders" errors="0" failures="4" skipped="0" timestamp="2026-02-06T17:17:46" time="0.158" tests="10">
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request without authentication (401)" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+  <testsuite name="SQS Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-02-12T01:38:10" time="1.005" tests="15">
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with invalid AWS credentials" time="0.038">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with invalid JWT token (401)" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with missing credentials" time="0.01">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with expired JWT token (401)" time="0.005">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with expired credentials" time="0.008">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with JWT signed with wrong secret" time="0.004">
-      <failure>Error: connect EPERM 127.0.0.1:3001 - Local (0.0.0.0:0)
-    at internalConnect (node:net:1110:16)
-    at defaultTriggerAsyncIdScope (node:internal/async_hooks:472:18)
-    at node:net:1356:9
-    at processTicksAndRejections (node:internal/process/task_queues:85:11)</failure>
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to non-existent queue" time="0.022">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 2. Empty Orders Response" name="should return empty array when user has no orders" time="0.002">
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to queue in different account" time="0.011">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 3. Order Isolation Between Users" name="should return only orders for the authenticated user" time="0.002">
+    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject malformed queue URLs" time="0.025">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 4. Response Format" name="should return correct response structure" time="0.008">
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should handle malicious message content safely" time="0.023">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 4. Response Format" name="should include expected fields in order objects" time="0.002">
+    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should reject oversized messages" time="0.019">
     </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 5. Order Sorting" name="should return orders sorted by createdAt descending (newest first)" time="0.002">
-    </testcase>
-    <testcase classname="Orders API Tests - GET /api/v1/orders › 6. Count Field Accuracy" name="should return count matching orders array length" time="0.003">
-    </testcase>
-  </testsuite>
-  <testsuite name="SQS Security Tests" errors="0" failures="0" skipped="0" timestamp="2026-02-06T17:17:46" time="0.961" tests="15">
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with invalid AWS credentials" time="0.072">
-    </testcase>
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with missing credentials" time="0.019">
-    </testcase>
-    <testcase classname="SQS Security Tests › 1. Invalid Credentials" name="should reject access with expired credentials" time="0.011">
-    </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to non-existent queue" time="0.034">
-    </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject access to queue in different account" time="0.01">
-    </testcase>
-    <testcase classname="SQS Security Tests › 2. Queue URL Tampering" name="should reject malformed queue URLs" time="0.047">
-    </testcase>
-    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should handle malicious message content safely" time="0.028">
-    </testcase>
-    <testcase classname="SQS Security Tests › 3. Message Injection Attacks" name="should reject oversized messages" time="0.01">
-    </testcase>
-    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should verify queue exists and is accessible with valid credentials" time="0.01">
+    <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should verify queue exists and is accessible with valid credentials" time="0.019">
     </testcase>
     <testcase classname="SQS Security Tests › 4. Queue Permission Validation" name="should not allow unauthorized actions" time="0.009">
     </testcase>
-    <testcase classname="SQS Security Tests › 5. Rate Limiting and Throttling" name="should handle burst of messages without data loss" time="0.417">
+    <testcase classname="SQS Security Tests › 5. Rate Limiting and Throttling" name="should handle burst of messages without data loss" time="0.463">
     </testcase>
     <testcase classname="SQS Security Tests › 6. Dead Letter Queue (DLQ) Security" name="should verify DLQ configuration for failed messages" time="0.009">
     </testcase>
-    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow deletion of messages without proper receipt handle" time="0.005">
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow deletion of messages without proper receipt handle" time="0.007">
     </testcase>
-    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow message tampering via visibility timeout" time="0.008">
+    <testcase classname="SQS Security Tests › 7. Message Visibility and Deletion Security" name="should not allow message tampering via visibility timeout" time="0.011">
     </testcase>
-    <testcase classname="SQS Security Tests › 8. Encryption and Data Protection" name="should verify queue encryption settings" time="0.005">
+    <testcase classname="SQS Security Tests › 8. Encryption and Data Protection" name="should verify queue encryption settings" time="0.009">
+    </testcase>
+  </testsuite>
+  <testsuite name="Orders API Tests - GET /api/v1/orders" errors="0" failures="0" skipped="0" timestamp="2026-02-12T01:38:11" time="7.666" tests="10">
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request without authentication (401)" time="0.01">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with invalid JWT token (401)" time="0.008">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with expired JWT token (401)" time="0.01">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 1. Authentication Required" name="should reject request with JWT signed with wrong secret" time="0.01">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 2. Empty Orders Response" name="should return empty array when user has no orders" time="0.012">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 3. Order Isolation Between Users" name="should return only orders for the authenticated user" time="2.077">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 4. Response Format" name="should return correct response structure" time="0.013">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 4. Response Format" name="should include expected fields in order objects" time="2.072">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 5. Order Sorting" name="should return orders sorted by createdAt descending (newest first)" time="3.063">
+    </testcase>
+    <testcase classname="Orders API Tests - GET /api/v1/orders › 6. Count Field Accuracy" name="should return count matching orders array length" time="0.01">
     </testcase>
   </testsuite>
 </testsuites>

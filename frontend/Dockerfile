@@ -29,7 +29,7 @@ RUN sed -i "s/__GIT_SHORT_SHA__/${GIT_SHORT_SHA}/g" /app/dist/index.html
 RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"frontend\"}" > /app/dist/build-metadata.json
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:1.27-alpine3.21
 
 # Build metadata (pass through from build stage)
 ARG GIT_SHORT_SHA=unknown
@@ -59,10 +59,11 @@ RUN chmod 644 /etc/nginx/ssl/localhost.crt && \
 EXPOSE 80 443
 
 # Health check (using HTTPS with IPv4 to avoid IPv6 resolution issues)
-# Start period: 90s to allow nginx and SSL to initialize (matches FRONTEND_TIMEOUT in CI)
-# Retries: 3 retries at 30s intervals = 90s additional time after start period
-HEALTHCHECK --interval=30s --timeout=5s --start-period=90s --retries=3 \
-  CMD wget --quiet --tries=1 --spider --no-check-certificate https://127.0.0.1/ || exit 1
+# Uses /healthz endpoint which has access_log off to reduce log noise
+# Start period: 20s — nginx with static files starts in seconds
+# Retries: 3 retries at 15s intervals = 45s additional time after start period
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget --quiet --tries=1 --spider --no-check-certificate https://127.0.0.1/healthz || exit 1
 
 # Create startup script that logs build metadata
 RUN echo '#!/bin/sh' > /docker-entrypoint.d/00-log-build-metadata.sh && \

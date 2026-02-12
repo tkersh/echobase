@@ -109,8 +109,8 @@ test.describe('User Login Frontend Tests', () => {
 
     await expect(page).toHaveURL(/\/orders/);
 
-    // Verify localStorage has token
-    const token = await page.evaluate(() => localStorage.getItem('token'));
+    // Verify sessionStorage has token (app stores tokens in sessionStorage for XSS protection)
+    const token = await page.evaluate(() => sessionStorage.getItem('token'));
     expect(token).toBeTruthy();
 
     // Verify user data in localStorage

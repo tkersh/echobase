@@ -65,7 +65,7 @@ echo ""
 
 # Count test users before cleanup
 echo "Counting test users..."
-TEST_USER_COUNT=$(docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null)
+TEST_USER_COUNT=$(docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null)
 
 if [ -z "$TEST_USER_COUNT" ]; then
   echo "Error: Could not connect to database. Check credentials."
@@ -75,21 +75,21 @@ fi
 echo "Found $TEST_USER_COUNT test users"
 
 # Count test orders before cleanup
-TEST_ORDER_COUNT=$(docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null)
+TEST_ORDER_COUNT=$(docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null)
 echo "Found $TEST_ORDER_COUNT test orders"
 echo ""
 
 # Delete test orders (cascade delete from users will handle this, but being explicit)
 if [ "$TEST_ORDER_COUNT" -gt 0 ]; then
   echo "Deleting test orders..."
-  docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -e "DELETE o FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null
+  docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -e "DELETE o FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null
   echo "✓ Deleted $TEST_ORDER_COUNT test orders"
 fi
 
 # Delete test users
 if [ "$TEST_USER_COUNT" -gt 0 ]; then
   echo "Deleting test users..."
-  docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -e "DELETE FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null
+  docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -e "DELETE FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null
   echo "✓ Deleted $TEST_USER_COUNT test users"
 fi
 
@@ -109,8 +109,8 @@ fi
 # Verify cleanup
 echo ""
 echo "Verifying cleanup..."
-REMAINING_USERS=$(docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null)
-REMAINING_ORDERS=$(docker exec "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -p"${DB_PASSWORD}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null)
+REMAINING_USERS=$(docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM users WHERE username LIKE 'testuser_%';" 2>/dev/null)
+REMAINING_ORDERS=$(docker exec -e MYSQL_PWD="${DB_PASSWORD}" "$DURABLE_MARIADB" mariadb -u "${DB_USER}" -D "${DB_NAME}" -N -e "SELECT COUNT(*) FROM orders o JOIN users u ON o.user_id = u.id WHERE u.username LIKE 'testuser_%';" 2>/dev/null)
 
 echo "Remaining test users: $REMAINING_USERS"
 echo "Remaining test orders: $REMAINING_ORDERS"

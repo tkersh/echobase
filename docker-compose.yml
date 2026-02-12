@@ -7,6 +7,8 @@ services:
   localstack:
     container_name: echobase-devlocal-localstack
     image: localstack/localstack:latest
+    mem_limit: 1536m
+    cpus: 1.0
     environment:
       - SERVICES=sqs,logs,iam,kms,secretsmanager
       - DEBUG=0
@@ -26,11 +28,13 @@ services:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:4566/_localstack/health"]
       interval: 5s
       timeout: 10s
-      retries: 30
+      retries: 15
       start_period: 20s
 
   api-gateway:
     container_name: echobase-devlocal-api-gateway
+    mem_limit: 512m
+    cpus: 0.5
     build:
       context: ./backend
       dockerfile: api-gateway/Dockerfile
@@ -38,23 +42,12 @@ services:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-api-gateway:latest
+    env_file:
+      - .env
+      - .env.secrets
     environment:
-      - PORT=${PORT}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - SQS_ENDPOINT=${SQS_ENDPOINT}
-      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
-      - SECRETS_MANAGER_ENDPOINT=${SECRETS_MANAGER_ENDPOINT}
-      - DB_SECRET_NAME=${DB_SECRET_NAME}
-      - JWT_SECRET=${JWT_SECRET}
-      # CORS_ORIGIN defined in environment-specific files (override.yml, blue.yml, green.yml)
-      # Each environment needs different allowed origins (localhost ports, internal container names)
-      - RATE_LIMIT_WINDOW_MS=${RATE_LIMIT_WINDOW_MS}
-      - RATE_LIMIT_MAX_REQUESTS=${RATE_LIMIT_MAX_REQUESTS}
-      - MCP_SERVER_ENDPOINT=${MCP_SERVER_ENDPOINT}
-      - MCP_API_KEY=${MCP_API_KEY}
-      - OTEL_COLLECTOR_ENDPOINT=${OTEL_COLLECTOR_ENDPOINT}
+      # Per-service overrides only — everything else comes from env_file
+      # CORS_ORIGIN default is in .env; overridden per-environment in override.yml, blue.yml, green.yml
       - OTEL_SERVICE_NAME=api-gateway
     depends_on:
       localstack:
@@ -71,6 +64,8 @@ services:
 
   order-processor:
     container_name: echobase-devlocal-order-processor
+    mem_limit: 256m
+    cpus: 0.25
     build:
       context: ./backend
       dockerfile: order-processor/Dockerfile
@@ -78,21 +73,12 @@ services:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-order-processor:latest
+    env_file:
+      - .env
+      - .env.secrets
     environment:
-      - AWS_REGION=${AWS_REGION}
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - SQS_ENDPOINT=${SQS_ENDPOINT}
-      - SQS_QUEUE_URL=${SQS_QUEUE_URL}
-      - SECRETS_MANAGER_ENDPOINT=${SECRETS_MANAGER_ENDPOINT}
-      - DB_SECRET_NAME=${DB_SECRET_NAME}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT}
-      - DB_NAME=${DB_NAME}
-      - POLL_INTERVAL=${POLL_INTERVAL}
-      - MAX_MESSAGES=${MAX_MESSAGES}
+      # Per-service overrides only — everything else comes from env_file
       - DB_CONNECTION_LIMIT=2
-      - OTEL_COLLECTOR_ENDPOINT=${OTEL_COLLECTOR_ENDPOINT}
       - OTEL_SERVICE_NAME=order-processor
     depends_on:
       localstack:
@@ -109,11 +95,14 @@ services:
       test: ["CMD-SHELL", "find /tmp/last-successful-poll -mmin -2 2>/dev/null | grep -q ."]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 60s
+      retries: 10
+      start_period: 30s
 
   frontend:
     container_name: echobase-devlocal-frontend
+    init: true  # Use tini as PID 1 so nginx doesn't reap health check processes (suppresses SIGCHLD noise)
+    mem_limit: 256m
+    cpus: 0.25
     build:
       context: ./frontend
       dockerfile: Dockerfile
@@ -122,7 +111,7 @@ services:
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-frontend:latest
     environment:
-      - REACT_APP_API_URL=${REACT_APP_API_URL}
+      - VITE_API_URL=${VITE_API_URL}
       # API_GATEWAY_HOST controls which api-gateway container nginx proxies to.
       # Default 'api-gateway' works for devlocal (single api-gateway on network).
       # CI overrides this in blue.yml/green.yml to use explicit container names,

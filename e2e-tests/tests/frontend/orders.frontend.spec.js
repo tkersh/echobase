@@ -29,7 +29,7 @@ test.describe('Orders Frontend Tests', () => {
     // Set token in browser
     await page.goto('/');
     await page.evaluate((token) => {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
     }, apiHelper.token);
     await page.evaluate((user) => {
       localStorage.setItem('user', JSON.stringify({
@@ -138,14 +138,14 @@ test.describe('Orders Frontend Tests', () => {
     await expect(page).toHaveURL(/\/$|\/login/);
 
     // Token should be cleared from localStorage
-    const token = await page.evaluate(() => localStorage.getItem('token'));
+    const token = await page.evaluate(() => sessionStorage.getItem('token'));
     expect(token).toBeNull();
   });
 
   test('should redirect to login if not authenticated', async ({ page }) => {
     // Clear localStorage
     await page.evaluate(() => {
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
       localStorage.removeItem('user');
     });
 

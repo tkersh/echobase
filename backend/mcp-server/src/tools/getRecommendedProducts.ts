@@ -1,5 +1,8 @@
 import { Product } from '../types';
 
+// NOTE: userId is validated at the API Gateway layer (derived from JWT, not user input).
+// When this function becomes personalized (e.g., querying a DB), ensure userId is treated
+// as an opaque identifier and never used in unsanitized queries.
 export function getRecommendedProducts(userId: string): Product[] {
   return [
     { id: 1, name: 'Quantum Stabilizer', cost: 249.99, sku: 'QS-001' },

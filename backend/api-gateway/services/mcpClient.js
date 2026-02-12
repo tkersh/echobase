@@ -24,7 +24,7 @@ async function initMcpClient() {
 
   try {
     log(`Connecting to MCP server at ${endpoint}...`);
-    log(`MCP API key configured: ${apiKey ? 'yes (' + apiKey.substring(0, 8) + '...)' : 'NO'}`);
+    log(`MCP API key configured: ${apiKey ? 'yes' : 'no'}`);
 
     const transport = new SSEClientTransport(
       new URL(`${endpoint}/sse`),

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 
 export function apiKeyAuth(req: Request, res: Response, next: NextFunction): void {
   // Health endpoint is exempt from API key auth
@@ -19,7 +20,9 @@ export function apiKeyAuth(req: Request, res: Response, next: NextFunction): voi
     return;
   }
 
-  if (providedKey !== apiKey) {
+  const providedBuf = Buffer.from(String(providedKey));
+  const expectedBuf = Buffer.from(apiKey);
+  if (providedBuf.length !== expectedBuf.length || !timingSafeEqual(providedBuf, expectedBuf)) {
     res.status(401).json({ error: 'Invalid API key' });
     return;
   }

@@ -2,7 +2,7 @@
 # This image bakes in the nginx config and SSL certificates at build time
 # to avoid volume mount issues in GitLab CI
 
-FROM nginx:alpine
+FROM nginx:1.27-alpine3.21
 
 # Install wget for health checks and active-env queries
 RUN apk add --no-cache wget

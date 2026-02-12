@@ -1,6 +1,16 @@
 const mysql = require('mysql2/promise');
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 const { log, logError } = require('./logger');
+const { getAwsConfig } = require('./aws-config');
+
+// Cache the SecretsManager client — avoids re-creating the HTTP client on every call
+let _secretsClient;
+function getSecretsClient() {
+  if (!_secretsClient) {
+    _secretsClient = new SecretsManagerClient(getAwsConfig('secrets'));
+  }
+  return _secretsClient;
+}
 
 /**
  * Retrieve database credentials from AWS Secrets Manager
@@ -10,10 +20,7 @@ const { log, logError } = require('./logger');
  */
 async function getDbCredentials(awsConfig, maxRetries = 30) {
   const secretName = process.env.DB_SECRET_NAME;
-  // Use secrets-specific endpoint if available
-  const { getAwsConfig } = require('./aws-config');
-  const secretsConfig = getAwsConfig('secrets');
-  const secretsClient = new SecretsManagerClient(secretsConfig);
+  const secretsClient = getSecretsClient();
   const INITIAL_RETRY_DELAY = 1000; // 1 second
   const MAX_RETRY_DELAY = 10000; // 10 seconds
 
@@ -73,6 +80,8 @@ async function initDatabase(awsConfig) {
       waitForConnections: true,
       connectionLimit,
       queueLimit,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 30000,
     });
 
     log(`Database connection pool configured: limit=${connectionLimit}, queueLimit=${queueLimit === 0 ? 'unlimited' : queueLimit}`);
@@ -133,6 +142,17 @@ async function initDatabase(awsConfig) {
  * });
  */
 async function withTransaction(pool, callback) {
+  // Wrap transaction in OTEL span for Jaeger visibility
+  let otelTrace, SpanStatusCode;
+  try {
+    const api = require('@opentelemetry/api');
+    otelTrace = api.trace;
+    SpanStatusCode = api.SpanStatusCode;
+  } catch (_) { /* OTEL not available */ }
+
+  const tracer = otelTrace ? otelTrace.getTracer('database') : null;
+  const span = tracer?.startSpan('db.transaction');
+
   const connection = await pool.getConnection();
 
   try {
@@ -146,14 +166,21 @@ async function withTransaction(pool, callback) {
     // Commit transaction
     await connection.commit();
     log('Transaction committed successfully');
+    if (span) span.setAttribute('db.transaction.result', 'committed');
 
     return result;
   } catch (error) {
     // Rollback on error
     await connection.rollback();
     logError('Transaction rolled back due to error:', error.message);
+    if (span && SpanStatusCode) {
+      span.recordException(error);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: error.message });
+      span.setAttribute('db.transaction.result', 'rolled_back');
+    }
     throw error;
   } finally {
+    if (span) span.end();
     // Always release connection back to pool
     connection.release();
   }

@@ -53,7 +53,6 @@ const ORDER_PROCESSOR_REQUIRED_VARS = [
   'DB_PORT',
   'DB_NAME',
   'MAX_MESSAGES',
-  'POLL_INTERVAL',
 ];
 
 module.exports = {

@@ -1,0 +1,38 @@
+groups:
+  - name: echobase_alerts
+    rules:
+      - alert: HighOrderFailureRate
+        expr: rate(sqs_messages_failed_total[5m]) / (rate(sqs_messages_processed_total[5m]) + rate(sqs_messages_failed_total[5m])) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High order processing failure rate"
+          description: "More than 10% of orders are failing processing over the last 5 minutes."
+
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Order Processor circuit breaker is open"
+          description: "The SQS polling circuit breaker has tripped, indicating repeated infrastructure failures."
+
+      - alert: HighLoginFailureRate
+        expr: rate(auth_login_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High login failure rate"
+          description: "More than 10 failed logins per second over the last 5 minutes. Possible brute-force attack."
+
+      - alert: NoMessagesProcessed
+        expr: increase(sqs_messages_processed_total[15m]) == 0 and increase(sqs_messages_received_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Messages received but none processed"
+          description: "SQS messages are being received but none are being successfully processed."

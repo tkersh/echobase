@@ -5,7 +5,7 @@
 
 // Authentication
 const JWT_EXPIRATION = '24h';
-const BCRYPT_SALT_ROUNDS = 12;
+const BCRYPT_SALT_ROUNDS = 10;
 
 // Order Validation
 const ORDER_MAX_VALUE = 1000000;

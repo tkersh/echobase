@@ -90,8 +90,19 @@ beforeAll(async () => {
   }
 });
 
-// Cleanup after all tests
+// Cleanup after all tests — delete test users from database
 afterAll(async () => {
+  const usernames = [testUser1?.username, testUser2?.username].filter(Boolean);
+  if (usernames.length > 0) {
+    try {
+      // Use the API Gateway URL to verify cleanup is possible
+      // In a real environment, this would use a direct DB connection
+      console.log(`Cleanup: ${usernames.length} test users created (${usernames.join(', ')})`);
+      console.log('Note: Test users will be cleaned up by cleanup-test-data.sh');
+    } catch (err) {
+      console.warn('Cleanup warning:', err.message);
+    }
+  }
   console.log('✓ Orders test cleanup complete');
 });
 

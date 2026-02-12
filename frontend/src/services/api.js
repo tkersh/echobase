@@ -18,7 +18,7 @@ import { API_ENDPOINTS } from '../config/endpoints';
  * APIClient class for making HTTP requests
  * Provides standardized error handling and JSON parsing
  */
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 10000;
 
 class APIClient {
   /**
@@ -29,6 +29,16 @@ class APIClient {
   constructor(baseURL, timeoutMs = DEFAULT_TIMEOUT_MS) {
     this.baseURL = baseURL;
     this.timeoutMs = timeoutMs;
+    this._onAuthExpired = null;
+  }
+
+  /**
+   * Register a callback for 401 responses (centralized auth expiry handling).
+   * Call this once from AuthContext to avoid per-component string matching.
+   * @param {Function} callback - Called when a 401 response is received
+   */
+  onAuthExpired(callback) {
+    this._onAuthExpired = callback;
   }
 
   /**
@@ -55,6 +65,10 @@ class APIClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // Centralized 401 handling — notify auth layer instead of per-component string matching
+        if (response.status === 401 && this._onAuthExpired) {
+          this._onAuthExpired();
+        }
         throw new Error(data.message || data.error || `Request failed with status ${response.status}`);
       }
 

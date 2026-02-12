@@ -39,11 +39,11 @@ registerInstrumentations({
     new FetchInstrumentation({
       // Only trace same-origin API calls (avoid tracing CDN/third-party requests)
       ignoreUrls: [/\/v1\/traces/],
-      propagateTraceHeaderCorsUrls: [/.*/],
+      propagateTraceHeaderCorsUrls: [new RegExp(`^${window.location.origin}`)],
     }),
     new XMLHttpRequestInstrumentation({
       ignoreUrls: [/\/v1\/traces/],
-      propagateTraceHeaderCorsUrls: [/.*/],
+      propagateTraceHeaderCorsUrls: [new RegExp(`^${window.location.origin}`)],
     }),
   ],
 });

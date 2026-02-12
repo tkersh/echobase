@@ -63,3 +63,4 @@ CREATE INDEX idx_user_id ON orders(user_id);
 CREATE INDEX idx_product_id ON orders(product_id);
 CREATE INDEX idx_order_status ON orders(order_status);
 CREATE INDEX idx_created_at ON orders(created_at);
+CREATE INDEX idx_user_orders ON orders(user_id, created_at DESC);

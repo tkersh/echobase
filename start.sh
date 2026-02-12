@@ -62,16 +62,37 @@ if [ "$1" == "--rebuild" ] || [ "$1" == "-r" ]; then
 fi
 
 # ── Node.js dependencies ────────────────────────────────────────
-# Only install if node_modules is missing (skip on repeat runs).
+# Install if node_modules is missing or package-lock.json has changed since last install.
 install_deps() {
   local dir="$1"
   local label="$2"
+  local lockfile="$dir/package-lock.json"
+  local checksum_file="$dir/node_modules/.package-lock-checksum"
+  local needs_install=false
+
   if [ ! -d "$dir/node_modules" ]; then
+    needs_install=true
+  elif [ -f "$lockfile" ]; then
+    local current_checksum
+    current_checksum=$(shasum "$lockfile" | cut -d' ' -f1)
+    local stored_checksum=""
+    [ -f "$checksum_file" ] && stored_checksum=$(cat "$checksum_file")
+    if [ "$current_checksum" != "$stored_checksum" ]; then
+      echo "$label dependencies changed — reinstalling..."
+      needs_install=true
+    fi
+  fi
+
+  if [ "$needs_install" = true ]; then
     echo "Installing $label dependencies..."
     (cd "$dir" && npm install) || {
       echo "ERROR: Failed to install $label dependencies"
       exit 1
     }
+    # Store checksum after successful install
+    if [ -f "$lockfile" ]; then
+      shasum "$lockfile" | cut -d' ' -f1 > "$checksum_file"
+    fi
   fi
 }
 

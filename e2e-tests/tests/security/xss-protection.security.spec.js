@@ -27,7 +27,13 @@ test.describe('XSS Protection', () => {
     // Wait for page to finish processing the submission
     await page.waitForLoadState('networkidle');
 
+    // Verify no dialog was triggered (DOM XSS check)
     expect(dialogTriggered).toBe(false);
+
+    // Verify rendered HTML does not contain unescaped script tags (stored XSS check)
+    const bodyHtml = await page.innerHTML('body');
+    expect(bodyHtml).not.toContain('<script>');
+    expect(bodyHtml).not.toContain('javascript:');
   });
 
   test('should not allow XSS via recommended products in localStorage', async ({ apiHelper, testUsers, page }) => {
@@ -40,7 +46,7 @@ test.describe('XSS Protection', () => {
 
     // Set auth and inject XSS payloads as recommended product names in localStorage
     await page.evaluate(({ token, user, xss }) => {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify({ username: user.username, email: user.email }));
       localStorage.setItem('recommendedProducts', JSON.stringify([
         { id: 1, name: xss, cost: 9.99, sku: 'XSS-001' },
@@ -59,6 +65,12 @@ test.describe('XSS Protection', () => {
     // Wait for recommended products section to render
     await page.waitForLoadState('networkidle');
 
+    // Verify no dialog was triggered (DOM XSS check)
     expect(dialogTriggered).toBe(false);
+
+    // Verify rendered HTML does not contain unescaped script tags (stored XSS check)
+    const bodyHtml = await page.innerHTML('body');
+    expect(bodyHtml).not.toContain('<script>');
+    expect(bodyHtml).not.toContain('javascript:');
   });
 });

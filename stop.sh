@@ -111,9 +111,9 @@ if [ "$STOP_ALL" = true ]; then
       fi
     fi
 
-    # Stop remaining durable services
+    # Stop remaining durable services (300s timeout matches MariaDB stop_grace_period)
     echo "Stopping remaining durable services..."
-    docker compose -f durable/docker-compose.yml -p "$DURABLE_PROJECT" down
+    docker compose -f durable/docker-compose.yml -p "$DURABLE_PROJECT" down --timeout 300
 
     echo -e "${GREEN}Durable infrastructure stopped.${NC}"
   else

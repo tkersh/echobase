@@ -9,6 +9,9 @@
 const { debug, info, warn, error: logError } = require('../../shared/logger');
 const { isOriginAllowed, parseAllowedOrigins } = require('../../shared/cors-utils');
 
+// Parse allowed origins once at load time — CORS_ORIGIN doesn't change at runtime
+let cachedAllowedOrigins;
+
 /**
  * CSRF Protection Middleware
  * Validates that requests come from allowed origins
@@ -58,10 +61,15 @@ function csrfProtection(req, res, next) {
   // Allow requests without origin header from localhost and internal Docker network
   if (!origin) {
     const isLocalhost = host && (host.startsWith('localhost') || host.startsWith('127.0.0.1'));
-    // Allow internal Docker network requests (container names start with echobase-)
-    const isInternalDocker = host && host.startsWith('echobase-');
+    // Allow only specific known internal Docker service hostnames
+    const knownInternalHosts = [
+      'echobase-blue-api-gateway', 'echobase-green-api-gateway',
+      'echobase-blue-frontend', 'echobase-green-frontend',
+      'echobase-devlocal-api-gateway', 'echobase-devlocal-frontend',
+    ];
+    const isInternalDocker = host && knownInternalHosts.some(h => host.startsWith(h));
     // Allow service name references within Docker network
-    const isServiceName = host && (host.startsWith('api-gateway') || host.startsWith('frontend'));
+    const isServiceName = host && (host === 'api-gateway' || host.startsWith('api-gateway:') || host === 'frontend' || host.startsWith('frontend:'));
 
     if (isLocalhost || isInternalDocker || isServiceName) {
       // Allow requests without origin from trusted internal sources
@@ -101,12 +109,14 @@ function csrfProtection(req, res, next) {
 
   debug(`  Origin to validate: ${origin} (source: ${originSource})`);
 
-  // Check against allowed origins using shared utility
-  const allowedOrigins = parseAllowedOrigins(allowedOrigin);
+  // Check against allowed origins (parsed once, cached)
+  if (!cachedAllowedOrigins) {
+    cachedAllowedOrigins = parseAllowedOrigins(allowedOrigin);
+  }
 
-  if (!isOriginAllowed(origin, allowedOrigins)) {
+  if (!isOriginAllowed(origin, cachedAllowedOrigins)) {
     warn(`CSRF: Rejected request from unauthorized origin: ${origin}`);
-    warn(`  Allowed origins: ${allowedOrigins.join(', ')}`);
+    warn(`  Allowed origins: ${cachedAllowedOrigins.join(', ')}`);
     return res.status(403).json({
       error: 'Forbidden',
       message: 'Origin validation failed',

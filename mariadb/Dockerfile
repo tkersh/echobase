@@ -1,4 +1,4 @@
-FROM mariadb:latest
+FROM mariadb:11.4
 
 # Install AWS CLI v2 for fetching encryption key from Secrets Manager
 # MariaDB latest is Ubuntu Noble-based; awscli package not available, use official installer

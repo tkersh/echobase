@@ -17,14 +17,14 @@ test.describe('Session Management', () => {
     await expect(page).toHaveURL(/\/orders/);
 
     // Verify token exists
-    let token = await page.evaluate(() => localStorage.getItem('token'));
+    let token = await page.evaluate(() => sessionStorage.getItem('token'));
     expect(token).toBeTruthy();
 
     // Logout
     await page.click('button:has-text("Logout")');
 
     // Verify token is cleared
-    token = await page.evaluate(() => localStorage.getItem('token'));
+    token = await page.evaluate(() => sessionStorage.getItem('token'));
     expect(token).toBeNull();
   });
 
@@ -41,7 +41,7 @@ test.describe('Session Management', () => {
     await page.click('button[type="submit"]');
 
     // Get token before logout
-    const oldToken = await page.evaluate(() => localStorage.getItem('token'));
+    const oldToken = await page.evaluate(() => sessionStorage.getItem('token'));
 
     // Logout
     await page.click('button:has-text("Logout")');
@@ -50,7 +50,7 @@ test.describe('Session Management', () => {
     const newPage = await context.newPage();
     await newPage.goto('/');
     await newPage.evaluate((token) => {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
     }, oldToken);
 
     // Try to access protected page

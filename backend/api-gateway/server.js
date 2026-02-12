@@ -15,7 +15,11 @@ const csrfProtection = require('./middleware/csrf-middleware');
 const correlationId = require('./middleware/correlation-id');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
-const { SQSClient } = require('@aws-sdk/client-sqs');
+const { SQSClient, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
+const { trace: otelTrace, SpanStatusCode } = (() => {
+  try { return require('@opentelemetry/api'); }
+  catch (_) { return {}; }
+})();
 const { log, logError, debug, info, warn, error } = require('../shared/logger');
 const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
@@ -146,7 +150,6 @@ const orderService = new OrderService(sqsClient, process.env.SQS_QUEUE_URL);
  * @returns {Promise<void>}
  */
 async function verifySQSConnectivity(maxRetries = 10) {
-  const { GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
   const INITIAL_RETRY_DELAY = 1000; // 1 second
   const MAX_RETRY_DELAY = 5000; // 5 seconds
 
@@ -202,8 +205,18 @@ const { authenticateJWT } = require('./middleware/auth');
  *               $ref: '#/components/schemas/HealthCheck'
  */
 // Health check endpoint (no rate limiting)
-// Checks application and dependency health
+// Results cached for 5 seconds to avoid hammering dependencies on frequent probes
+let healthCache = null;
+let healthCacheExpiry = 0;
+const HEALTH_CACHE_TTL_MS = 5000;
+
 app.get('/health', async (req, res) => {
+  const now = Date.now();
+  if (healthCache && now < healthCacheExpiry) {
+    const statusCode = healthCache.status === 'healthy' ? 200 : 503;
+    return res.status(statusCode).json(healthCache);
+  }
+
   const health = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -237,7 +250,6 @@ app.get('/health', async (req, res) => {
 
   // Check SQS connectivity
   try {
-    const { SQSClient, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
     const testCommand = new GetQueueAttributesCommand({
       QueueUrl: process.env.SQS_QUEUE_URL,
       AttributeNames: ['ApproximateNumberOfMessages']
@@ -256,21 +268,29 @@ app.get('/health', async (req, res) => {
     health.status = 'degraded';
   }
 
+  // Cache result
+  healthCache = health;
+  healthCacheExpiry = now + HEALTH_CACHE_TTL_MS;
+
   // Return 503 if any dependency is unhealthy, 200 otherwise
   const statusCode = allHealthy ? 200 : 503;
   res.status(statusCode).json(health);
 });
 
-// API Documentation with Swagger UI
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'Echobase API Documentation',
-}));
+// API Documentation with Swagger UI (disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Echobase API Documentation',
+  }));
 
-// Redirect /docs to /api-docs for convenience
-app.get('/docs', (req, res) => {
-  res.redirect('/api-docs');
-});
+  // Redirect /docs to /api-docs for convenience
+  app.get('/docs', (req, res) => {
+    res.redirect('/api-docs');
+  });
+} else {
+  log('Swagger UI disabled in production');
+}
 
 // API Version 1 Routes
 // Auth routes (registration and login - no authentication required)
@@ -352,6 +372,20 @@ const orderValidation = [
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+// In-memory products cache (11 static rows, refreshed every 5 minutes)
+let productsCache = null;
+let productsCacheExpiry = 0;
+const PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+async function getProduct(db, productId) {
+  if (!productsCache || Date.now() > productsCacheExpiry) {
+    const [rows] = await db.execute('SELECT id, name, cost, sku FROM products');
+    productsCache = new Map(rows.map(p => [p.id, p]));
+    productsCacheExpiry = Date.now() + PRODUCTS_CACHE_TTL_MS;
+  }
+  return productsCache.get(productId);
+}
+
 // Order submission endpoint with authentication and validation (v1)
 app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) => {
   try {
@@ -382,20 +416,15 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
       });
     }
 
-    // Look up product by ID
-    const [products] = await req.db.execute(
-      'SELECT id, name, cost, sku FROM products WHERE id = ?',
-      [productId]
-    );
+    // Look up product by ID (cached)
+    const product = await getProduct(req.db, productId);
 
-    if (products.length === 0) {
+    if (!product) {
       return res.status(400).json({
         error: 'Invalid product',
         message: `Product with ID ${productId} not found`,
       });
     }
-
-    const product = products[0];
     const totalPrice = parseFloat((product.cost * quantity).toFixed(2));
 
     // Use order service to handle business logic
@@ -423,6 +452,10 @@ app.post('/api/v1/orders', authenticateJWT, orderValidation, async (req, res) =>
     });
   } catch (error) {
     logError('Error submitting order:', error);
+    if (otelTrace) {
+      const span = otelTrace.getActiveSpan();
+      if (span) { span.recordException(error); span.setStatus({ code: SpanStatusCode.ERROR, message: error.message }); }
+    }
 
     // Security: Don't expose internal error details to client
     res.status(500).json({
@@ -537,6 +570,14 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   logError('Unhandled error:', err);
+  // Record exception on active OTEL span for Jaeger visibility
+  if (otelTrace) {
+    const span = otelTrace.getActiveSpan();
+    if (span) {
+      span.recordException(err);
+      span.setStatus({ code: SpanStatusCode.ERROR, message: err.message });
+    }
+  }
   res.status(500).json({
     error: 'Internal Server Error',
     message: 'An unexpected error occurred',

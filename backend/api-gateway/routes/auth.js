@@ -1,5 +1,5 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { log, logError } = require('../../shared/logger');
@@ -15,9 +15,46 @@ const {
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
 } = require('../../shared/constants');
-const { getRecommendedProducts } = require('../services/mcpClient');
-
 const router = express.Router();
+
+// OTEL business metrics (optional)
+let loginFailuresCounter, loginSuccessCounter;
+try {
+  const { metrics } = require('@opentelemetry/api');
+  const meter = metrics.getMeter('api-gateway');
+  loginFailuresCounter = meter.createCounter('auth.login.failures', { description: 'Failed login attempts' });
+  loginSuccessCounter = meter.createCounter('auth.login.successes', { description: 'Successful logins' });
+} catch (_) { /* OTEL not available */ }
+
+// Per-account lockout tracking (in-memory; resets on restart)
+const MAX_LOGIN_FAILURES = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const loginAttempts = new Map(); // username -> { count, lockedUntil }
+
+function checkAccountLockout(username) {
+  const record = loginAttempts.get(username);
+  if (!record) return false;
+  if (record.lockedUntil && Date.now() < record.lockedUntil) return true;
+  if (record.lockedUntil && Date.now() >= record.lockedUntil) {
+    loginAttempts.delete(username);
+    return false;
+  }
+  return false;
+}
+
+function recordFailedLogin(username) {
+  const record = loginAttempts.get(username) || { count: 0, lockedUntil: null };
+  record.count += 1;
+  if (record.count >= MAX_LOGIN_FAILURES) {
+    record.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+    log(`Account locked: ${username} after ${record.count} failed attempts`);
+  }
+  loginAttempts.set(username, record);
+}
+
+function clearFailedLogins(username) {
+  loginAttempts.delete(username);
+}
 
 // Validation rules for registration
 const registerValidation = [
@@ -182,13 +219,6 @@ router.post('/register', registerValidation, async (req, res) => {
 
     log(`New user registered: ${username} (${fullName}) - ID: ${result.insertId}`);
 
-    let recommendedProducts = [];
-    try {
-      recommendedProducts = await getRecommendedProducts(result.insertId);
-    } catch (err) {
-      logError('Failed to fetch recommended products during registration:', err);
-    }
-
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
@@ -199,7 +229,7 @@ router.post('/register', registerValidation, async (req, res) => {
         email,
         fullName,
       },
-      recommendedProducts,
+      recommendedProducts: [],
     });
   } catch (error) {
     logError('Error during registration:', error);
@@ -289,6 +319,14 @@ router.post('/login', loginValidation, async (req, res) => {
 
     const { username, password } = req.body;
 
+    // Check account lockout
+    if (checkAccountLockout(username)) {
+      return res.status(429).json({
+        error: 'Account locked',
+        message: 'Too many failed login attempts. Please try again later.',
+      });
+    }
+
     // Find user by username
     const [users] = await req.db.execute(
       'SELECT id, username, email, full_name, password_hash FROM users WHERE username = ?',
@@ -296,6 +334,8 @@ router.post('/login', loginValidation, async (req, res) => {
     );
 
     if (users.length === 0) {
+      recordFailedLogin(username);
+      if (loginFailuresCounter) loginFailuresCounter.add(1, { reason: 'user_not_found' });
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid username or password',
@@ -308,11 +348,17 @@ router.post('/login', loginValidation, async (req, res) => {
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
+      recordFailedLogin(username);
+      if (loginFailuresCounter) loginFailuresCounter.add(1, { reason: 'invalid_password' });
       return res.status(401).json({
         error: 'Authentication failed',
         message: 'Invalid username or password',
       });
     }
+
+    // Successful login — clear lockout tracking
+    clearFailedLogins(username);
+    if (loginSuccessCounter) loginSuccessCounter.add(1);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -322,13 +368,6 @@ router.post('/login', loginValidation, async (req, res) => {
     );
 
     log(`User logged in: ${username} (${user.full_name}) - ID: ${user.id}`);
-
-    let recommendedProducts = [];
-    try {
-      recommendedProducts = await getRecommendedProducts(user.id);
-    } catch (err) {
-      logError('Failed to fetch recommended products during login:', err);
-    }
 
     res.json({
       success: true,
@@ -340,7 +379,7 @@ router.post('/login', loginValidation, async (req, res) => {
         email: user.email,
         fullName: user.full_name,
       },
-      recommendedProducts,
+      recommendedProducts: [],
     });
   } catch (error) {
     logError('Error during login:', error);

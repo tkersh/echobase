@@ -5,6 +5,7 @@ import {
   getUser as loadUser, setUser as saveUser, removeUser,
   clearAuth,
 } from '../utils/storage';
+import apiClient from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -46,7 +47,7 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load token from localStorage on mount with validation
+  // Load token from storage on mount with validation
   useEffect(() => {
     try {
       const storedToken = getToken();
@@ -64,12 +65,26 @@ export const AuthProvider = ({ children }) => {
         }
       }
     } catch (err) {
-      logError('Failed to restore session from localStorage:', err);
+      logError('Failed to restore session from storage:', err);
       clearAuth();
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Periodically check token expiry (every 60 seconds)
+  useEffect(() => {
+    if (!token) return;
+    const intervalId = setInterval(() => {
+      if (isTokenExpired(token)) {
+        info('Token expired during session, logging out');
+        setToken(null);
+        setUser(null);
+        clearAuth();
+      }
+    }, 60000);
+    return () => clearInterval(intervalId);
+  }, [token]);
 
   const login = (token, userData) => {
     setToken(token);
@@ -83,6 +98,14 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     clearAuth();
   };
+
+  // Register centralized 401 handler so individual pages don't need to string-match errors
+  useEffect(() => {
+    apiClient.onAuthExpired(() => {
+      info('Received 401 from API, logging out');
+      logout();
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const register = (token, userData) => {
     // Registration automatically logs the user in

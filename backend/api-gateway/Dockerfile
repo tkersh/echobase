@@ -9,8 +9,10 @@ WORKDIR /app
 # Copy package files from api-gateway
 COPY api-gateway/package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install build tools for native bcrypt compilation, install deps, then clean up
+RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
+    npm ci --omit=dev && \
+    apk del .build-deps
 
 # Run security audit
 RUN npm audit --omit=dev --audit-level=high

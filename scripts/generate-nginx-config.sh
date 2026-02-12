@@ -69,9 +69,20 @@ sed -e "s/{{ACTIVE_ENV}}/$ACTIVE_ENV/g" \
 
 echo -e "${GREEN}✓ nginx configuration generated${NC}"
 
-# Note: nginx config validation is skipped here because this is a partial config
-# Full validation happens in switch-traffic.sh when nginx is actually reloaded
-echo -e "${YELLOW}Note: Full nginx validation will occur during traffic switch${NC}"
+# Validate generated config syntax if nginx is available (e.g., inside the nginx container)
+# This catches sed substitution errors before traffic switch
+if command -v nginx &>/dev/null; then
+  echo "Validating nginx configuration syntax..."
+  if nginx -t -c "$OUTPUT_FILE" 2>/dev/null; then
+    echo -e "${GREEN}✓ nginx configuration valid${NC}"
+  else
+    echo -e "${RED}ERROR: Generated nginx configuration is invalid!${NC}" >&2
+    echo -e "${RED}Check $OUTPUT_FILE for syntax errors.${NC}" >&2
+    exit 1
+  fi
+else
+  echo -e "${YELLOW}Note: nginx not available locally; full validation will occur during traffic switch${NC}"
+fi
 
 echo ""
 echo -e "${GREEN}✓ nginx config ready: $OUTPUT_FILE${NC}"

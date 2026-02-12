@@ -1,2 +1,2 @@
-FROM otel/opentelemetry-collector-contrib:latest
+FROM otel/opentelemetry-collector-contrib:0.97.0
 COPY collector-config.yaml /etc/otelcol/config.yaml

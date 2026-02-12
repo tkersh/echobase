@@ -131,13 +131,18 @@ validate:env-check:
     - ./scripts/generate-credentials.sh
     - echo "Verifying .env.secrets was created..."
     - test -f .env.secrets || (echo "ERROR - .env.secrets generation failed!" && exit 1)
+    - echo "Validating .env.secrets contains required values..."
+    - source .env.secrets
+    - test -n "$JWT_SECRET" || (echo "ERROR - JWT_SECRET is empty in .env.secrets!" && exit 1)
+    - test -n "$MCP_API_KEY" || (echo "ERROR - MCP_API_KEY is empty in .env.secrets!" && exit 1)
+    - echo "✓ .env.secrets validated (JWT_SECRET and MCP_API_KEY are set)"
 
     # Configure CI-specific overrides in tracked .env
     # Only override values that differ from defaults (e.g., CORS_ORIGIN port)
     - echo "Configuring environment for CI..."
     - sed -i "s|CORS_ORIGIN=.*|CORS_ORIGIN=https://localhost:${GREEN_FRONTEND_PORT}|g" .env
     - echo "CI-specific configuration:"
-    - grep -E "(CORS_ORIGIN|REACT_APP_API_URL|RATE_LIMIT)" .env
+    - grep -E "(CORS_ORIGIN|VITE_API_URL|RATE_LIMIT)" .env
 
     - echo "Environment check passed!"
   artifacts:

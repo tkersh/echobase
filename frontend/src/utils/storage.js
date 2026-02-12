@@ -10,16 +10,19 @@ export const STORAGE_KEYS = {
   LOG_LEVEL: 'LOG_LEVEL',
 };
 
+// Token stored in sessionStorage (not localStorage) to limit XSS exposure window.
+// sessionStorage clears when the browser tab closes, reducing token persistence.
+// NOTE: For full XSS-proof token storage, migrate to HttpOnly cookies (see audit-fix-plan.md).
 export function getToken() {
-  return localStorage.getItem(STORAGE_KEYS.TOKEN);
+  return sessionStorage.getItem(STORAGE_KEYS.TOKEN);
 }
 
 export function setToken(token) {
-  localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+  sessionStorage.setItem(STORAGE_KEYS.TOKEN, token);
 }
 
 export function removeToken() {
-  localStorage.removeItem(STORAGE_KEYS.TOKEN);
+  sessionStorage.removeItem(STORAGE_KEYS.TOKEN);
 }
 
 export function getUser() {
@@ -65,4 +68,6 @@ export function clearAuth() {
   removeToken();
   removeUser();
   removeRecommendedProducts();
+  // Clean up any legacy localStorage token from before sessionStorage migration
+  localStorage.removeItem(STORAGE_KEYS.TOKEN);
 }

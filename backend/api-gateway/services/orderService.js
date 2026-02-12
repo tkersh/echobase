@@ -8,6 +8,19 @@ const { SQSClient, SendMessageCommand } = require('@aws-sdk/client-sqs');
 const { log, logError } = require('../../shared/logger');
 const { ORDER_MAX_VALUE } = require('../../shared/constants');
 
+// OTEL context propagation for SQS trace continuity (optional)
+let otelContext, otelPropagation;
+let ordersSubmittedCounter;
+try {
+  const api = require('@opentelemetry/api');
+  otelContext = api.context;
+  otelPropagation = api.propagation;
+  const meter = api.metrics.getMeter('api-gateway');
+  ordersSubmittedCounter = meter.createCounter('orders.submitted', { description: 'Total orders submitted to SQS' });
+} catch (_) {
+  // OTEL not available
+}
+
 class OrderService {
   constructor(sqsClient, queueUrl) {
     this.sqsClient = sqsClient;
@@ -70,6 +83,19 @@ class OrderService {
         };
       }
 
+      // Inject W3C trace context into SQS attributes for end-to-end tracing
+      const traceAttrs = {};
+      if (otelPropagation && otelContext) {
+        const carrier = {};
+        otelPropagation.inject(otelContext.active(), carrier);
+        if (carrier.traceparent) {
+          traceAttrs.Traceparent = { DataType: 'String', StringValue: carrier.traceparent };
+        }
+        if (carrier.tracestate) {
+          traceAttrs.Tracestate = { DataType: 'String', StringValue: carrier.tracestate };
+        }
+      }
+
       // Send message to SQS
       const command = new SendMessageCommand({
         QueueUrl: this.queueUrl,
@@ -85,10 +111,13 @@ class OrderService {
               StringValue: correlationId,
             },
           } : {}),
+          ...traceAttrs,
         },
       });
 
       const result = await this.sqsClient.send(command);
+
+      if (ordersSubmittedCounter) ordersSubmittedCounter.add(1, { product: productName });
 
       // Log for audit trail
       log(`Order submitted: ${result.MessageId} - ${userInfo.fullName} - ${productName} [user:${userInfo.username}]`);

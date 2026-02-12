@@ -53,18 +53,18 @@ test.describe('Debug UI Registration Flow', () => {
 
     // Step 2: Check localStorage
     console.log('\n=== STEP 2: Check localStorage ===');
-    const localStorage = await page.evaluate(() => {
+    const storageData = await page.evaluate(() => {
       return {
-        token: window.localStorage.getItem('token'),
+        token: window.sessionStorage.getItem('token'),
         user: window.localStorage.getItem('user')
       };
     });
-    console.log('Token:', localStorage.token ? localStorage.token.substring(0, 30) + '...' : 'NO TOKEN');
-    console.log('User in localStorage:', localStorage.user);
+    console.log('Token:', storageData.token ? storageData.token.substring(0, 30) + '...' : 'NO TOKEN');
+    console.log('User in localStorage:', storageData.user);
 
     // Parse and display user object
-    if (localStorage.user) {
-      const userObj = JSON.parse(localStorage.user);
+    if (storageData.user) {
+      const userObj = JSON.parse(storageData.user);
       console.log('Parsed user object:', JSON.stringify(userObj, null, 2));
     }
 

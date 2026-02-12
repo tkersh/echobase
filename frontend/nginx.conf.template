@@ -34,6 +34,7 @@ server {
     # Enable gzip compression
     gzip on;
     gzip_vary on;
+    gzip_proxied any;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
 
@@ -52,7 +53,9 @@ server {
     }
 
     # Proxy OTEL trace data to the collector (used by frontend tracing)
+    # Suppress access log — logging about logging is just noise
     location /v1/traces {
+        access_log off;
         # Docker's embedded DNS server for container name resolution
         resolver 127.0.0.11 valid=30s ipv6=off;
         # OTEL_COLLECTOR_HOST is set via environment variable (envsubst in Dockerfile)
@@ -85,9 +88,16 @@ server {
         proxy_ssl_server_name on;
 
         # Timeout settings
-        proxy_connect_timeout 60s;
-        proxy_send_timeout 60s;
-        proxy_read_timeout 60s;
+        proxy_connect_timeout 15s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+    }
+
+    # Health check endpoint (no access log to reduce noise)
+    location = /healthz {
+        access_log off;
+        return 200 'OK';
+        add_header Content-Type text/plain;
     }
 
     # SPA fallback - serve index.html for all routes

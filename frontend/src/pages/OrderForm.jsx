@@ -28,21 +28,27 @@ function OrderForm() {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     async function fetchProducts() {
       try {
         const { data } = await products.getAll(token);
-        if (data.success) {
+        if (!cancelled && data.success) {
           setProductsList(data.products);
         }
       } catch (err) {
-        logError('[OrderForm] Failed to fetch products:', err);
+        if (!cancelled) {
+          logError('[OrderForm] Failed to fetch products:', err);
+        }
       } finally {
-        setProductsLoading(false);
+        if (!cancelled) {
+          setProductsLoading(false);
+        }
       }
     }
     if (token) {
       fetchProducts();
     }
+    return () => { cancelled = true; };
   }, [token]);
 
   const selectedProduct = productsList.find(p => p.id === Number(selectedProductId));
@@ -57,7 +63,7 @@ function OrderForm() {
 
     debug('[OrderForm] Submitting order:', orderData);
     debug('[OrderForm] User from context:', user);
-    debug('[OrderForm] Token:', token ? token.substring(0, 20) + '...' : 'NO TOKEN');
+    debug('[OrderForm] Token:', token ? '[present]' : 'NO TOKEN');
 
     try {
       const { data } = await orders.create(orderData, token);
