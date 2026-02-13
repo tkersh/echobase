@@ -116,6 +116,16 @@ services:
       dockerfile: durable/nginx/Dockerfile
     image: echobase-nginx:latest
     container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-nginx
+    environment:
+      # AWS credentials for fetching SSL certs from Secrets Manager
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-test}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-test}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # Secrets Manager endpoint (durable LocalStack)
+      - AWS_ENDPOINT_URL=http://${DURABLE_CONTAINER_PREFIX:-echobase-durable}-localstack:4566
+      # SSL setup (shared 40-ssl-setup.sh script)
+      - SSL_SECRET_ID=echobase/nginx-lb/ssl
+      - SSL_DIR=/etc/ssl
     volumes:
       - nginx-config:/etc/nginx/conf.d  # Persist nginx config across restarts
     networks:
@@ -134,7 +144,8 @@ services:
       - "echobase.nginx.blue_port=${DURABLE_NGINX_BLUE_PORT:-8080}"
       - "echobase.nginx.green_port=${DURABLE_NGINX_GREEN_PORT:-8081}"
     depends_on:
-      - localstack
+      localstack:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "nginx", "-t"]

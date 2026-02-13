@@ -174,7 +174,7 @@ async function verifySQSConnectivity(maxRetries = 10) {
       logError(`SQS connectivity check failed (attempt ${attempt}/${maxRetries}): ${error.message}`);
 
       if (attempt < maxRetries) {
-        log(`Retrying SQS connectivity check in ${Math.round(delay/1000)}s...`);
+        log(`Retrying SQS connectivity check in ${Math.round(delay / 1000)}s...`);
         await new Promise(resolve => setTimeout(resolve, delay));
       } else {
         logError(`SQS connectivity verification failed after ${maxRetries} attempts`);
@@ -632,57 +632,79 @@ let server;
 const sslKeyPath = path.join(__dirname, 'ssl', 'api-gateway.key');
 const sslCertPath = path.join(__dirname, 'ssl', 'api-gateway.crt');
 const isProduction = process.env.NODE_ENV === 'production';
+const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
-// Check if SSL certificates exist
-if (fs.existsSync(sslKeyPath) && fs.existsSync(sslCertPath)) {
-  const httpsOptions = {
-    key: fs.readFileSync(sslKeyPath),
-    cert: fs.readFileSync(sslCertPath),
-  };
+/**
+ * Initialize SSL options from Secrets Manager
+ * @returns {Promise<{key: string|Buffer, cert: string|Buffer}|null>}
+ */
+async function initSSL() {
+  log('Initializing SSL configuration...');
 
-  server = https.createServer(httpsOptions, app);
-  log('HTTPS/TLS enabled - MITM protection active');
-} else {
-  // In production, SSL certificates are required
-  if (isProduction) {
-    logError('FATAL: SSL certificates not found in production mode');
-    logError(`Expected certificate files:`);
-    logError(`  - Key: ${sslKeyPath}`);
-    logError(`  - Cert: ${sslCertPath}`);
-    logError('Production deployment requires HTTPS. Exiting...');
-    process.exit(1);
+  // Try Secrets Manager (Preferred & Enforced)
+  if (process.env.AWS_REGION) {
+    try {
+      const secretsClient = new SecretsManagerClient(getAwsConfig('secrets'));
+      const command = new GetSecretValueCommand({ SecretId: 'echobase/api-gateway/ssl' });
+      const response = await secretsClient.send(command);
+
+      if (response.SecretString) {
+        const { key, cert } = JSON.parse(response.SecretString);
+        if (key && cert) {
+          log('SSL certificates retrieved from Secrets Manager');
+          return { key, cert };
+        }
+      }
+    } catch (error) {
+      // Ignore resource not found, log others
+      if (error.name !== 'ResourceNotFoundException') {
+        warn(`Failed to fetch SSL secrets: ${error.message}`);
+      } else {
+        debug('SSL secret not found in Secrets Manager.');
+      }
+    }
   }
 
-  // Fallback to HTTP only in development
-  log('WARNING: SSL certificates not found - running in HTTP mode (DEVELOPMENT ONLY)');
-  log('For production, ensure SSL certificates are present');
-  server = app;
+  return null;
 }
 
 // Start server after initializing database and verifying SQS connectivity in parallel
-log('Initializing dependencies (database and SQS) in parallel...');
+log('Initializing dependencies (database, SQS, SSL) in parallel...');
 Promise.all([
   initDatabase(awsConfig),
   verifySQSConnectivity(),
-  initMcpClient()
+  initMcpClient(),
+  initSSL()
 ])
-  .then(([pool]) => {
+  .then(([pool, _sqs, _mcp, sslOptions]) => {
     dbPool = pool;
     log('All dependencies initialized successfully');
 
-    if (server === app) {
-      // HTTP fallback
-      app.listen(PORT, () => {
-        log(`API Gateway running on HTTP port ${PORT} (INSECURE - development only)`);
+    if (sslOptions) {
+      server = https.createServer(sslOptions, app);
+      log('HTTPS/TLS enabled - MITM protection active');
+
+      server.listen(PORT, () => {
+        log(`API Gateway running on HTTPS port ${PORT} (Secure - MITM Protected)`);
         log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
         log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
         log(`CORS Origin: ${corsOptions.origin}`);
         log(`Rate Limit: ${process.env.RATE_LIMIT_MAX_REQUESTS} requests per ${parseInt(process.env.RATE_LIMIT_WINDOW_MS) / 60000} minutes`);
       });
     } else {
-      // HTTPS
-      server.listen(PORT, () => {
-        log(`API Gateway running on HTTPS port ${PORT} (Secure - MITM Protected)`);
+      // In production, SSL is required
+      if (isProduction) {
+        logError('FATAL: SSL certificates not found in Secrets Manager or filesystem');
+        logError('Production deployment requires HTTPS. Exiting...');
+        process.exit(1);
+      }
+
+      // Fallback to HTTP only in development
+      log('WARNING: SSL certificates not found - running in HTTP mode (DEVELOPMENT ONLY)');
+      server = app;
+
+      app.listen(PORT, () => {
+        log(`API Gateway running on HTTP port ${PORT} (INSECURE - development only)`);
         log(`SQS Endpoint: ${process.env.SQS_ENDPOINT}`);
         log(`Queue URL: ${process.env.SQS_QUEUE_URL}`);
         log(`CORS Origin: ${corsOptions.origin}`);

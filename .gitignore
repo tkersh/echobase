@@ -110,3 +110,7 @@ localstack-data/
 
 # Durable infrastructure credentials
 durable/.credentials.*
+
+# SSL Certificates
+backend/api-gateway/ssl/
+frontend/ssl/

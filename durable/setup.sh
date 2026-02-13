@@ -251,6 +251,151 @@ else
     echo ""
 fi
 
+    # Step 3b: Seed SSL certificates in Secrets Manager
+    # We do this here (after DB creds) to ensure all secrets are present
+    echo "Checking Secrets Manager for SSL certificates..."
+    if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/api-gateway/ssl > /dev/null 2>&1; then
+        echo "✓ Found SSL certificates in Secrets Manager"
+    else
+        echo "No SSL certificates found in Secrets Manager"
+        
+        echo "Generating self-signed SSL certificates for development..."
+        
+        # Create temp dir for generation
+        SSL_TEMP_DIR=$(mktemp -d)
+        KEY_FILE="$SSL_TEMP_DIR/api-gateway.key"
+        CERT_FILE="$SSL_TEMP_DIR/api-gateway.crt"
+        
+        # Generate self-signed cert (valid for 365 days)
+        # CN=localhost matches our dev environment
+        openssl req -x509 -newkey rsa:4096 -keyout "$KEY_FILE" -out "$CERT_FILE" \
+            -days 365 -nodes -subj "/CN=localhost" 2>/dev/null
+            
+        if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
+            echo "Seeding Secrets Manager with generated SSL certificates..."
+            
+            # Read files and escape for JSON inclusion
+            KEY_CONTENT=$(cat "$KEY_FILE")
+            CERT_CONTENT=$(cat "$CERT_FILE")
+            
+            # Create JSON payload using jq
+            SECRET_STRING=$(jq -n \
+              --arg key "$KEY_CONTENT" \
+              --arg cert "$CERT_CONTENT" \
+              '{key: $key, cert: $cert}')
+            
+            # Create the secret in LocalStack
+            if docker exec -i "$LOCALSTACK_CONTAINER" awslocal secretsmanager create-secret \
+                --name echobase/api-gateway/ssl \
+                --secret-string "$SECRET_STRING" > /dev/null; then
+                echo "✓ SSL certificates generated and seeded to Secrets Manager"
+            else
+                echo "ERROR: Failed to seed SSL certificates"
+            fi
+        else
+            echo "ERROR: Failed to generate SSL certificates"
+        fi
+        
+        # Cleanup
+        rm -rf "$SSL_TEMP_DIR"
+    fi
+    
+    # Step 3c: Seed Frontend SSL certificates in Secrets Manager
+    echo "Checking Secrets Manager for Frontend SSL certificates..."
+    if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/frontend/ssl > /dev/null 2>&1; then
+        echo "✓ Found Frontend SSL certificates in Secrets Manager"
+    else
+        echo "No Frontend SSL certificates found in Secrets Manager"
+        
+        echo "Generating self-signed SSL certificates for Frontend..."
+        
+        # Create temp dir for generation
+        SSL_TEMP_DIR=$(mktemp -d)
+        KEY_FILE="$SSL_TEMP_DIR/localhost.key"
+        CERT_FILE="$SSL_TEMP_DIR/localhost.crt"
+        
+        # Generate self-signed cert (valid for 365 days)
+        # CN=localhost matches our dev environment
+        openssl req -x509 -newkey rsa:4096 -keyout "$KEY_FILE" -out "$CERT_FILE" \
+            -days 365 -nodes -subj "/CN=localhost" 2>/dev/null
+            
+        if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
+            echo "Seeding Secrets Manager with generated Frontend SSL certificates..."
+            
+            # Read files and escape for JSON inclusion
+            KEY_CONTENT=$(cat "$KEY_FILE")
+            CERT_CONTENT=$(cat "$CERT_FILE")
+            
+            # Create JSON payload using jq
+            SECRET_STRING=$(jq -n \
+              --arg key "$KEY_CONTENT" \
+              --arg cert "$CERT_CONTENT" \
+              '{key: $key, cert: $cert}')
+            
+            # Create the secret in LocalStack
+            if docker exec -i "$LOCALSTACK_CONTAINER" awslocal secretsmanager create-secret \
+                --name echobase/frontend/ssl \
+                --secret-string "$SECRET_STRING" > /dev/null; then
+                echo "✓ Frontend SSL certificates generated and seeded to Secrets Manager"
+            else
+                echo "ERROR: Failed to seed Frontend SSL certificates"
+            fi
+        else
+            echo "ERROR: Failed to generate Frontend SSL certificates"
+        fi
+        
+        # Cleanup
+        rm -rf "$SSL_TEMP_DIR"
+    fi
+
+    # Step 3d: Seed Nginx Load Balancer SSL certificates in Secrets Manager
+    echo "Checking Secrets Manager for Nginx LB SSL certificates..."
+    if docker exec "$LOCALSTACK_CONTAINER" awslocal secretsmanager get-secret-value --secret-id echobase/nginx-lb/ssl > /dev/null 2>&1; then
+        echo "✓ Found Nginx LB SSL certificates in Secrets Manager"
+    else
+        echo "No Nginx LB SSL certificates found in Secrets Manager"
+
+        echo "Generating self-signed SSL certificates for Nginx LB..."
+
+        # Create temp dir for generation
+        SSL_TEMP_DIR=$(mktemp -d)
+        KEY_FILE="$SSL_TEMP_DIR/localhost.key"
+        CERT_FILE="$SSL_TEMP_DIR/localhost.crt"
+
+        # Generate self-signed cert (valid for 365 days)
+        # CN=localhost matches our dev environment
+        openssl req -x509 -newkey rsa:4096 -keyout "$KEY_FILE" -out "$CERT_FILE" \
+            -days 365 -nodes -subj "/CN=localhost" 2>/dev/null
+
+        if [ -f "$KEY_FILE" ] && [ -f "$CERT_FILE" ]; then
+            echo "Seeding Secrets Manager with generated Nginx LB SSL certificates..."
+
+            # Read files and escape for JSON inclusion
+            KEY_CONTENT=$(cat "$KEY_FILE")
+            CERT_CONTENT=$(cat "$CERT_FILE")
+
+            # Create JSON payload using jq
+            SECRET_STRING=$(jq -n \
+              --arg key "$KEY_CONTENT" \
+              --arg cert "$CERT_CONTENT" \
+              '{key: $key, cert: $cert}')
+
+            # Create the secret in LocalStack
+            if docker exec -i "$LOCALSTACK_CONTAINER" awslocal secretsmanager create-secret \
+                --name echobase/nginx-lb/ssl \
+                --secret-string "$SECRET_STRING" > /dev/null; then
+                echo "✓ Nginx LB SSL certificates generated and seeded to Secrets Manager"
+            else
+                echo "ERROR: Failed to seed Nginx LB SSL certificates"
+            fi
+        else
+            echo "ERROR: Failed to generate Nginx LB SSL certificates"
+        fi
+
+        # Cleanup
+        rm -rf "$SSL_TEMP_DIR"
+    fi
+
 # Load environment-specific configuration
 ENV_FILE="durable/.env.${DURABLE_ENV}"
 if [ ! -f "$ENV_FILE" ]; then

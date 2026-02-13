@@ -1,21 +1,23 @@
 # Nginx Load Balancer for Blue/Green Deployment
-# This image bakes in the nginx config and SSL certificates at build time
-# to avoid volume mount issues in GitLab CI
+# SSL certificates are fetched from Secrets Manager at runtime via entrypoint script
 
 FROM nginx:1.27-alpine3.21
 
-# Install wget for health checks and active-env queries
-RUN apk add --no-cache wget
+# Install dependencies for health checks, SSL setup
+RUN apk add --no-cache wget aws-cli jq openssl
 
 # Copy nginx configuration
 COPY nginx-blue-green.conf /etc/nginx/conf.d/default.conf
 
-# Copy SSL certificates
-COPY frontend/ssl /etc/ssl
+# Ensure proper permissions for nginx config
+RUN chmod 644 /etc/nginx/conf.d/default.conf
 
-# Ensure proper permissions
-RUN chmod 644 /etc/nginx/conf.d/default.conf && \
-    chmod -R 644 /etc/ssl/*
+# Ensure SSL directory exists
+RUN mkdir -p /etc/ssl
+
+# Copy SSL setup entrypoint script (shared with frontend)
+COPY frontend/docker-entrypoint.d/40-ssl-setup.sh /docker-entrypoint.d/40-ssl-setup.sh
+RUN chmod +x /docker-entrypoint.d/40-ssl-setup.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \

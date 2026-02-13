@@ -285,8 +285,8 @@ test_order_submission() {
     echo ""
     echo -e "${BLUE}Test 4: Order Submission${NC}"
 
-    if [ -z "${AUTH_TOKEN:-}" ]; then
-        log_test "FAIL" "Order submission" "No auth token (login failed)"
+    if [ -z "${AUTH_COOKIE:-}" ]; then
+        log_test "FAIL" "Order submission" "No auth cookie (login failed)"
         return 1
     fi
 
@@ -297,7 +297,7 @@ test_order_submission() {
         -X POST "${FRONTEND_URL}${ORDERS_ENDPOINT}" \
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
-        -H "Authorization: Bearer ${AUTH_TOKEN}" \
+        -b "${AUTH_COOKIE}" \
         -d '{"productId":1,"quantity":1}' \
         --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
 

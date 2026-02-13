@@ -25,7 +25,7 @@ services:
       - "echobase.env=devlocal"
       - "echobase.service=localstack"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:4566/_localstack/health"]
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:4566/_localstack/health" ]
       interval: 5s
       timeout: 10s
       retries: 15
@@ -92,7 +92,7 @@ services:
       - "echobase.service=order-processor"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "find /tmp/last-successful-poll -mmin -2 2>/dev/null | grep -q ."]
+      test: [ "CMD-SHELL", "find /tmp/last-successful-poll -mmin -2 2>/dev/null | grep -q ." ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -100,7 +100,7 @@ services:
 
   frontend:
     container_name: echobase-devlocal-frontend
-    init: true  # Use tini as PID 1 so nginx doesn't reap health check processes (suppresses SIGCHLD noise)
+    init: true # Use tini as PID 1 so nginx doesn't reap health check processes (suppresses SIGCHLD noise)
     mem_limit: 256m
     cpus: 0.25
     build:
@@ -110,6 +110,9 @@ services:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
     image: echobase-frontend:latest
+    env_file:
+      - .env
+      - .env.secrets
     environment:
       - VITE_API_URL=${VITE_API_URL}
       # API_GATEWAY_HOST controls which api-gateway container nginx proxies to.
@@ -119,12 +122,23 @@ services:
       - API_GATEWAY_HOST=api-gateway
       # OTEL Collector hostname for frontend nginx proxy (/v1/traces)
       - OTEL_COLLECTOR_HOST=echobase-devlocal-durable-otel-collector
+
+      # AWS Configuration for fetching SSL secrets
+      # These come from .env/.env.secrets or passed by CI
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Point to LocalStack for secrets (important for devlocal/CI)
+      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL:-http://localstack:4566}
+      - SSL_SECRET_ID=echobase/frontend/ssl
     depends_on:
       api-gateway:
         condition: service_healthy
+      localstack:
+        condition: service_healthy
     networks:
       - echobase-network
-      - durable-network  # Required for nginx load balancer to reach frontend
+      - durable-network # Required for nginx load balancer to reach frontend
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=devlocal"
@@ -134,6 +148,7 @@ services:
 
 volumes:
   localstack-data:
+
 
 networks:
   echobase-network:
