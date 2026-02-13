@@ -8,7 +8,7 @@ test.describe('My Orders Page Frontend Tests', () => {
   let apiHelper;
   const testUsers = [];
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, context }) => {
     dbHelper = new DatabaseHelper();
     apiHelper = new ApiHelper();
     await dbHelper.connect();
@@ -26,13 +26,13 @@ test.describe('My Orders Page Frontend Tests', () => {
       throw new Error(`Registration response missing user object: ${JSON.stringify(registrationResponse.data)}`);
     }
 
-    // Set token in browser
+    // Inject auth cookie into browser context
+    await context.addCookies(apiHelper.getCookies());
+
+    // Set user data in sessionStorage (user metadata only, no token)
     await page.goto('/');
-    await page.evaluate((token) => {
-      sessionStorage.setItem('token', token);
-    }, apiHelper.token);
     await page.evaluate((user) => {
-      localStorage.setItem('user', JSON.stringify({
+      sessionStorage.setItem('user', JSON.stringify({
         id: user.id,
         username: user.username,
         email: user.email,
@@ -55,6 +55,7 @@ test.describe('My Orders Page Frontend Tests', () => {
       }
     }
     testUsers.length = 0;
+    await apiHelper.dispose();
     await dbHelper.disconnect();
   });
 
@@ -138,12 +139,13 @@ test.describe('My Orders Page Frontend Tests', () => {
     await expect(page.locator('h1')).toContainText('Order History');
   });
 
-  test('should redirect to login if not authenticated', async ({ page }) => {
-    // Clear localStorage
+  test('should redirect to login if not authenticated', async ({ page, context }) => {
+    // Clear cookies and storage
+    await context.clearCookies();
     await page.goto('/');
     await page.evaluate(() => {
-      sessionStorage.removeItem('token');
-      localStorage.removeItem('user');
+      sessionStorage.clear();
+      localStorage.clear();
     });
 
     // Try to access my-orders page
@@ -167,9 +169,11 @@ test.describe('My Orders Page Frontend Tests', () => {
     // Should redirect to login page
     await expect(page).toHaveURL(/\/$|\/login/);
 
-    // Token should be cleared from localStorage
-    const token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeNull();
+    // User should be cleared from sessionStorage (async logout may still be in-flight)
+    await expect(async () => {
+      const user = await page.evaluate(() => sessionStorage.getItem('user'));
+      expect(user).toBeNull();
+    }).toPass({ timeout: 5000 });
   });
 
   test('should display user name', async ({ page }) => {

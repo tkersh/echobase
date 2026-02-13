@@ -20,7 +20,7 @@ test.describe('SQL Injection Protection', () => {
     await apiHelper.register(userData);
 
     for (const payload of sqlInjectionPayloads) {
-      apiHelper.clearToken();
+      await apiHelper.clearToken();
 
       const response = await apiHelper.login({
         username: payload,

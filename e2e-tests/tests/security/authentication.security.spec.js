@@ -2,8 +2,7 @@ import { test, expect } from '../../fixtures/test-fixtures.js';
 
 test.describe('Authentication & Authorization', () => {
   test('should reject order submission without token', async ({ apiHelper }) => {
-    apiHelper.clearToken();
-
+    // Fresh apiHelper has no auth cookie
     const response = await apiHelper.submitOrder({
       productId: 1,
       quantity: 1
@@ -14,7 +13,7 @@ test.describe('Authentication & Authorization', () => {
   });
 
   test('should reject order submission with invalid token', async ({ apiHelper }) => {
-    apiHelper.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpbnZhbGlkIjoidG9rZW4ifQ.invalid');
+    await apiHelper.setToken('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpbnZhbGlkIjoidG9rZW4ifQ.invalid');
 
     const response = await apiHelper.submitOrder({
       productId: 1,
@@ -25,7 +24,7 @@ test.describe('Authentication & Authorization', () => {
   });
 
   test('should reject order submission with malformed token', async ({ apiHelper }) => {
-    apiHelper.setToken('not-a-jwt');
+    await apiHelper.setToken('not-a-jwt');
 
     const response = await apiHelper.submitOrder({
       productId: 1,

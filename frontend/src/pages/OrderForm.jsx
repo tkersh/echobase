@@ -17,7 +17,7 @@ function OrderForm() {
 
   const [recommendedProducts, setRecommendedProducts] = useState([]);
 
-  const { user, token, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -31,7 +31,7 @@ function OrderForm() {
     let cancelled = false;
     async function fetchProducts() {
       try {
-        const { data } = await products.getAll(token);
+        const { data } = await products.getAll();
         if (!cancelled && data.success) {
           setProductsList(data.products);
         }
@@ -45,11 +45,11 @@ function OrderForm() {
         }
       }
     }
-    if (token) {
+    if (user) {
       fetchProducts();
     }
     return () => { cancelled = true; };
-  }, [token]);
+  }, [user]);
 
   const selectedProduct = productsList.find(p => p.id === Number(selectedProductId));
   const totalPrice = selectedProduct ? parseFloat((selectedProduct.cost * quantity).toFixed(2)) : 0;
@@ -63,10 +63,9 @@ function OrderForm() {
 
     debug('[OrderForm] Submitting order:', orderData);
     debug('[OrderForm] User from context:', user);
-    debug('[OrderForm] Token:', token ? '[present]' : 'NO TOKEN');
 
     try {
-      const { data } = await orders.create(orderData, token);
+      const { data } = await orders.create(orderData);
 
       debug('[OrderForm] Order submitted successfully:', data);
       setMessage({
@@ -77,21 +76,10 @@ function OrderForm() {
       setQuantity(1);
     } catch (err) {
       logError('[OrderForm] Order submission error:', err);
-      if (err.message.includes('Authentication') || err.message.includes('Token')) {
-        setMessage({
-          type: 'error',
-          text: 'Session expired. Please login again.',
-        });
-        setTimeout(() => {
-          logout();
-          navigate('/login');
-        }, 2000);
-      } else {
-        setMessage({
-          type: 'error',
-          text: `Error: ${err.message || 'Failed to submit order'}`,
-        });
-      }
+      setMessage({
+        type: 'error',
+        text: `Error: ${err.message || 'Failed to submit order'}`,
+      });
     } finally {
       setLoading(false);
     }
@@ -105,8 +93,8 @@ function OrderForm() {
     setSelectedProductId(String(product.id));
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 

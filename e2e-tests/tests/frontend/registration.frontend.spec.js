@@ -163,9 +163,10 @@ test.describe('User Registration Frontend Tests', () => {
 
     await expect(page).toHaveURL(/\/orders/);
 
-    // Verify sessionStorage has token (app stores tokens in sessionStorage for XSS protection)
-    const token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeTruthy();
+    // Verify auth cookie is set (HttpOnly — check via context.cookies())
+    const cookies = await context.cookies();
+    const authCookie = cookies.find(c => c.name === 'echobase_token');
+    expect(authCookie).toBeTruthy();
 
     // Create new page in same context
     const newPage = await context.newPage();

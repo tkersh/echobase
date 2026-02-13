@@ -34,4 +34,7 @@ For full-project audits, parallel agents scan different domains (backend, fronte
 - **Low** - Cleanup and polish items
 
 ## Deliverable
-Generates a detailed report at `docs/audit-fix-plan.md` with findings organized by category, each with file paths, line numbers, impact assessment, and fix suggestions. Includes a prioritized action roadmap. No code changes are made until the plan is approved.
+Generates a detailed report at `docs/project_notes/audit-fix-plan-YYYY-MM-DD.md` (datestamped) with findings organized by category, each with file paths, line numbers, impact assessment, and fix suggestions. Includes a prioritized action roadmap. No code changes are made until the plan is approved.
+
+## Close-Out
+After implementation is complete, the audit report is updated in-place: every finding is marked **RESOLVED**, **DEFERRED** (with reason), or **DECLINED** (with reason). Any deviations between the plan and the actual implementation are noted alongside the relevant finding.

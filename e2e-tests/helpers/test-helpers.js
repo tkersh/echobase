@@ -35,8 +35,8 @@ export async function registerUser(apiHelper, dbHelper, testUsers, userData = nu
 export async function registerAndLoginUser(apiHelper, dbHelper, testUsers, userData = null) {
   const { userData: user, dbUser } = await registerUser(apiHelper, dbHelper, testUsers, userData);
 
-  // Clear any existing token before login
-  apiHelper.clearToken();
+  // Clear any existing auth before login
+  await apiHelper.clearToken();
 
   const loginResponse = await apiHelper.login({
     username: user.username,
@@ -47,7 +47,7 @@ export async function registerAndLoginUser(apiHelper, dbHelper, testUsers, userD
     userData: user,
     dbUser,
     loginResponse,
-    token: apiHelper.token,
+    cookies: apiHelper.getCookies(),
   };
 }
 

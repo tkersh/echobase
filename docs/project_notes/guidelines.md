@@ -423,6 +423,29 @@ docker exec "$NGINX_CONTAINER" nginx -s reload
 
 ---
 
+## Coding Invariants
+
+### Fail-Fast on Missing Environment Variables
+
+**Never use `|| default` fallbacks for env vars.** All required env vars must be listed in `backend/shared/env-validator.js` and validated at startup. If a var is missing, the process must fail immediately with a clear error message. This ensures misconfigurations are caught at deploy time, not at runtime.
+
+**Pattern:**
+```javascript
+// WRONG — silently uses a default, hiding misconfigurations
+const PORT = parseInt(process.env.HEALTH_PORT) || 3003;
+
+// CORRECT — env-validator catches missing vars at startup; no fallback needed
+const PORT = parseInt(process.env.HEALTH_PORT);
+```
+
+When adding a new env var:
+1. Add it to the appropriate array in `backend/shared/env-validator.js`
+2. Add it to the root `.env` file
+3. Add it to the relevant `.env.example` file(s)
+4. Do NOT add a `|| default` fallback in the consuming code
+
+---
+
 ## Endpoint URLs and Networking
 
 - **Verify the full request path through nginx**: nginx has different `location` blocks that route differently. `/api/*` preserves the path; `/health` rewrites it. Trace the full path: URL → nginx location → proxy_pass → backend endpoint.

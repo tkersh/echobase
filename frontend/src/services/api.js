@@ -1,31 +1,15 @@
 /**
  * API Client
  * Centralized API communication layer with error handling
- *
- * @example
- * // Using auth API
- * const { data } = await auth.login({ email, password });
- * const token = data.token;
- *
- * // Using orders API with token
- * await orders.create(orderData, token);
+ * Uses HttpOnly cookies for authentication (credentials: 'include')
  */
 
 import { API_URL } from '../config/api';
 import { API_ENDPOINTS } from '../config/endpoints';
 
-/**
- * APIClient class for making HTTP requests
- * Provides standardized error handling and JSON parsing
- */
 const DEFAULT_TIMEOUT_MS = 10000;
 
 class APIClient {
-  /**
-   * Create an API client instance
-   * @param {string} baseURL - Base URL for all API requests
-   * @param {number} timeoutMs - Default request timeout in milliseconds
-   */
   constructor(baseURL, timeoutMs = DEFAULT_TIMEOUT_MS) {
     this.baseURL = baseURL;
     this.timeoutMs = timeoutMs;
@@ -35,17 +19,14 @@ class APIClient {
   /**
    * Register a callback for 401 responses (centralized auth expiry handling).
    * Call this once from AuthContext to avoid per-component string matching.
-   * @param {Function} callback - Called when a 401 response is received
    */
   onAuthExpired(callback) {
     this._onAuthExpired = callback;
   }
 
   /**
-   * Make a fetch request with standardized error handling and timeout
-   * @param {string} endpoint - API endpoint (without base URL)
-   * @param {object} options - Fetch options
-   * @returns {Promise<object>} Response data
+   * Make a fetch request with standardized error handling and timeout.
+   * All requests include credentials so HttpOnly cookies are sent automatically.
    */
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
@@ -55,6 +36,7 @@ class APIClient {
     try {
       const response = await fetch(url, {
         ...options,
+        credentials: 'include',
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +47,6 @@ class APIClient {
       const data = await response.json();
 
       if (!response.ok) {
-        // Centralized 401 handling — notify auth layer instead of per-component string matching
         if (response.status === 401 && this._onAuthExpired) {
           this._onAuthExpired();
         }
@@ -86,26 +67,10 @@ class APIClient {
     }
   }
 
-  /**
-   * GET request
-   * @param {string} endpoint - API endpoint
-   * @param {object} options - Fetch options (headers, etc.)
-   * @returns {Promise<{data: object, status: number}>} Response data and status
-   */
   async get(endpoint, options = {}) {
-    return this.request(endpoint, {
-      method: 'GET',
-      ...options,
-    });
+    return this.request(endpoint, { method: 'GET', ...options });
   }
 
-  /**
-   * POST request
-   * @param {string} endpoint - API endpoint
-   * @param {object} body - Request body (will be JSON stringified)
-   * @param {object} options - Fetch options (headers, etc.)
-   * @returns {Promise<{data: object, status: number}>} Response data and status
-   */
   async post(endpoint, body, options = {}) {
     return this.request(endpoint, {
       method: 'POST',
@@ -114,13 +79,6 @@ class APIClient {
     });
   }
 
-  /**
-   * PUT request
-   * @param {string} endpoint - API endpoint
-   * @param {object} body - Request body (will be JSON stringified)
-   * @param {object} options - Fetch options (headers, etc.)
-   * @returns {Promise<{data: object, status: number}>} Response data and status
-   */
   async put(endpoint, body, options = {}) {
     return this.request(endpoint, {
       method: 'PUT',
@@ -129,19 +87,9 @@ class APIClient {
     });
   }
 
-  /**
-   * DELETE request
-   * @param {string} endpoint - API endpoint
-   * @param {object} options - Fetch options (headers, etc.)
-   * @returns {Promise<{data: object, status: number}>} Response data and status
-   */
   async delete(endpoint, options = {}) {
-    return this.request(endpoint, {
-      method: 'DELETE',
-      ...options,
-    });
+    return this.request(endpoint, { method: 'DELETE', ...options });
   }
-
 }
 
 // Create singleton instance
@@ -154,32 +102,20 @@ export const auth = {
 
   register: (userData) =>
     apiClient.post(API_ENDPOINTS.AUTH.REGISTER, userData),
+
+  logout: () =>
+    apiClient.post(API_ENDPOINTS.AUTH.LOGOUT),
 };
 
-// Products API methods (v1)
+// Products API methods (v1) — no token param, cookies sent automatically
 export const products = {
-  getAll: (token) =>
-    apiClient.get(API_ENDPOINTS.PRODUCTS, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
+  getAll: () => apiClient.get(API_ENDPOINTS.PRODUCTS),
 };
 
-// Orders API methods (v1)
+// Orders API methods (v1) — no token param, cookies sent automatically
 export const orders = {
-  create: (orderData, token) =>
-    apiClient.post(API_ENDPOINTS.ORDERS, orderData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
-  getAll: (token) =>
-    apiClient.get(API_ENDPOINTS.ORDERS, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    }),
+  create: (orderData) => apiClient.post(API_ENDPOINTS.ORDERS, orderData),
+  getAll: () => apiClient.get(API_ENDPOINTS.ORDERS),
 };
 
 export default apiClient;

@@ -109,12 +109,13 @@ test.describe('User Login Frontend Tests', () => {
 
     await expect(page).toHaveURL(/\/orders/);
 
-    // Verify sessionStorage has token (app stores tokens in sessionStorage for XSS protection)
-    const token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeTruthy();
+    // Verify auth cookie is set (HttpOnly — check via context.cookies())
+    const cookies = await context.cookies();
+    const authCookie = cookies.find(c => c.name === 'echobase_token');
+    expect(authCookie).toBeTruthy();
 
-    // Verify user data in localStorage
-    const userStr = await page.evaluate(() => localStorage.getItem('user'));
+    // Verify user data in sessionStorage
+    const userStr = await page.evaluate(() => sessionStorage.getItem('user'));
     expect(userStr).toBeTruthy();
     const user = JSON.parse(userStr);
     expect(user.username).toBe(userData.username);

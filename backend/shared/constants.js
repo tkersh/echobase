@@ -4,8 +4,29 @@
  */
 
 // Authentication
-const JWT_EXPIRATION = '24h';
+const JWT_EXPIRATION = '15m';
 const BCRYPT_SALT_ROUNDS = 10;
+const AUTH_COOKIE_NAME = 'echobase_token';
+const AUTH_COOKIE_MAX_AGE_MS = 15 * 60 * 1000; // 15 minutes
+
+// Login rate limiting
+const MAX_LOGIN_FAILURES = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const MAX_TRACKED_USERNAMES = 10000;
+
+// Health check caching
+const HEALTH_CACHE_TTL_MS = 5000; // 5 seconds
+
+// Products cache
+const PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+// Circuit breaker (order processor)
+const CIRCUIT_BREAKER_THRESHOLD = 5;
+const CIRCUIT_BREAKER_BASE_DELAY_MS = 5000;
+const CIRCUIT_BREAKER_MAX_DELAY_MS = 120000;
+
+// Healthcheck staleness (order processor)
+const HEALTHCHECK_STALE_SECONDS = 120;
 
 // Order Validation
 const ORDER_MAX_VALUE = 1000000;
@@ -33,6 +54,17 @@ const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
 module.exports = {
   JWT_EXPIRATION,
   BCRYPT_SALT_ROUNDS,
+  AUTH_COOKIE_NAME,
+  AUTH_COOKIE_MAX_AGE_MS,
+  MAX_LOGIN_FAILURES,
+  LOCKOUT_DURATION_MS,
+  MAX_TRACKED_USERNAMES,
+  HEALTH_CACHE_TTL_MS,
+  PRODUCTS_CACHE_TTL_MS,
+  CIRCUIT_BREAKER_THRESHOLD,
+  CIRCUIT_BREAKER_BASE_DELAY_MS,
+  CIRCUIT_BREAKER_MAX_DELAY_MS,
+  HEALTHCHECK_STALE_SECONDS,
   ORDER_MAX_VALUE,
   ORDER_MAX_QUANTITY,
   ORDER_MIN_PRICE,

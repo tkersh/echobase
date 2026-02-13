@@ -36,22 +36,24 @@ test.describe('XSS Protection', () => {
     expect(bodyHtml).not.toContain('javascript:');
   });
 
-  test('should not allow XSS via recommended products in localStorage', async ({ apiHelper, testUsers, page }) => {
+  test('should not allow XSS via recommended products in localStorage', async ({ apiHelper, testUsers, page, context }) => {
     const userData = createValidUser();
     testUsers.push(userData);
 
     await apiHelper.register(userData);
 
+    // Inject auth cookie into browser context
+    await context.addCookies(apiHelper.getCookies());
+
     await page.goto('/');
 
-    // Set auth and inject XSS payloads as recommended product names in localStorage
-    await page.evaluate(({ token, user, xss }) => {
-      sessionStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify({ username: user.username, email: user.email }));
+    // Set user metadata in sessionStorage and inject XSS payload in recommended products
+    await page.evaluate(({ user, xss }) => {
+      sessionStorage.setItem('user', JSON.stringify({ username: user.username, email: user.email }));
       localStorage.setItem('recommendedProducts', JSON.stringify([
         { id: 1, name: xss, cost: 9.99, sku: 'XSS-001' },
       ]));
-    }, { token: apiHelper.token, user: userData, xss: xssPayloads[0] });
+    }, { user: userData, xss: xssPayloads[0] });
 
     let dialogTriggered = false;
     page.on('dialog', async dialog => {

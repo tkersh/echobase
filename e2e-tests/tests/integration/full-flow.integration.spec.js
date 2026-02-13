@@ -53,7 +53,7 @@ test.describe('Full End-to-End Integration Tests', () => {
     // Step 1: Register user
     const regResponse = await apiHelper.register(userData);
     expect(regResponse.status).toBe(201);
-    expect(regResponse.data.token).toBeTruthy();
+    expect(apiHelper.getCookies().length).toBeGreaterThan(0);
 
     // Step 2: Verify user in database
     const dbUser = await dbHelper.waitForUser(userData.username);
@@ -63,13 +63,13 @@ test.describe('Full End-to-End Integration Tests', () => {
     const userId = dbUser.id;
 
     // Step 3: Clear token and login
-    apiHelper.clearToken();
+    await apiHelper.clearToken();
     const loginResponse = await apiHelper.login({
       username: userData.username,
       password: userData.password
     });
     expect(loginResponse.status).toBe(200);
-    expect(loginResponse.data.token).toBeTruthy();
+    expect(apiHelper.getCookies().length).toBeGreaterThan(0);
 
     // Step 4: Submit order
     const orderData = createValidOrder();

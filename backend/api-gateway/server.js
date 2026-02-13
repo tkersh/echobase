@@ -6,6 +6,7 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const compression = require('compression');
 const helmet = require('helmet');
@@ -27,6 +28,8 @@ const { validateRequiredEnv, API_GATEWAY_REQUIRED_VARS } = require('../shared/en
 const { logBuildMetadata } = require('../shared/build-metadata');
 const {
   ORDER_MAX_QUANTITY,
+  HEALTH_CACHE_TTL_MS,
+  PRODUCTS_CACHE_TTL_MS,
 } = require('../shared/constants');
 const { parseAllowedOrigins } = require('../shared/cors-utils');
 const OrderService = require('./services/orderService');
@@ -103,6 +106,9 @@ app.use(csrfProtection);
 // Security: Request size limits (prevent large payload attacks)
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
+
+// Cookie parser for HttpOnly cookie-based authentication
+app.use(cookieParser());
 
 // Debug logging for POST requests (only when LOG_LEVEL=DEBUG)
 app.use((req, res, next) => {
@@ -208,7 +214,6 @@ const { authenticateJWT } = require('./middleware/auth');
 // Results cached for 5 seconds to avoid hammering dependencies on frequent probes
 let healthCache = null;
 let healthCacheExpiry = 0;
-const HEALTH_CACHE_TTL_MS = 5000;
 
 app.get('/health', async (req, res) => {
   const now = Date.now();
@@ -244,7 +249,8 @@ app.get('/health', async (req, res) => {
     }
   } catch (error) {
     health.checks.database.status = 'unhealthy';
-    health.checks.database.message = `Database error: ${error.message}`;
+    health.checks.database.message = 'Database unavailable';
+    logError('Health check database error:', error);
     allHealthy = false;
   }
 
@@ -259,7 +265,8 @@ app.get('/health', async (req, res) => {
     health.checks.sqs.message = 'SQS queue accessible';
   } catch (error) {
     health.checks.sqs.status = 'unhealthy';
-    health.checks.sqs.message = `SQS error: ${error.message}`;
+    health.checks.sqs.message = 'Queue unavailable';
+    logError('Health check SQS error:', error);
     allHealthy = false;
   }
 
@@ -268,9 +275,10 @@ app.get('/health', async (req, res) => {
     health.status = 'degraded';
   }
 
-  // Cache result
+  // Cache healthy results for 5s; unhealthy results for 1s to allow faster recovery detection
+  const cacheTtl = allHealthy ? HEALTH_CACHE_TTL_MS : 1000;
   healthCache = health;
-  healthCacheExpiry = now + HEALTH_CACHE_TTL_MS;
+  healthCacheExpiry = now + cacheTtl;
 
   // Return 503 if any dependency is unhealthy, 200 otherwise
   const statusCode = allHealthy ? 200 : 503;
@@ -296,10 +304,9 @@ if (process.env.NODE_ENV !== 'production') {
 // Auth routes (registration and login - no authentication required)
 app.use('/api/v1/auth', authRoutes);
 
-// Legacy routes for backward compatibility (redirect to v1)
+// Legacy routes for backward compatibility — authRoutes handles /login, /register, etc.
 app.use('/api/auth', (req, res, next) => {
-  log('WARNING: Legacy API route accessed, redirecting to /api/v1/auth');
-  req.url = '/api/v1/auth' + req.url.substring(9);
+  log('WARNING: Legacy API route /api/auth accessed, please update to /api/v1/auth');
   next();
 }, authRoutes);
 
@@ -375,13 +382,22 @@ const orderValidation = [
 // In-memory products cache (11 static rows, refreshed every 5 minutes)
 let productsCache = null;
 let productsCacheExpiry = 0;
-const PRODUCTS_CACHE_TTL_MS = 5 * 60 * 1000;
+let productsCacheRefreshPromise = null;
 
 async function getProduct(db, productId) {
   if (!productsCache || Date.now() > productsCacheExpiry) {
-    const [rows] = await db.execute('SELECT id, name, cost, sku FROM products');
-    productsCache = new Map(rows.map(p => [p.id, p]));
-    productsCacheExpiry = Date.now() + PRODUCTS_CACHE_TTL_MS;
+    // If a refresh is already in-flight, await it instead of starting another
+    if (!productsCacheRefreshPromise) {
+      productsCacheRefreshPromise = db.execute('SELECT id, name, cost, sku FROM products')
+        .then(([rows]) => {
+          productsCache = new Map(rows.map(p => [p.id, p]));
+          productsCacheExpiry = Date.now() + PRODUCTS_CACHE_TTL_MS;
+        })
+        .finally(() => {
+          productsCacheRefreshPromise = null;
+        });
+    }
+    await productsCacheRefreshPromise;
   }
   return productsCache.get(productId);
 }
@@ -583,6 +599,33 @@ app.use((err, req, res, next) => {
     message: 'An unexpected error occurred',
   });
 });
+
+// Graceful shutdown
+const SHUTDOWN_TIMEOUT_MS = 10000;
+function gracefulShutdown(signal) {
+  log(`Received ${signal}, shutting down gracefully...`);
+
+  const httpServer = typeof server.close === 'function' ? server : null;
+  if (httpServer) {
+    httpServer.close(() => {
+      log('HTTP server closed');
+    });
+  }
+
+  // Close database pool
+  if (dbPool) {
+    dbPool.end().catch((err) => logError('Error closing DB pool on shutdown:', err));
+  }
+
+  // Drain timeout — force exit if connections don't close in time
+  setTimeout(() => {
+    logError('Shutdown timed out, forcing exit');
+    process.exit(1);
+  }, SHUTDOWN_TIMEOUT_MS).unref();
+}
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // SSL/TLS Configuration for HTTPS (MITM Protection)
 let server;

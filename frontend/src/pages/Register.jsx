@@ -86,8 +86,8 @@ function Register() {
         password: formData.password
       });
 
-      // Register and login the user
-      register(data.token, data.user);
+      // Register and login the user (token is set as HttpOnly cookie by server)
+      register(data.user);
 
       // Store recommended products if available
       if (data.recommendedProducts && data.recommendedProducts.length > 0) {

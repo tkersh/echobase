@@ -10,7 +10,7 @@ import ApiHelper from '../utils/api-helper.js';
  *
  * Available fixtures:
  *   - dbHelper: Automatically connects and disconnects from database
- *   - apiHelper: Provides API interaction methods
+ *   - apiHelper: Provides API interaction methods (with cookie-based auth)
  *   - testUsers: Array to track test users for automatic cleanup
  */
 export const test = base.extend({
@@ -27,11 +27,13 @@ export const test = base.extend({
 
   /**
    * API helper fixture
-   * Provides methods for interacting with the API
+   * Provides methods for interacting with the API.
+   * Automatically disposes the persistent request context after the test.
    */
   apiHelper: async ({}, use) => {
     const helper = new ApiHelper();
     await use(helper);
+    await helper.dispose();
   },
 
   /**

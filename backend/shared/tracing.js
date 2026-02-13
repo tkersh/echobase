@@ -28,7 +28,7 @@ const EXPORTER_TIMEOUT_MS = 2000;
 const sampleRatio = parseFloat(process.env.OTEL_TRACE_SAMPLE_RATIO);
 
 const collectorEndpoint = process.env.OTEL_COLLECTOR_ENDPOINT; // e.g. http://otel-collector:4318
-const serviceName = process.env.OTEL_SERVICE_NAME || 'unknown-service';
+const serviceName = process.env.OTEL_SERVICE_NAME;
 
 const resource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: serviceName,

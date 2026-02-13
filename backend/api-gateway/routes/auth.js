@@ -14,7 +14,11 @@ const {
   FULLNAME_PATTERN,
   PASSWORD_MIN_LENGTH,
   PASSWORD_PATTERN,
+  MAX_LOGIN_FAILURES,
+  LOCKOUT_DURATION_MS,
+  MAX_TRACKED_USERNAMES,
 } = require('../../shared/constants');
+const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const router = express.Router();
 
 // OTEL business metrics (optional)
@@ -27,9 +31,30 @@ try {
 } catch (_) { /* OTEL not available */ }
 
 // Per-account lockout tracking (in-memory; resets on restart)
-const MAX_LOGIN_FAILURES = 5;
-const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-const loginAttempts = new Map(); // username -> { count, lockedUntil }
+const LOCKOUT_CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+const loginAttempts = new Map(); // username -> { count, lockedUntil, lastAttempt }
+
+// Periodic cleanup of expired lockout entries to bound memory usage
+const lockoutCleanupInterval = setInterval(() => {
+  const now = Date.now();
+  for (const [username, record] of loginAttempts) {
+    if (record.lockedUntil && now >= record.lockedUntil) {
+      loginAttempts.delete(username);
+    }
+  }
+}, LOCKOUT_CLEANUP_INTERVAL_MS);
+// Allow Node to exit even if this interval is still running
+lockoutCleanupInterval.unref();
+
+function evictOldestEntries(count) {
+  // Map iteration order is insertion order; oldest entries come first
+  let removed = 0;
+  for (const key of loginAttempts.keys()) {
+    if (removed >= count) break;
+    loginAttempts.delete(key);
+    removed++;
+  }
+}
 
 function checkAccountLockout(username) {
   const record = loginAttempts.get(username);
@@ -43,8 +68,14 @@ function checkAccountLockout(username) {
 }
 
 function recordFailedLogin(username) {
+  // Bound map size to prevent memory exhaustion
+  if (!loginAttempts.has(username) && loginAttempts.size >= MAX_TRACKED_USERNAMES) {
+    evictOldestEntries(Math.ceil(MAX_TRACKED_USERNAMES * 0.1));
+  }
+
   const record = loginAttempts.get(username) || { count: 0, lockedUntil: null };
   record.count += 1;
+  record.lastAttempt = Date.now();
   if (record.count >= MAX_LOGIN_FAILURES) {
     record.lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
     log(`Account locked: ${username} after ${record.count} failed attempts`);
@@ -210,19 +241,19 @@ router.post('/register', registerValidation, async (req, res) => {
       [username, email, fullName, passwordHash]
     );
 
-    // Generate JWT token
+    // Generate JWT token and set as HttpOnly cookie
     const token = jwt.sign(
       { userId: result.insertId, username, fullName },
       process.env.JWT_SECRET,
       { expiresIn: JWT_EXPIRATION }
     );
+    setAuthCookie(res, token);
 
     log(`New user registered: ${username} (${fullName}) - ID: ${result.insertId}`);
 
     res.status(201).json({
       success: true,
       message: 'User registered successfully',
-      token,
       user: {
         id: result.insertId,
         username,
@@ -360,19 +391,19 @@ router.post('/login', loginValidation, async (req, res) => {
     clearFailedLogins(username);
     if (loginSuccessCounter) loginSuccessCounter.add(1);
 
-    // Generate JWT token
+    // Generate JWT token and set as HttpOnly cookie
     const token = jwt.sign(
       { userId: user.id, username: user.username, fullName: user.full_name },
       process.env.JWT_SECRET,
       { expiresIn: JWT_EXPIRATION }
     );
+    setAuthCookie(res, token);
 
     log(`User logged in: ${username} (${user.full_name}) - ID: ${user.id}`);
 
     res.json({
       success: true,
       message: 'Login successful',
-      token,
       user: {
         id: user.id,
         username: user.username,
@@ -388,6 +419,15 @@ router.post('/login', loginValidation, async (req, res) => {
       message: 'An error occurred during login. Please try again later.',
     });
   }
+});
+
+/**
+ * POST /api/v1/auth/logout
+ * Clear the auth cookie
+ */
+router.post('/logout', (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true, message: 'Logged out' });
 });
 
 module.exports = router;

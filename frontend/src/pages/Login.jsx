@@ -32,8 +32,8 @@ function Login() {
     try {
       const { data } = await auth.login(formData);
 
-      // Login the user
-      login(data.token, data.user);
+      // Login the user (token is set as HttpOnly cookie by server)
+      login(data.user);
 
       // Store recommended products if available
       if (data.recommendedProducts && data.recommendedProducts.length > 0) {

@@ -37,7 +37,7 @@ test.describe('Debug UI Registration Flow', () => {
     await dbHelper.disconnect();
   });
 
-  test('should debug UI registration and order submission', async ({ page }) => {
+  test('should debug UI registration and order submission', async ({ page, context }) => {
     // Step 1: Register via UI
     console.log('\n=== STEP 1: Register via UI ===');
     await page.goto('/register');
@@ -51,22 +51,25 @@ test.describe('Debug UI Registration Flow', () => {
     // Wait for redirect
     await expect(page).toHaveURL(/\/orders/);
 
-    // Step 2: Check localStorage
-    console.log('\n=== STEP 2: Check localStorage ===');
+    // Step 2: Check sessionStorage (no token — cookies are HttpOnly)
+    console.log('\n=== STEP 2: Check sessionStorage ===');
     const storageData = await page.evaluate(() => {
       return {
-        token: window.sessionStorage.getItem('token'),
-        user: window.localStorage.getItem('user')
+        user: window.sessionStorage.getItem('user')
       };
     });
-    console.log('Token:', storageData.token ? storageData.token.substring(0, 30) + '...' : 'NO TOKEN');
-    console.log('User in localStorage:', storageData.user);
+    console.log('User in sessionStorage:', storageData.user);
 
     // Parse and display user object
     if (storageData.user) {
       const userObj = JSON.parse(storageData.user);
       console.log('Parsed user object:', JSON.stringify(userObj, null, 2));
     }
+
+    // Verify auth cookie was set (HttpOnly — check via context.cookies())
+    const cookies = await context.cookies();
+    const authCookie = cookies.find(c => c.name === 'echobase_token');
+    console.log('Auth cookie present:', !!authCookie);
 
     // Step 3: Check database
     console.log('\n=== STEP 3: Check database ===');

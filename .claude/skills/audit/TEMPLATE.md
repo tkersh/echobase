@@ -18,6 +18,7 @@
 - **Impact:** {{impact}}
 - **Fix:** {{fix_suggestion}}
 - **Location:** `{{file_path}}:{{line_numbers}}`
+- **Status:** {{RESOLVED | DEFERRED | DECLINED}} {{— reason if deferred/declined; deviation note if implementation differed from plan}}
 
 ---
 
@@ -28,6 +29,7 @@
 - **Impact:** {{impact}}
 - **Fix:** {{fix_suggestion}}
 - **Location:** `{{file_path}}:{{line_numbers}}`
+- **Status:** {{RESOLVED | DEFERRED | DECLINED}}
 
 ---
 
@@ -38,6 +40,7 @@
 - **Impact:** {{impact}}
 - **Fix:** {{fix_suggestion}}
 - **Location:** `{{file_path}}:{{line_numbers}}`
+- **Status:** {{RESOLVED | DEFERRED | DECLINED}}
 
 ---
 
@@ -48,6 +51,7 @@
 - **Impact:** {{impact}}
 - **Fix:** {{fix_suggestion}}
 - **Location:** `{{file_path}}:{{line_numbers}}`
+- **Status:** {{RESOLVED | DEFERRED | DECLINED}}
 
 ---
 
@@ -58,6 +62,7 @@
 - **Impact:** {{impact}}
 - **Fix:** {{fix_suggestion}}
 - **Location:** `{{file_path}}:{{line_numbers}}`
+- **Status:** {{RESOLVED | DEFERRED | DECLINED}}
 
 ---
 

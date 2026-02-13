@@ -2,7 +2,7 @@ import { test, expect } from '../../fixtures/test-fixtures.js';
 import { createValidUser } from '../../utils/test-data.js';
 
 test.describe('Session Management', () => {
-  test('should clear session on logout', async ({ testUsers, page }) => {
+  test('should clear session on logout', async ({ testUsers, page, context }) => {
     const userData = createValidUser();
     testUsers.push(userData);
 
@@ -16,19 +16,33 @@ test.describe('Session Management', () => {
 
     await expect(page).toHaveURL(/\/orders/);
 
-    // Verify token exists
-    let token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeTruthy();
+    // Verify auth cookie exists (HttpOnly — check via context.cookies())
+    let cookies = await context.cookies();
+    let authCookie = cookies.find(c => c.name === 'echobase_token');
+    expect(authCookie).toBeTruthy();
+
+    // Verify user in sessionStorage
+    let user = await page.evaluate(() => sessionStorage.getItem('user'));
+    expect(user).toBeTruthy();
 
     // Logout
     await page.click('button:has-text("Logout")');
 
-    // Verify token is cleared
-    token = await page.evaluate(() => sessionStorage.getItem('token'));
-    expect(token).toBeNull();
+    // Verify user is cleared from sessionStorage (async logout may still be in-flight)
+    await expect(async () => {
+      user = await page.evaluate(() => sessionStorage.getItem('user'));
+      expect(user).toBeNull();
+    }).toPass({ timeout: 5000 });
+
+    // Verify auth cookie is cleared (server Set-Cookie response may still be in-flight)
+    await expect(async () => {
+      cookies = await context.cookies();
+      authCookie = cookies.find(c => c.name === 'echobase_token');
+      expect(authCookie).toBeFalsy();
+    }).toPass({ timeout: 5000 });
   });
 
-  test('should not accept reused tokens after logout', async ({ testUsers, page, context }) => {
+  test('should not accept reused cookies after logout', async ({ apiHelper, testUsers, page, context }) => {
     const userData = createValidUser();
     testUsers.push(userData);
 
@@ -40,24 +54,26 @@ test.describe('Session Management', () => {
     await page.fill('input[name="confirmPassword"]', userData.password);
     await page.click('button[type="submit"]');
 
-    // Get token before logout
-    const oldToken = await page.evaluate(() => sessionStorage.getItem('token'));
+    // Wait for registration to complete and redirect
+    await expect(page).toHaveURL(/\/orders/, { timeout: 15000 });
+
+    // Get cookie before logout
+    let cookies = await context.cookies();
+    const oldAuthCookie = cookies.find(c => c.name === 'echobase_token');
 
     // Logout
     await page.click('button:has-text("Logout")');
 
-    // Try to use old token
+    // Try to use old cookie in a new page
     const newPage = await context.newPage();
-    await newPage.goto('/');
-    await newPage.evaluate((token) => {
-      sessionStorage.setItem('token', token);
-    }, oldToken);
+    await context.addCookies([oldAuthCookie]);
 
     // Try to access protected page
     await newPage.goto('/orders');
 
-    // Note: This test depends on whether you invalidate tokens server-side
-    // If not, the token might still work (which is a security consideration)
-    // For JWT without server-side tracking, tokens remain valid until expiry
+    // Note: With stateless JWT, the old cookie token remains valid until expiry.
+    // The server clears the cookie but cannot invalidate the JWT itself.
+    // For full server-side invalidation, a token blocklist would be needed.
+    // This test documents the current behavior.
   });
 });

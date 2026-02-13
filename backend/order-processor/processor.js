@@ -5,7 +5,11 @@ const { log, logError } = require('../shared/logger');
 const { getAwsConfig } = require('../shared/aws-config');
 const { initDatabase } = require('../shared/database');
 const { validateRequiredEnv, ORDER_PROCESSOR_REQUIRED_VARS } = require('../shared/env-validator');
-const { ORDER_MAX_QUANTITY, ORDER_MIN_PRICE, ORDER_MAX_PRICE } = require('../shared/constants');
+const {
+  ORDER_MAX_QUANTITY, ORDER_MIN_PRICE, ORDER_MAX_PRICE,
+  CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_BASE_DELAY_MS, CIRCUIT_BREAKER_MAX_DELAY_MS,
+  HEALTHCHECK_STALE_SECONDS,
+} = require('../shared/constants');
 const { logBuildMetadata } = require('../shared/build-metadata');
 
 // OTEL tracing + metrics (optional — no-op if OTEL SDK not available)
@@ -44,9 +48,6 @@ let dbPool;
 let shutdownRequested = false;
 
 // Circuit breaker state
-const CIRCUIT_BREAKER_THRESHOLD = 5;
-const CIRCUIT_BREAKER_BASE_DELAY_MS = 5000;
-const CIRCUIT_BREAKER_MAX_DELAY_MS = 120000;
 let consecutiveFailures = 0;
 let circuitOpen = false;
 
@@ -59,7 +60,6 @@ if (circuitBreakerGauge) {
 
 // Healthcheck state — written to file so Docker can check freshness
 const HEALTHCHECK_FILE = '/tmp/last-successful-poll';
-const HEALTHCHECK_STALE_SECONDS = 120;
 let lastSuccessfulPoll = null;
 let totalMessagesProcessed = 0;
 
@@ -73,7 +73,7 @@ function touchHealthcheck() {
 }
 
 // HTTP health endpoint for remote monitoring and Kubernetes-style liveness probes
-const HEALTH_PORT = parseInt(process.env.HEALTH_PORT) || 3003;
+const HEALTH_PORT = parseInt(process.env.HEALTH_PORT);
 const http = require('http');
 const healthServer = http.createServer((req, res) => {
   if (req.url === '/health' && req.method === 'GET') {
@@ -255,7 +255,7 @@ async function pollQueue() {
       if (messagesReceived) messagesReceived.add(response.Messages.length);
 
       // Process messages with bounded concurrency matching the DB connection pool size
-      const concurrency = parseInt(process.env.DB_CONNECTION_LIMIT) || 2;
+      const concurrency = parseInt(process.env.DB_CONNECTION_LIMIT);
       for (let i = 0; i < response.Messages.length; i += concurrency) {
         const batch = response.Messages.slice(i, i + concurrency);
         await Promise.all(batch.map(msg => processMessage(msg)));

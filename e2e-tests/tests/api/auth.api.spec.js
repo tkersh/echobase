@@ -46,8 +46,8 @@ test.describe('Authentication API Tests', () => {
 
       expect(response.status).toBe(201);
       expect(response.ok).toBeTruthy();
-      expect(response.data).toHaveProperty('token');
       expect(response.data).toHaveProperty('user');
+      expect(response.data).not.toHaveProperty('token'); // Token is in HttpOnly cookie, not body
       expect(response.data.user.username).toBe(userData.username);
       expect(response.data.user.email).toBe(userData.email);
       expect(response.data.user.fullName).toBe(userData.fullName);
@@ -188,8 +188,8 @@ test.describe('Authentication API Tests', () => {
       const regResponse = await apiHelper.register(userData);
       expect(regResponse.status).toBe(201);
 
-      // Clear token to test login
-      apiHelper.clearToken();
+      // Clear auth to test login separately
+      await await apiHelper.clearToken();
 
       // Now login
       const loginResponse = await apiHelper.login({
@@ -199,8 +199,8 @@ test.describe('Authentication API Tests', () => {
 
       expect(loginResponse.status).toBe(200);
       expect(loginResponse.ok).toBeTruthy();
-      expect(loginResponse.data).toHaveProperty('token');
       expect(loginResponse.data).toHaveProperty('user');
+      expect(loginResponse.data).not.toHaveProperty('token'); // Token is in HttpOnly cookie
       expect(loginResponse.data.user.username).toBe(userData.username);
       expect(loginResponse.data.user).not.toHaveProperty('password');
       expect(loginResponse.data.user).not.toHaveProperty('password_hash');
@@ -226,7 +226,7 @@ test.describe('Authentication API Tests', () => {
       const regResponse = await apiHelper.register(userData);
       expect(regResponse.status).toBe(201);
 
-      apiHelper.clearToken();
+      await apiHelper.clearToken();
 
       // Try to login with wrong password
       const loginResponse = await apiHelper.login({
@@ -275,8 +275,8 @@ test.describe('Authentication API Tests', () => {
       const regResponse = await apiHelper.register(userData);
       expect(regResponse.status).toBe(201);
 
-      // Token is automatically set in apiHelper
-      expect(apiHelper.token).toBeTruthy();
+      // Auth cookie is automatically set in apiHelper
+      expect(apiHelper.getCookies().length).toBeGreaterThan(0);
 
       // Try to access protected endpoint
       const orderResponse = await apiHelper.submitOrder({
@@ -290,7 +290,7 @@ test.describe('Authentication API Tests', () => {
     });
 
     test('should reject requests without JWT token', async () => {
-      apiHelper.clearToken();
+      await apiHelper.clearToken();
 
       const response = await apiHelper.submitOrder({
         productId: 1,
@@ -302,7 +302,7 @@ test.describe('Authentication API Tests', () => {
     });
 
     test('should reject requests with invalid JWT token', async () => {
-      apiHelper.setToken('invalid.jwt.token');
+      await apiHelper.setToken('invalid.jwt.token');
 
       const response = await apiHelper.submitOrder({
         productId: 1,
@@ -314,7 +314,7 @@ test.describe('Authentication API Tests', () => {
     });
 
     test('should reject requests with malformed JWT token', async () => {
-      apiHelper.setToken('not-a-valid-jwt-format');
+      await apiHelper.setToken('not-a-valid-jwt-format');
 
       const response = await apiHelper.submitOrder({
         productId: 1,

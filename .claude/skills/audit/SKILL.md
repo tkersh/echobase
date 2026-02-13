@@ -43,11 +43,20 @@ Classify every finding using this rubric:
 - Include a summary table with counts by severity and category.
 
 ### 4. File Creation
-- Save the output to `docs/audit-fix-plan.md`.
-- If `docs/` doesn't exist, create it.
+- Save the output to `docs/project_notes/audit-fix-plan-YYYY-MM-DD.md` where `YYYY-MM-DD` is today's date.
+- If `docs/project_notes/` doesn't exist, create it.
 
 ### 5. No Implementation (Yet)
 - Only provide the plan. Wait for the user to approve the plan before refactoring.
+
+### 6. Close-Out (After Implementation)
+Once all approved fixes have been completed, return to the audit report and update it:
+- **Resolve every finding** by adding a status to each issue:
+  - `RESOLVED` — fix was implemented as planned (or close to it)
+  - `DEFERRED` — not addressed now; must include a reason (e.g., "Deferred: requires upstream API changes scheduled for Q3")
+  - `DECLINED` — intentionally not fixing; must include a reason (e.g., "Declined: risk accepted per team discussion; added compensating monitor")
+- **Note deviations** — If the actual implementation differs from the original plan (different approach, broader/narrower scope, additional changes), add a brief note explaining what changed and why.
+- **Update the summary table** counts to reflect final disposition (resolved / deferred / declined).
 
 ## Technical Guardrails
 - Prioritize structural fixes over stylistic preferences.
