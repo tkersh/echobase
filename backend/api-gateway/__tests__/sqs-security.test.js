@@ -1,4 +1,4 @@
-const { SQSClient, SendMessageCommand, ReceiveMessageCommand, GetQueueAttributesCommand } = require('@aws-sdk/client-sqs');
+const { SQSClient, SendMessageCommand, ReceiveMessageCommand, GetQueueAttributesCommand, DeleteMessageCommand, ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
 const path = require('path');
 const { validateRequiredEnv } = require('../../shared/env-validator');
 
@@ -31,9 +31,23 @@ describe('SQS Security Tests', () => {
   const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID;
   const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY;
 
+  // Track all SQS clients for cleanup to prevent open handle warnings
+  const sqsClients = [];
+  function createSQSClient(opts) {
+    const client = new SQSClient(opts);
+    sqsClients.push(client);
+    return client;
+  }
+
+  afterAll(() => {
+    for (const client of sqsClients) {
+      client.destroy();
+    }
+  });
+
   describe('1. Invalid Credentials', () => {
     test('should reject access with invalid AWS credentials', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -68,7 +82,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should reject access with missing credentials', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -103,7 +117,7 @@ describe('SQS Security Tests', () => {
       // This test is more relevant for temporary credentials (STS)
       // In production, you would use temporary credentials that expire
 
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -135,7 +149,7 @@ describe('SQS Security Tests', () => {
 
   describe('2. Queue URL Tampering', () => {
     test('should reject access to non-existent queue', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -153,7 +167,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should reject access to queue in different account', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -178,7 +192,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should reject malformed queue URLs', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -207,7 +221,7 @@ describe('SQS Security Tests', () => {
 
   describe('3. Message Injection Attacks', () => {
     test('should handle malicious message content safely', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -248,7 +262,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should reject oversized messages', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -283,7 +297,7 @@ describe('SQS Security Tests', () => {
 
   describe('4. Queue Permission Validation', () => {
     test('should verify queue exists and is accessible with valid credentials', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -308,7 +322,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should not allow unauthorized actions', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -334,7 +348,7 @@ describe('SQS Security Tests', () => {
 
   describe('5. Rate Limiting and Throttling', () => {
     test('should handle burst of messages without data loss', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -382,7 +396,7 @@ describe('SQS Security Tests', () => {
 
   describe('6. Dead Letter Queue (DLQ) Security', () => {
     test('should verify DLQ configuration for failed messages', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -408,14 +422,14 @@ describe('SQS Security Tests', () => {
           console.warn('WARNING: No DLQ configured. Failed messages may be lost.');
         }
       } catch (error) {
-        console.error('Could not check DLQ configuration:', error.message);
+        console.warn('Could not check DLQ configuration (expected with LocalStack):', error.message);
       }
     });
   });
 
   describe('7. Message Visibility and Deletion Security', () => {
     test('should not allow deletion of messages without proper receipt handle', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -423,8 +437,6 @@ describe('SQS Security Tests', () => {
           secretAccessKey: AWS_SECRET_ACCESS_KEY,
         },
       });
-
-      const { DeleteMessageCommand } = require('@aws-sdk/client-sqs');
 
       const command = new DeleteMessageCommand({
         QueueUrl: QUEUE_URL,
@@ -442,7 +454,7 @@ describe('SQS Security Tests', () => {
     });
 
     test('should not allow message tampering via visibility timeout', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -477,8 +489,6 @@ describe('SQS Security Tests', () => {
           const message = receiveResult.Messages[0];
 
           // Try to extend visibility timeout with invalid receipt handle
-          const { ChangeMessageVisibilityCommand } = require('@aws-sdk/client-sqs');
-
           const changeCommand = new ChangeMessageVisibilityCommand({
             QueueUrl: QUEUE_URL,
             ReceiptHandle: message.ReceiptHandle + 'tampered',
@@ -513,7 +523,7 @@ describe('SQS Security Tests', () => {
 
   describe('8. Encryption and Data Protection', () => {
     test('should verify queue encryption settings', async () => {
-      const sqsClient = new SQSClient({
+      const sqsClient = createSQSClient({
         region: AWS_REGION,
         endpoint: SQS_ENDPOINT,
         credentials: {
@@ -537,7 +547,7 @@ describe('SQS Security Tests', () => {
           console.warn('WARNING: Queue encryption not enabled. Enable SSE-KMS for production.');
         }
       } catch (error) {
-        console.error('Could not check encryption settings:', error.message);
+        console.warn('Could not check encryption settings (expected with LocalStack):', error.message);
       }
     });
   });

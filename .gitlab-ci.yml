@@ -399,11 +399,25 @@ test:target-api-gateway:
       # Get actual container name (works without compose file context)
       API_CONTAINER=$(scripts/get-container-name.sh echobase-$DEPLOY_TARGET api-gateway)
       echo "Running tests in container: $API_CONTAINER"
+      set +e
       docker exec -e ${ENV_VAR_NAME}=${ENV_FRONTEND_PORT} "$API_CONTAINER" npm test -- --coverage --ci
+      TEST_EXIT_CODE=$?
+      set -e
+
       mkdir -p backend/api-gateway/coverage backend/api-gateway/test-results
-      echo "Copying test results and coverage from container..."
+      echo "Copying test results, coverage, and test log from container..."
+      docker cp "$API_CONTAINER":/app/test-output.log backend/api-gateway/test-output.log 2>/dev/null || echo "No test-output.log found in container"
       docker cp "$API_CONTAINER":/app/coverage/. backend/api-gateway/coverage/ 2>/dev/null || echo "No coverage files found in container"
       docker cp "$API_CONTAINER":/app/junit.xml backend/api-gateway/junit.xml 2>/dev/null || echo "No junit.xml found in container"
+
+      if [ $TEST_EXIT_CODE -ne 0 ]; then
+        echo ""
+        echo "=========================================="
+        echo "ERROR: API Gateway tests failed (exit code: $TEST_EXIT_CODE)"
+        echo "=========================================="
+        echo "Test output saved to artifact: backend/api-gateway/test-output.log"
+      fi
+      exit $TEST_EXIT_CODE
   artifacts:
     reports:
       junit: backend/api-gateway/junit.xml
@@ -413,6 +427,7 @@ test:target-api-gateway:
     paths:
       - backend/api-gateway/coverage/
       - backend/api-gateway/junit.xml
+      - backend/api-gateway/test-output.log
     expire_in: 1 week
     when: always
   after_script:

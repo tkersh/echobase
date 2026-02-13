@@ -25,6 +25,18 @@ const TEST_JWT_SECRET = process.env.JWT_SECRET;
 // API Gateway URL - use 127.0.0.1 instead of localhost to avoid IPv6 issues
 const API_GATEWAY_URL = 'https://127.0.0.1:3001';
 
+/**
+ * Extract the echobase_token cookie value from a supertest response's Set-Cookie header.
+ */
+function extractAuthCookie(response) {
+  const setCookieHeaders = response.headers['set-cookie'] || [];
+  for (const header of setCookieHeaders) {
+    const match = header.match(/echobase_token=([^;]+)/);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 // Test users for isolation
 let testUser1 = null;
 let testUser2 = null;
@@ -52,7 +64,7 @@ beforeAll(async () => {
       testUser1 = {
         ...user1Data,
         id: response1.body.user.id,
-        token: response1.body.token,
+        cookie: `echobase_token=${extractAuthCookie(response1)}`,
       };
       console.log('✓ Test user 1 created (ID:', testUser1.id + ')');
     } else {
@@ -79,7 +91,7 @@ beforeAll(async () => {
       testUser2 = {
         ...user2Data,
         id: response2.body.user.id,
-        token: response2.body.token,
+        cookie: `echobase_token=${extractAuthCookie(response2)}`,
       };
       console.log('✓ Test user 2 created (ID:', testUser2.id + ')');
     } else {
@@ -178,7 +190,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
 
       const response = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(response.status);
       if (response.status === 200) {
@@ -203,7 +215,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
       // First, submit an order for user 1
       const orderResponse = await request(API_GATEWAY_URL)
         .post(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`)
+        .set('Cookie', testUser1.cookie)
         .send({
           productId: 1,
           quantity: 2,
@@ -217,7 +229,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
       // User 2 should NOT see user 1's orders
       const user2OrdersResponse = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser2.token}`);
+        .set('Cookie', testUser2.cookie);
 
       expect([200, 429]).toContain(user2OrdersResponse.status);
       if (user2OrdersResponse.status === 200) {
@@ -229,7 +241,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
       // User 1 SHOULD see their own orders
       const user1OrdersResponse = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(user1OrdersResponse.status);
       if (user1OrdersResponse.status === 200) {
@@ -251,7 +263,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
 
       const response = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(response.status);
       if (response.status === 200) {
@@ -275,7 +287,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
       // Submit an order first
       await request(API_GATEWAY_URL)
         .post(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`)
+        .set('Cookie', testUser1.cookie)
         .send({
           productId: 2,
           quantity: 1,
@@ -286,7 +298,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
 
       const response = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(response.status);
       if (response.status === 200 && response.body.orders.length > 0) {
@@ -314,14 +326,14 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
       // Submit multiple orders with slight delays
       await request(API_GATEWAY_URL)
         .post(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`)
+        .set('Cookie', testUser1.cookie)
         .send({ productId: 3, quantity: 1 });
 
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       await request(API_GATEWAY_URL)
         .post(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`)
+        .set('Cookie', testUser1.cookie)
         .send({ productId: 4, quantity: 2 });
 
       // Wait for orders to be processed
@@ -329,7 +341,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
 
       const response = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(response.status);
       if (response.status === 200 && response.body.orders.length >= 2) {
@@ -354,7 +366,7 @@ describe('Orders API Tests - GET /api/v1/orders', () => {
 
       const response = await request(API_GATEWAY_URL)
         .get(API_ENDPOINTS.ORDERS)
-        .set('Authorization', `Bearer ${testUser1.token}`);
+        .set('Cookie', testUser1.cookie);
 
       expect([200, 429]).toContain(response.status);
       if (response.status === 200) {

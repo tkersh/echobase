@@ -145,7 +145,7 @@ describe('API Gateway Security Tests', () => {
       // May get 429 if rate limited, or 401 for auth required
       expect([401, 429]).toContain(response.status);
       if (response.status === 401) {
-        expect(response.body.message).toContain('Authorization');
+        expect(response.body.message).toContain('authentication');
       }
     });
 
