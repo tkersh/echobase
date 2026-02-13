@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "8c9a1153774c",
+  "session_id": "f6dbfb37-42dc-4ff1-8065-f8c055100698",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T23:15:07.622096Z",
+  "branch": "use_otel",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/api-gateway/ssl/api-gateway.crt",
+    "backend/api-gateway/ssl/api-gateway.key",
+    "frontend/ssl/localhost.crt",
+    "frontend/ssl/localhost.key"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 142,
+    "cache_creation_tokens": 127269,
+    "cache_read_tokens": 3844100,
+    "output_tokens": 17104,
+    "api_call_count": 48
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T23:15:07.017614Z",
+    "agent_lines": 0,
+    "human_added": 167,
+    "human_modified": 215,
+    "human_removed": 0,
+    "total_committed": 167,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/f6dbfb37-42dc-4ff1-8065-f8c055100698.jsonl"
+}

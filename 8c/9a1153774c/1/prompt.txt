@@ -1,0 +1,12 @@
+resume
+
+---
+
+promote:to-production smoketest failed Test 3: Auth Flow
+✓ PASS: User registration
+✗ FAIL: User login
+  → No token in response -- you were in the process of fixing that when we hit the limit
+
+---
+
+[Request interrupted by user for tool use]
