@@ -228,7 +228,7 @@ test_auth_flow() {
     local password
     local response
     local http_code
-    local token
+    local auth_cookie
 
     # Generate unique test user
     timestamp=$(date +%s%N | cut -c1-13)
@@ -253,8 +253,8 @@ test_auth_flow() {
         return 1
     fi
 
-    # 3b: Login
-    response=$(do_curl -sk -w "\n%{http_code}" \
+    # 3b: Login (auth token is returned as an HttpOnly cookie)
+    response=$(do_curl -sk -D - -w "\n%{http_code}" \
         -X POST "${FRONTEND_URL}${AUTH_LOGIN_ENDPOINT}" \
         -H "Content-Type: application/json" \
         -H "Origin: ${FRONTEND_URL}" \
@@ -262,17 +262,16 @@ test_auth_flow() {
         --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
 
     http_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
 
     if [ "$http_code" = "200" ]; then
-        # Extract token for order test
-        token=$(echo "$body" | grep -o '"token":"[^"]*"' | cut -d'"' -f4 || true)
-        if [ -n "$token" ]; then
+        # Extract auth cookie from Set-Cookie header
+        auth_cookie=$(echo "$response" | grep -i 'set-cookie:' | grep -o 'echobase_token=[^;]*' | head -1 || true)
+        if [ -n "$auth_cookie" ]; then
             log_test "PASS" "User login"
-            # Export for order test
-            export AUTH_TOKEN="$token"
+            # Export cookie for order test
+            export AUTH_COOKIE="$auth_cookie"
         else
-            log_test "FAIL" "User login" "No token in response"
+            log_test "FAIL" "User login" "No auth cookie in response"
             return 1
         fi
     else
