@@ -1,0 +1,58 @@
+Implement the following plan:
+
+# Fix: Promote-to-Production Smoketest Auth Flow Failure
+
+## Context
+
+The `use_otel` branch migrated SSL certificates from baked-in files to AWS Secrets Manager (fetched at runtime). This broke two things:
+
+1. **Durable nginx build is broken**: `durable/nginx/Dockerfile` line 14 does `COPY frontend/ssl /etc/ssl`, but `frontend/ssl/` was deleted. Fresh builds fail.
+2. **API gateway may fall back to HTTP**: If the CI durable LocalStack hasn't been re-setup with the new `setup.sh` (which seeds SSL secrets), `initSSL()` gets ResourceNotFoundException, returns null, and the server falls back to HTTP. The durable nginx then gets 502 when proxying `https://` to an HTTP backend.
+
+Additionally, there's a bug in the smoke test: Test 4 checks `AUTH_TOKEN` but the auth flow exports `AUTH_COOKIE`.
+
+## Plan
+
+### 1. Update durable nginx to fetch SSL from Secrets Manager at runtime
+
+**Files:**
+- `durable/nginx/Dockerfile` — Remove `COPY frontend/ssl`, install `aws-cli`/`jq`/`openssl`, add entrypoint script
+- `durable/nginx/docker-entrypoint.d/40-ssl-setup.sh` (new) — Script to fetch SSL from Secrets Manager at startup (same pattern as `frontend/docker-entrypoint.d/40-ssl-setup.sh`)
+- `durable/docker-compose.yml` — Add AWS env vars to the nginx service so it can reach Secrets Manager
+
+The script will:
+- Fetch `echobase/nginx-lb/ssl` from Secrets Manager using `aws` CLI
+- **Fail fast** if the secret can't be fetched (no self-signed fallback) — SSL certs must come from Secrets Manager
+- Write certs to `/etc/ssl/` where the nginx config expects them
+
+### 2. Fix smoke test AUTH_TOKEN → AUTH_COOKIE mismatch
+
+**File:** `scripts/smoke-tests.sh`
+- Line 288: Change `AUTH_TOKEN` to `AUTH_COOKIE`
+- Line 289: Update error message accordingly
+- Line 300: Change from `-H "Authorization: Bearer ${AUTH_TOKEN}"` to `-b "${AUTH_COOKIE}"` (curl's `-b` flag sends cookies)
+
+The `authenticateJWT` middleware reads the cookie first (`req.cookies[AUTH_COOKIE_NAME]`), falling back to Authorization header. Using `-b "echobase_token=eyJ..."` is the correct way to send the cookie.
+
+### 3. Seed durable nginx SSL secret in setup.sh
+
+**File:** `durable/setup.sh`
+- Add a "Step 3d" block to seed `echobase/nginx-lb/ssl` in Secrets Manager (same pattern as the existing api-gateway and frontend SSL seeding blocks)
+
+## Verification
+
+1. Rebuild durable nginx: `cd durable && docker compose build nginx`
+2. Run `durable/setup.sh devlocal` — verify SSL secrets are seeded for nginx-lb
+3. Run unit tests: `cd backend/api-gateway && npm test`
+4. Run smoke tests locally: `scripts/smoke-tests.sh`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/tadk/.REDACTED.jsonl
+
+---
+
+Can we DRY the two 40-ssl-setup.sh files? Why are they named 40-xxx?
+
+---
+
+We should never fall back to self-signed

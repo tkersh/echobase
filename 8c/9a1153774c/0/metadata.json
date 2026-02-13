@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "8c9a1153774c",
+  "session_id": "125a5e4c-4f53-4901-99a7-c7bb5188c7e9",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-13T23:15:06.89401Z",
+  "branch": "use_otel",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "backend/api-gateway/ssl/api-gateway.crt",
+    "backend/api-gateway/ssl/api-gateway.key",
+    "durable/docker-compose.yml",
+    "durable/nginx/Dockerfile",
+    "durable/nginx/docker-entrypoint.d/40-ssl-setup.sh",
+    "durable/setup.sh",
+    "frontend/docker-entrypoint.d/40-ssl-setup.sh",
+    "frontend/ssl/localhost.crt",
+    "frontend/ssl/localhost.key",
+    "scripts/smoke-tests.sh"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 43,
+    "cache_creation_tokens": 44193,
+    "cache_read_tokens": 1893652,
+    "output_tokens": 2384,
+    "api_call_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-13T23:15:06.580378Z",
+    "agent_lines": 132,
+    "human_added": 0,
+    "human_modified": 148,
+    "human_removed": 11,
+    "total_committed": 280,
+    "agent_percentage": 47.14285714285714
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/125a5e4c-4f53-4901-99a7-c7bb5188c7e9.jsonl"
+}
