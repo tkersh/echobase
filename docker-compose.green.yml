@@ -15,9 +15,13 @@
 services:
   localstack:
     ports:
-      - "4666:4566"  # CI Green ephemeral LocalStack (SQS, logs)
+      - "4666:4566"  # CI Green ephemeral LocalStack (SQS only)
       - "4671:4571"
     container_name: echobase-green-localstack
+    environment:
+      # Override base services list: ephemeral only needs SQS.
+      # Secrets Manager and KMS live in the durable LocalStack.
+      - SERVICES=sqs
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=green"
@@ -63,6 +67,8 @@ services:
       - API_GATEWAY_HOST=echobase-green-api-gateway
       # OTEL Collector (CI durable)
       - OTEL_COLLECTOR_HOST=echobase-ci-durable-otel-collector
+      # Use CI durable LocalStack for SSL secrets (seeded by durable/setup.sh)
+      - AWS_ENDPOINT_URL=http://echobase-ci-durable-localstack:4566
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=green"

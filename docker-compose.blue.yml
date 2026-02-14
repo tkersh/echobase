@@ -15,9 +15,13 @@
 services:
   localstack:
     ports:
-      - "4667:4566"  # CI Blue ephemeral LocalStack (SQS, logs)
+      - "4667:4566"  # CI Blue ephemeral LocalStack (SQS only)
       - "4672:4571"
     container_name: echobase-blue-localstack
+    environment:
+      # Override base services list: ephemeral only needs SQS.
+      # Secrets Manager and KMS live in the durable LocalStack.
+      - SERVICES=sqs
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=blue"
@@ -63,6 +67,8 @@ services:
       - API_GATEWAY_HOST=echobase-blue-api-gateway
       # OTEL Collector (CI durable)
       - OTEL_COLLECTOR_HOST=echobase-ci-durable-otel-collector
+      # Use CI durable LocalStack for SSL secrets (seeded by durable/setup.sh)
+      - AWS_ENDPOINT_URL=http://echobase-ci-durable-localstack:4566
     labels:
       - "echobase.role=ephemeral"
       - "echobase.env=blue"

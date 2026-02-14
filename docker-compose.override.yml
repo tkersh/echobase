@@ -25,3 +25,6 @@ services:
     ports:
       - "3000:80"   # HTTP (redirects to HTTPS)
       - "3443:443"  # HTTPS (secure)
+    environment:
+      # Use devlocal durable LocalStack for SSL secrets (seeded by durable/setup.sh)
+      - AWS_ENDPOINT_URL=http://echobase-devlocal-durable-localstack:4566

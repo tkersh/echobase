@@ -10,7 +10,9 @@ services:
     mem_limit: 1536m
     cpus: 1.0
     environment:
-      - SERVICES=sqs,logs,iam,kms,secretsmanager
+      # Ephemeral LocalStack only needs SQS.
+      # Secrets Manager and KMS live in the durable LocalStack.
+      - SERVICES=sqs
       - DEBUG=0
       - LS_LOG=warning
       - PERSISTENCE=1
@@ -123,13 +125,12 @@ services:
       # OTEL Collector hostname for frontend nginx proxy (/v1/traces)
       - OTEL_COLLECTOR_HOST=echobase-devlocal-durable-otel-collector
 
-      # AWS Configuration for fetching SSL secrets
-      # These come from .env/.env.secrets or passed by CI
+      # AWS Configuration for fetching SSL secrets from durable LocalStack
+      # AWS_ENDPOINT_URL is set per-environment (override.yml, blue.yml, green.yml)
+      # to point to the durable LocalStack where SSL secrets are seeded.
       - AWS_REGION=${AWS_REGION:-us-east-1}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      # Point to LocalStack for secrets (important for devlocal/CI)
-      - AWS_ENDPOINT_URL=${AWS_ENDPOINT_URL:-http://localstack:4566}
       - SSL_SECRET_ID=echobase/frontend/ssl
     depends_on:
       api-gateway:
