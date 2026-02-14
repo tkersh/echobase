@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "273c0949f80f",
+  "session_id": "c4e37c2a-be6f-45cf-86f4-16041685ad20",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-14T00:53:11.014779Z",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "docker-compose.blue.yml",
+    "docker-compose.green.yml",
+    "docker-compose.override.yml",
+    "docker-compose.yml"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 46,
+    "cache_creation_tokens": 101667,
+    "cache_read_tokens": 1999241,
+    "output_tokens": 5069,
+    "api_call_count": 42
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-14T00:53:10.699139Z",
+    "agent_lines": 23,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 23,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/c4e37c2a-be6f-45cf-86f4-16041685ad20.jsonl"
+}
