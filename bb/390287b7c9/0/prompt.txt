@@ -1,0 +1,75 @@
+Implement the following plan:
+
+# Feature: Sortable Columns on Order History Page
+
+## Context
+The order history page (`OrdersPage.jsx`) displays orders in a static table sorted by date descending (from the backend). Users need the ability to sort by any column in ascending or descending order by clicking column headers. Default sort: date descending.
+
+## Approach: Client-Side Sorting
+Since order data is already fully loaded in the frontend (no pagination), client-side sorting is the simplest and most responsive approach. No backend changes needed.
+
+## Files to Modify
+
+1. **`frontend/src/pages/OrdersPage.jsx`** - Add sorting state and logic
+2. **`frontend/src/App.css`** - Add sortable header styles (cursor, indicators)
+3. **`frontend/src/pages/__tests__/OrdersPage.test.jsx`** - Add sorting tests
+
+## Implementation Steps
+
+### 1. OrdersPage.jsx - Add sorting state and logic
+- Add `sortColumn` state (default: `'createdAt'`) and `sortDirection` state (default: `'desc'`)
+- Create a `handleSort(column)` function: if same column clicked, toggle direction; if different column, set ascending
+- Create a `sortedOrders` derived value using `useMemo` that sorts `ordersList` based on current sort state
+  - String columns (`productName`, `sku`, `status`): use `localeCompare`
+  - Numeric columns (`quantity`, `totalPrice`): numeric comparison
+  - Date column (`createdAt`): compare Date objects
+- Replace `ordersList.map(...)` with `sortedOrders.map(...)`
+
+### 2. OrdersPage.jsx - Make headers clickable
+- Replace static `<th>` elements with clickable headers that call `handleSort(columnKey)`
+- Show sort direction indicator (▲/▼) on the active sort column
+- Column key mapping: Product→`productName`, SKU→`sku`, Quantity→`quantity`, Total→`totalPrice`, Status→`status`, Date→`createdAt`
+
+### 3. App.css - Sortable header styles
+- `.orders-table th` - add `cursor: pointer` and `user-select: none`
+- Add hover style for headers
+- Style for sort indicator (small arrow next to active column text)
+
+### 4. Tests - OrdersPage.test.jsx
+- Test: default sort is by date descending
+- Test: clicking a column header sorts ascending
+- Test: clicking same column header again toggles to descending
+- Test: sort indicator is visible on active column
+
+## Verification
+- Run `cd frontend && npm test` to verify all tests pass
+- Existing tests should continue to pass (column headers still display same text, just wrapped in clickable elements)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/tadk/.claude/projects/-Users-tadk-work-echobase/6754ccba-880a-4027-b768-48bcd7e7bd41.jsonl
+
+---
+
+Please add an indicator to each column, showing that it is sortable. Also, move date to the first column.
+
+---
+
+How can I redeploy just the frontend?
+
+---
+
+should display formatted prices with dollar sign
+frontend/my-orders.frontend.spec.js:97
+3.6s
+Frontend Tests
+Copy prompt
+Error: expect(received).toMatch(expected)
+
+Expected pattern: /^\$[\d,]+\.\d{2}$/
+Received string:  "2"
+
+  112 |     const priceCell = page.locator('.orders-table tbody td:nth-child(4)').first();
+  113 |     const priceText = await priceCell.textContent();
+> 114 |     expect(priceText).toMatch(/^\$[\d,]+\.\d{2}$/);
+      |                       ^
+  115 |   });

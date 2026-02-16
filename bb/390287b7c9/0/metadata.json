@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "bb390287b7c9",
+  "session_id": "e3156a2c-76c8-4699-a360-ff13313dd194",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-16T23:52:26.757273Z",
+  "branch": "order-sortable-columns",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "backend/api-gateway/config/express.js",
+    "backend/api-gateway/controllers/orderController.js",
+    "backend/api-gateway/services/healthService.js",
+    "backend/api-gateway/services/productService.js",
+    "backend/api-gateway/services/sslService.js",
+    "docs/Feature-Sortable-Columns.md",
+    "e2e-tests/tests/frontend/my-orders.frontend.spec.js",
+    "frontend/package.json",
+    "frontend/src/App.css",
+    "frontend/src/pages/OrdersPage.jsx",
+    "frontend/src/pages/__tests__/OrdersPage.test.jsx",
+    "frontend/src/test/setup.js",
+    "frontend/vite.config.js"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 55532,
+    "cache_read_tokens": 3525658,
+    "output_tokens": 7359,
+    "api_call_count": 70
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-16T23:52:26.23445Z",
+    "agent_lines": 695,
+    "human_added": 1257,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1952,
+    "agent_percentage": 35.60450819672131
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/e3156a2c-76c8-4699-a360-ff13313dd194.jsonl"
+}

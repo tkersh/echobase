@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.4",
+  "checkpoint_id": "bb390287b7c9",
+  "strategy": "manual-commit",
+  "branch": "order-sortable-columns",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "backend/api-gateway/config/express.js",
+    "backend/api-gateway/controllers/orderController.js",
+    "backend/api-gateway/services/healthService.js",
+    "backend/api-gateway/services/productService.js",
+    "backend/api-gateway/services/sslService.js",
+    "docs/Feature-Sortable-Columns.md",
+    "e2e-tests/tests/frontend/my-orders.frontend.spec.js",
+    "frontend/package.json",
+    "frontend/src/App.css",
+    "frontend/src/pages/OrdersPage.jsx",
+    "frontend/src/pages/__tests__/OrdersPage.test.jsx",
+    "frontend/src/test/setup.js",
+    "frontend/vite.config.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bb/390287b7c9/0/metadata.json",
+      "transcript": "/bb/390287b7c9/0/full.jsonl",
+      "context": "/bb/390287b7c9/0/context.md",
+      "content_hash": "/bb/390287b7c9/0/content_hash.txt",
+      "prompt": "/bb/390287b7c9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 78,
+    "cache_creation_tokens": 55532,
+    "cache_read_tokens": 3525658,
+    "output_tokens": 7359,
+    "api_call_count": 70
+  }
+}
