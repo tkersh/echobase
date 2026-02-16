@@ -43,7 +43,7 @@ Classify every finding using this rubric:
 - Include a summary table with counts by severity and category.
 
 ### 4. File Creation
-- Save the output to `docs/project_notes/audit-fix-plan-YYYY-MM-DD.md` where `YYYY-MM-DD` is today's date.
+- Save the output to `docs/project_notes/audit-fix-plan-YYYY-MMDD.md` where `YYYY-MM-DD` is today's date.
 - If `docs/project_notes/` doesn't exist, create it.
 
 ### 5. No Implementation (Yet)
