@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import OrdersPage from '../OrdersPage';
 import { AuthProvider } from '../../context/AuthContext';
@@ -95,13 +96,13 @@ describe('OrdersPage', () => {
       renderWithRouter(<OrdersPage />);
 
       await waitFor(() => {
-        // Check table headers
-        expect(screen.getByText('Product')).toBeInTheDocument();
-        expect(screen.getByText('SKU')).toBeInTheDocument();
-        expect(screen.getByText('Quantity')).toBeInTheDocument();
-        expect(screen.getByText('Total')).toBeInTheDocument();
-        expect(screen.getByText('Status')).toBeInTheDocument();
-        expect(screen.getByText('Date')).toBeInTheDocument();
+        // Check table headers (each has a sort indicator)
+        expect(screen.getByText(/^Date/)).toBeInTheDocument();
+        expect(screen.getByText(/^Product/)).toBeInTheDocument();
+        expect(screen.getByText(/^SKU/)).toBeInTheDocument();
+        expect(screen.getByText(/^Quantity/)).toBeInTheDocument();
+        expect(screen.getByText(/^Total/)).toBeInTheDocument();
+        expect(screen.getByText(/^Status/)).toBeInTheDocument();
       });
 
       // Check order data is displayed
@@ -146,6 +147,107 @@ describe('OrdersPage', () => {
       await waitFor(() => {
         expect(screen.getByText(/error/i)).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('Sorting', () => {
+    const mockOrders = [
+      {
+        id: 1,
+        productName: 'Quantum Stabilizer',
+        sku: 'QS-001',
+        quantity: 2,
+        totalPrice: 499.98,
+        status: 'completed',
+        createdAt: '2026-02-01T10:30:00.000Z',
+      },
+      {
+        id: 2,
+        productName: 'Plasma Conduit',
+        sku: 'PC-042',
+        quantity: 5,
+        totalPrice: 89.50,
+        status: 'pending',
+        createdAt: '2026-02-03T14:45:00.000Z',
+      },
+      {
+        id: 3,
+        productName: 'Alpha Module',
+        sku: 'AM-100',
+        quantity: 1,
+        totalPrice: 250.00,
+        status: 'processing',
+        createdAt: '2026-02-02T08:00:00.000Z',
+      },
+    ];
+
+    const setupWithOrders = async () => {
+      api.orders.getAll.mockResolvedValue({
+        data: { success: true, orders: mockOrders, count: 3 },
+      });
+      renderWithRouter(<OrdersPage />);
+      await waitFor(() => {
+        expect(screen.getByText('Quantum Stabilizer')).toBeInTheDocument();
+      });
+    };
+
+    const getRowProductNames = () => {
+      const rows = screen.getAllByRole('row').slice(1); // skip header row
+      return rows.map((row) => within(row).getAllByRole('cell')[1].textContent);
+    };
+
+    it('defaults to date descending sort', async () => {
+      await setupWithOrders();
+
+      const names = getRowProductNames();
+      // Sorted by date desc: Feb 3 (Plasma), Feb 2 (Alpha), Feb 1 (Quantum)
+      expect(names).toEqual(['Plasma Conduit', 'Alpha Module', 'Quantum Stabilizer']);
+    });
+
+    it('shows sort indicator on the active column and sortable indicators on others', async () => {
+      await setupWithOrders();
+
+      const dateHeader = screen.getByText(/^Date/);
+      expect(dateHeader).toHaveAttribute('aria-sort', 'descending');
+      expect(dateHeader.querySelector('.sort-indicator.active')).toBeInTheDocument();
+
+      const productHeader = screen.getByText(/^Product/);
+      expect(productHeader).toHaveAttribute('aria-sort', 'none');
+      expect(productHeader.querySelector('.sort-indicator.inactive')).toBeInTheDocument();
+    });
+
+    it('sorts ascending when clicking a different column', async () => {
+      const user = userEvent.setup();
+      await setupWithOrders();
+
+      await user.click(screen.getByText(/^Product/));
+
+      const names = getRowProductNames();
+      expect(names).toEqual(['Alpha Module', 'Plasma Conduit', 'Quantum Stabilizer']);
+    });
+
+    it('toggles direction when clicking the same column again', async () => {
+      const user = userEvent.setup();
+      await setupWithOrders();
+
+      // Click Product to sort ascending
+      await user.click(screen.getByText(/^Product/));
+      expect(getRowProductNames()).toEqual(['Alpha Module', 'Plasma Conduit', 'Quantum Stabilizer']);
+
+      // Click Product again to sort descending
+      await user.click(screen.getByText(/^Product/));
+      expect(getRowProductNames()).toEqual(['Quantum Stabilizer', 'Plasma Conduit', 'Alpha Module']);
+    });
+
+    it('sorts numeric columns correctly', async () => {
+      const user = userEvent.setup();
+      await setupWithOrders();
+
+      await user.click(screen.getByText(/^Quantity/));
+
+      const rows = screen.getAllByRole('row').slice(1);
+      const quantities = rows.map((row) => within(row).getAllByRole('cell')[3].textContent);
+      expect(quantities).toEqual(['1', '2', '5']);
     });
   });
 

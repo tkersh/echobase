@@ -232,6 +232,27 @@ h1 {
   color: #1a1a1a;
 }
 
+.orders-table th.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.orders-table th.sortable-header:hover {
+  background-color: #e9ecef;
+}
+
+.sort-indicator {
+  font-size: 0.75rem;
+}
+
+.sort-indicator.inactive {
+  opacity: 0.3;
+}
+
+.orders-table th.sortable-header:hover .sort-indicator.inactive {
+  opacity: 0.6;
+}
+
 .orders-table tr:hover {
   background-color: #f8f9fa;
 }

@@ -109,7 +109,7 @@ test.describe('My Orders Page Frontend Tests', () => {
     await expect(page.locator('.orders-table')).toBeVisible({ timeout: 10000 });
 
     // Check that prices are formatted with $
-    const priceCell = page.locator('.orders-table tbody td:nth-child(4)').first();
+    const priceCell = page.locator('.orders-table tbody td:nth-child(5)').first();
     const priceText = await priceCell.textContent();
     expect(priceText).toMatch(/^\$[\d,]+\.\d{2}$/);
   });

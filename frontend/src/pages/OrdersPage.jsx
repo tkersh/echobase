@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { orders } from '../services/api';
@@ -8,6 +8,8 @@ function OrdersPage() {
   const [ordersList, setOrdersList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sortColumn, setSortColumn] = useState('createdAt');
+  const [sortDirection, setSortDirection] = useState('desc');
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -57,6 +59,41 @@ function OrdersPage() {
   const formatPrice = (price) => {
     return `$${Number(price).toFixed(2)}`;
   };
+
+  const handleSort = (column) => {
+    if (column === sortColumn) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedOrders = useMemo(() => {
+    const stringColumns = ['productName', 'sku', 'status'];
+    const numericColumns = ['quantity', 'totalPrice'];
+
+    return [...ordersList].sort((a, b) => {
+      let comparison = 0;
+      if (stringColumns.includes(sortColumn)) {
+        comparison = String(a[sortColumn]).localeCompare(String(b[sortColumn]));
+      } else if (numericColumns.includes(sortColumn)) {
+        comparison = Number(a[sortColumn]) - Number(b[sortColumn]);
+      } else {
+        comparison = new Date(a[sortColumn]) - new Date(b[sortColumn]);
+      }
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [ordersList, sortColumn, sortDirection]);
+
+  const columns = [
+    { key: 'createdAt', label: 'Date' },
+    { key: 'productName', label: 'Product' },
+    { key: 'sku', label: 'SKU' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'totalPrice', label: 'Total' },
+    { key: 'status', label: 'Status' },
+  ];
 
   if (loading) {
     return (
@@ -113,17 +150,29 @@ function OrdersPage() {
           <table className="orders-table">
             <thead>
               <tr>
-                <th>Product</th>
-                <th>SKU</th>
-                <th>Quantity</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th>Date</th>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    onClick={() => handleSort(col.key)}
+                    className="sortable-header"
+                    aria-sort={sortColumn === col.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : 'none'}
+                  >
+                    {col.label}
+                    {sortColumn === col.key ? (
+                      <span className="sort-indicator active" aria-hidden="true">
+                        {sortDirection === 'asc' ? ' ▲' : ' ▼'}
+                      </span>
+                    ) : (
+                      <span className="sort-indicator inactive" aria-hidden="true"> ⇅</span>
+                    )}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {ordersList.map((order) => (
+              {sortedOrders.map((order) => (
                 <tr key={order.id}>
+                  <td>{formatDate(order.createdAt)}</td>
                   <td>{order.productName}</td>
                   <td>{order.sku}</td>
                   <td>{order.quantity}</td>
@@ -133,7 +182,6 @@ function OrdersPage() {
                       {order.status}
                     </span>
                   </td>
-                  <td>{formatDate(order.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
