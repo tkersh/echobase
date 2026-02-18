@@ -17,11 +17,11 @@ COPY e2e-tests/package.json ./e2e-tests/
 
 # Install build tools for native bcrypt compilation, install deps, then clean up
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-  npm ci -w backend/api-gateway -w backend/shared --omit=dev && \
+  npm ci -w backend/api-gateway -w backend/shared && \
   apk del .build-deps
 
 # Run security audit
-RUN npm audit -w backend/api-gateway --omit=dev --audit-level=high
+RUN npm audit -w backend/api-gateway --audit-level=high
 
 # Copy application code
 COPY backend/api-gateway/ ./backend/api-gateway/

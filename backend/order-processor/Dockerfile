@@ -16,10 +16,10 @@ COPY frontend/package.json ./frontend/
 COPY e2e-tests/package.json ./e2e-tests/
 
 # Install dependencies
-RUN npm ci -w backend/order-processor -w backend/shared --omit=dev
+RUN npm ci -w backend/order-processor -w backend/shared
 
 # Run security audit (informational - won't fail build)
-RUN npm audit -w backend/order-processor --omit=dev --audit-level=high || echo "⚠ Security audit found issues - review before production deployment"
+RUN npm audit -w backend/order-processor --audit-level=high || echo "⚠ Security audit found issues - review before production deployment"
 
 # Copy application code
 COPY backend/order-processor/ ./backend/order-processor/

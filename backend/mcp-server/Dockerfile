@@ -22,7 +22,6 @@ COPY backend/mcp-server/tsconfig.json ./backend/mcp-server/
 RUN npm run build -w backend/mcp-server
 
 # Remove dev dependencies
-RUN npm prune -w backend/mcp-server --omit=dev
 
 # Build metadata
 ARG GIT_SHORT_SHA=unknown
