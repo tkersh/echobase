@@ -25,8 +25,10 @@ RUN npm audit -w backend/order-processor --omit=dev --audit-level=high || echo "
 COPY backend/order-processor/ ./backend/order-processor/
 COPY backend/shared/ ./backend/shared/
 
-# Store build metadata
-RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"order-processor\"}" > /app/backend/order-processor/build-metadata.json
+# Store build metadata (v1 in /app for CI, v2 in shared for app logging)
+RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"order-processor\"}" > /app/build-metadata.json && \
+    mkdir -p /app/backend/shared && \
+    cp /app/build-metadata.json /app/backend/shared/build-metadata.json
 
 WORKDIR /app/backend/order-processor
 
