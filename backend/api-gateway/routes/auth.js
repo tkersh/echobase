@@ -206,7 +206,7 @@ const loginValidation = [
  * POST /api/v1/auth/register
  * Register a new user
  */
-router.post('/register', registerValidation, async (req, res) => {
+router.post('/register', registerValidation, async (req, res, next) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -263,11 +263,7 @@ router.post('/register', registerValidation, async (req, res) => {
       recommendedProducts: [],
     });
   } catch (error) {
-    logError('Error during registration:', error);
-    res.status(500).json({
-      error: 'Registration failed',
-      message: 'An error occurred during registration. Please try again later.',
-    });
+    next(error);
   }
 });
 
@@ -337,7 +333,7 @@ router.post('/register', registerValidation, async (req, res) => {
  * POST /api/v1/auth/login
  * Login with username and password
  */
-router.post('/login', loginValidation, async (req, res) => {
+router.post('/login', loginValidation, async (req, res, next) => {
   try {
     // Check for validation errors
     const errors = validationResult(req);
@@ -413,11 +409,7 @@ router.post('/login', loginValidation, async (req, res) => {
       recommendedProducts: [],
     });
   } catch (error) {
-    logError('Error during login:', error);
-    res.status(500).json({
-      error: 'Login failed',
-      message: 'An error occurred during login. Please try again later.',
-    });
+    next(error);
   }
 });
 

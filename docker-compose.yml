@@ -38,8 +38,8 @@ services:
     mem_limit: 512m
     cpus: 0.5
     build:
-      context: ./backend
-      dockerfile: api-gateway/Dockerfile
+      context: .
+      dockerfile: backend/api-gateway/Dockerfile
       args:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
@@ -69,8 +69,8 @@ services:
     mem_limit: 256m
     cpus: 0.25
     build:
-      context: ./backend
-      dockerfile: order-processor/Dockerfile
+      context: .
+      dockerfile: backend/order-processor/Dockerfile
       args:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}
@@ -106,8 +106,8 @@ services:
     mem_limit: 256m
     cpus: 0.25
     build:
-      context: ./frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: frontend/Dockerfile
       args:
         - GIT_SHORT_SHA=${GIT_SHORT_SHA:-unknown}
         - BUILD_DATE=${BUILD_DATE:-unknown}

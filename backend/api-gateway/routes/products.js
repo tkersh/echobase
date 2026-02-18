@@ -15,26 +15,10 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: List of products
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 products:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Product'
  *       401:
  *         description: Authentication required
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
  */
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
@@ -50,11 +34,7 @@ router.get('/', async (req, res) => {
       pagination: { limit, offset },
     });
   } catch (error) {
-    logError('Error fetching products:', error);
-    res.status(500).json({
-      error: 'Failed to fetch products',
-      message: 'An error occurred while fetching products. Please try again later.',
-    });
+    next(error);
   }
 });
 

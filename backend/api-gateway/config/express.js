@@ -1,33 +1,26 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
-const bodyParser = require('body-parser');
 const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const csrfProtection = require('../middleware/csrf-middleware');
 const correlationId = require('../middleware/correlation-id');
-const { log, debug, warn } = require('../../shared/logger');
+const { log, logError, debug } = require('../../shared/logger');
 const { parseAllowedOrigins } = require('../../shared/cors-utils');
 
 /**
- * Configures the Express application with middleware and security settings.
+ * Configures and sets up middleware for the Express application.
  * @param {express.Application} app - The Express application instance.
- * @param {object} dbPool - The database connection pool.
+ * @param {object} options - Configuration options.
+ * @param {object} options.dbPool - The database connection pool.
+ * @param {object} options.sqsClient - The AWS SQS client.
+ * @returns {void}
  */
-function configureExpressApp(app, dbPool) {
+function setupMiddleware(app, { dbPool, sqsClient }) {
   // Trust proxy - required for rate limiting to work correctly behind nginx
-  // Set to 1 to trust only the first proxy (nginx), not beyond that
   app.set('trust proxy', 1);
-
-  // Middleware to attach database connection to requests
-  app.use((req, res, next) => {
-    req.db = dbPool;
-    next();
-  });
-
-  // Correlation ID for request tracing across services
-  app.use(correlationId);
 
   // Performance: Compression middleware for response compression
   app.use(compression());
@@ -37,9 +30,7 @@ function configureExpressApp(app, dbPool) {
 
   // Security: CORS configuration - restrict to specific origins
   const allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN, { exitOnError: true });
-
   const corsOptions = {
-    // CORS_ORIGIN can be a comma-separated list of allowed origins
     origin: allowedOrigins,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
@@ -47,17 +38,20 @@ function configureExpressApp(app, dbPool) {
     maxAge: 86400, // 24 hours
   };
   app.use(cors(corsOptions));
+  log('CORS configured for origins:', allowedOrigins);
 
   // Security: CSRF Protection Middleware
-  // Extracted to middleware/csrf-middleware.js for better code organization
   app.use(csrfProtection);
 
   // Security: Request size limits (prevent large payload attacks)
-  app.use(bodyParser.json({ limit: '1mb' }));
-  app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
   // Cookie parser for HttpOnly cookie-based authentication
   app.use(cookieParser());
+
+  // Correlation ID for request tracing across services
+  app.use(correlationId);
 
   // Debug logging for POST requests (only when LOG_LEVEL=DEBUG)
   app.use((req, res, next) => {
@@ -70,9 +64,7 @@ function configureExpressApp(app, dbPool) {
   });
 
   // Security: Rate limiting (prevent DoS attacks)
-  // Enabled by default for security. Set RATE_LIMIT_ENABLED=false to disable (not recommended)
   const rateLimitEnabled = process.env.RATE_LIMIT_ENABLED !== 'false';
-
   if (rateLimitEnabled) {
     const limiter = rateLimit({
       windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 900000, // Default: 15 minutes
@@ -80,18 +72,23 @@ function configureExpressApp(app, dbPool) {
       message: {
         error: 'Too many requests from this IP, please try again later.',
       },
-      standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-      legacyHeaders: false, // Disable the `X-RateLimit-*` headers
-      // Trust proxy - use leftmost IP from X-Forwarded-For header
+      standardHeaders: true,
+      legacyHeaders: false,
       trustProxy: true,
     });
-
     // Apply rate limiting to API routes only (not health check)
     app.use('/api/v1/', limiter);
     log('Rate limiting enabled');
   } else {
-    warn('WARNING: Rate limiting disabled (not recommended for production)');
+    log('WARNING: Rate limiting disabled (not recommended for production)');
   }
+
+  // Middleware to attach database connection to requests
+  app.use((req, res, next) => {
+    req.db = dbPool; // Assuming dbPool is available here
+    req.sqsClient = sqsClient; // Assuming sqsClient is available here
+    next();
+  });
 }
 
-module.exports = configureExpressApp;
+module.exports = { setupMiddleware };

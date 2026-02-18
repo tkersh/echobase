@@ -6,23 +6,31 @@ ARG BUILD_DATE=unknown
 
 WORKDIR /app
 
-# Copy package files from api-gateway
-COPY api-gateway/package*.json ./
+# Copy root workspace files for npm ci
+COPY package.json package-lock.json ./
+COPY backend/api-gateway/package.json ./backend/api-gateway/
+COPY backend/order-processor/package.json ./backend/order-processor/
+COPY backend/mcp-server/package.json ./backend/mcp-server/
+COPY backend/shared/package.json ./backend/shared/
+COPY frontend/package.json ./frontend/
+COPY e2e-tests/package.json ./e2e-tests/
 
 # Install build tools for native bcrypt compilation, install deps, then clean up
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm ci --omit=dev && \
+    npm ci -w backend/api-gateway -w backend/shared --omit=dev && \
     apk del .build-deps
 
 # Run security audit
-RUN npm audit --omit=dev --audit-level=high
+RUN npm audit -w backend/api-gateway --omit=dev --audit-level=high
 
-# Copy application code from api-gateway and shared
-COPY api-gateway/ ./
-COPY shared/ ../shared/
+# Copy application code
+COPY backend/api-gateway/ ./backend/api-gateway/
+COPY backend/shared/ ./backend/shared/
 
 # Store build metadata
-RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"api-gateway\"}" > /app/build-metadata.json
+RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"api-gateway\"}" > /app/backend/api-gateway/build-metadata.json
+
+WORKDIR /app/backend/api-gateway
 
 # Health check (tries HTTPS first, falls back to HTTP)
 # Start period: 120s to allow for database and SQS initialization

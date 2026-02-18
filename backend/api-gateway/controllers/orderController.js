@@ -90,17 +90,7 @@ async function submitOrder(req, res, next) {
       order: result.order,
     });
   } catch (error) {
-    logError('Error submitting order:', error);
-    if (otelTrace) {
-      const span = otelTrace.getActiveSpan();
-      if (span) { span.recordException(error); span.setStatus({ code: SpanStatusCode.ERROR, message: error.message }); }
-    }
-
-    // Security: Don't expose internal error details to client
-    res.status(500).json({
-      error: 'Failed to submit order',
-      message: 'An error occurred while processing your order. Please try again later.',
-    });
+    next(error);
   }
 }
 
@@ -108,8 +98,9 @@ async function submitOrder(req, res, next) {
  * Handles retrieving the user's order history.
  * @param {object} req - Express request object.
  * @param {object} res - Express response object.
+ * @param {function} next - Express next middleware function.
  */
-async function getOrderHistory(req, res) {
+async function getOrderHistory(req, res, next) {
   try {
     // Validate userId from JWT token
     if (!req.user || !req.user.userId) {
@@ -132,12 +123,7 @@ async function getOrderHistory(req, res) {
       count: orders.length,
     });
   } catch (error) {
-    logError('Error fetching orders:', error);
-
-    res.status(500).json({
-      error: 'Failed to fetch orders',
-      message: 'An error occurred while retrieving your orders. Please try again later.',
-    });
+    next(error);
   }
 }
 

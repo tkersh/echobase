@@ -2,21 +2,29 @@ FROM echobase-node-base:latest
 
 WORKDIR /app
 
-# Copy package files
-COPY backend/mcp-server/package*.json ./
+# Copy root workspace files for npm ci
+COPY package.json package-lock.json ./
+COPY backend/api-gateway/package.json ./backend/api-gateway/
+COPY backend/order-processor/package.json ./backend/order-processor/
+COPY backend/mcp-server/package.json ./backend/mcp-server/
+COPY backend/shared/package.json ./backend/shared/
+COPY frontend/package.json ./frontend/
+COPY e2e-tests/package.json ./e2e-tests/
 
-# Install all dependencies (including dev for build)
-RUN npm ci
+# Install all dependencies (including dev for TypeScript build)
+RUN npm ci -w backend/mcp-server
 
 # Copy source code
-COPY backend/mcp-server/src/ ./src/
-COPY backend/mcp-server/tsconfig.json ./
+COPY backend/mcp-server/src/ ./backend/mcp-server/src/
+COPY backend/mcp-server/tsconfig.json ./backend/mcp-server/
 
 # Build TypeScript
-RUN npm run build
+RUN npm run build -w backend/mcp-server
 
 # Remove dev dependencies
-RUN npm prune --omit=dev
+RUN npm prune -w backend/mcp-server --omit=dev
+
+WORKDIR /app/backend/mcp-server
 
 # Expose port
 EXPOSE 3002

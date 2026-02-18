@@ -108,11 +108,11 @@ However, the application code itself suffers from **"God File" anti-patterns**, 
 ## Action Roadmap (Priority Order)
 *The following steps are ordered by technical priority and logical dependency. Complete them in this sequence:*
 
-1. [ ] **PRIORITY 1 - Refactoring/DRY:** Refactor `api-gateway/server.js` to split concerns (Config, Middleware, Routes, Controllers).
-2. [ ] **PRIORITY 2 - Cleanup:** Remove deprecated `body-parser` and legacy routes (`/api/auth` -> `/api/v1/auth`).
-3. [ ] **PRIORITY 3 - Error Handling:** Standardize error handling in `api-gateway` to use `next(err)` and a central error middleware.
-4. [ ] **PRIORITY 4 - Architecture:** Investigate moving `shared` to an npm workspace.
-5. [ ] **PRIORITY 5 - Frontend:** Verify and update `react-router-dom` version if incorrect.
+1. [x] **PRIORITY 1 - Refactoring/DRY:** Refactor `api-gateway/server.js` to split concerns (Config, Middleware, Routes, Controllers).
+2. [x] **PRIORITY 2 - Cleanup:** Remove deprecated `body-parser` and legacy routes (`/api/auth` -> `/api/v1/auth`).
+3. [x] **PRIORITY 3 - Error Handling:** Standardize error handling in `api-gateway` to use `next(err)` and a central error middleware.
+4. [x] **PRIORITY 4 - Architecture:** Investigate moving `shared` to an npm workspace. (Initial setup done)
+5. [x] **PRIORITY 5 - Frontend:** Verify and update `react-router-dom` version if incorrect. (Verified as correct)
 
 > [!NOTE]
 > Review the plan above. Once approved, I can begin executing Phase 1 (Refactoring `api-gateway`).
