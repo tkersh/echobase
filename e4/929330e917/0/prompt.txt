@@ -1,0 +1,18 @@
+fix npm-audit-all.sh so it works with the refactored directories
+
+---
+
+Let's avoid using any standalone projects, so that everything uses the common package-lock.json
+
+---
+
+yes
+
+---
+
+After running twice, still listing 18 high severity vulnerabilities
+Is it not applying changes properly?
+
+---
+
+Let's modify npm-audit-all.sh to handle that and similar issues
