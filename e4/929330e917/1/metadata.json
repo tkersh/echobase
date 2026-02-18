@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e4929330e917",
+  "session_id": "bf2b08cb-72de-4e07-ba35-a442a7cb1de7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T20:37:29.47841Z",
+  "branch": "gemini-audit",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".dockerignore",
+    "backend/api-gateway/Dockerfile",
+    "backend/api-gateway/package-lock.json",
+    "backend/mcp-server/Dockerfile",
+    "backend/mcp-server/package-lock.json",
+    "backend/order-processor/Dockerfile",
+    "backend/order-processor/package-lock.json",
+    "docker-compose.yml",
+    "e2e-tests/package-lock.json",
+    "frontend/Dockerfile",
+    "frontend/package-lock.json",
+    "npm-audit-all.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a1f012ac4414",
+  "transcript_identifier_at_start": "42cc4b3e-c9e8-4e42-94aa-0d22a5bee3f1",
+  "token_usage": {
+    "input_tokens": 8849,
+    "cache_creation_tokens": 29217,
+    "cache_read_tokens": 538551,
+    "output_tokens": 3270,
+    "api_call_count": 16
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T20:37:29.333889Z",
+    "agent_lines": 0,
+    "human_added": 15137,
+    "human_modified": 106,
+    "human_removed": 0,
+    "total_committed": 15226,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/bf2b08cb-72de-4e07-ba35-a442a7cb1de7.jsonl"
+}
