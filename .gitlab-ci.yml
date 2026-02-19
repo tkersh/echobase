@@ -92,10 +92,7 @@ default:
     key: ${CI_COMMIT_REF_SLUG}-node-modules
     paths:
       - .npm/
-      - backend/api-gateway/node_modules/
-      - backend/order-processor/node_modules/
-      - frontend/node_modules/
-      - e2e-tests/node_modules/
+      - node_modules/
     policy: pull
 
 # Common before_script patterns
@@ -207,19 +204,11 @@ build:dependencies:
   script:
     - echo "Installing Node.js dependencies..."
     - npm config set cache $CI_PROJECT_DIR/.npm --global
-    - |
-      # Install dependencies for all components
-      for component in backend/api-gateway backend/order-processor frontend e2e-tests; do
-        echo "Installing dependencies for ${component}..."
-        (cd "$component" && npm ci --prefer-offline --no-audit)
-      done
+    - npm ci --prefer-offline --no-audit
     - echo "All dependencies installed successfully!"
   artifacts:
     paths:
-      - backend/api-gateway/node_modules/
-      - backend/order-processor/node_modules/
-      - frontend/node_modules/
-      - e2e-tests/node_modules/
+      - node_modules/
     expire_in: 1 hour
   only:
     - branches
@@ -541,7 +530,7 @@ test:target-e2e:
         -e NODE_TLS_REJECT_UNAUTHORIZED=0 \
         -w /work \
         mcr.microsoft.com/playwright:v1.56.0-noble \
-        /bin/bash -c "npx playwright install chromium && npm test")
+        /bin/bash -c "npm install --no-audit && npm test")
 
       if [ -z "$CONTAINER_ID" ]; then
         echo "ERROR: Failed to create container"
@@ -559,6 +548,7 @@ test:target-e2e:
         docker rm $CONTAINER_ID || true
         exit 1
       fi
+
 
       # Note: e2e-tests/.env is copied but dotenv won't override CI's -e flags
       # (no 'override: true' in playwright.config.js). CI env vars take precedence.
