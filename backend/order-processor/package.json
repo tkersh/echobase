@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-secrets-manager": "^3.893.0",
-    "@aws-sdk/client-sqs": "^3.621.0",
+    "@aws-sdk/client-sqs": "^3.893.0",
     "@echobase/shared": "*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.211.0",
@@ -18,18 +18,15 @@
     "@opentelemetry/exporter-metrics-otlp-http": "^0.211.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.211.0",
     "@opentelemetry/resources": "^2.5.0",
-    "@opentelemetry/sdk-logs": "^0.52.0",
-    "@opentelemetry/sdk-metrics": "^1.25.0",
+    "@opentelemetry/sdk-logs": "^0.211.0",
+    "@opentelemetry/sdk-metrics": "^2.5.0",
     "@opentelemetry/sdk-node": "^0.211.0",
-    "@opentelemetry/sdk-trace-base": "^1.25.0",
+    "@opentelemetry/sdk-trace-base": "^2.5.0",
     "@opentelemetry/semantic-conventions": "^1.39.0",
     "dotenv": "^16.3.1",
     "mysql2": "^3.6.0"
   },
   "devDependencies": {
     "nodemon": "^1.0.2"
-  },
-  "overrides": {
-    "fast-xml-parser": "^5.3.4"
   }
 }

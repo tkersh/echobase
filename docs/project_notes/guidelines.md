@@ -423,6 +423,20 @@ docker exec "$NGINX_CONTAINER" nginx -s reload
 
 ---
 
+## Dependency Management
+
+### Use Current, Well-Maintained Packages
+
+- **Always use current major versions** of packages. Do not pin to old majors (e.g., `jest@^25.0.0`, `nodemon@^1.0.2`) when a current stable major exists.
+- **Never add deprecated packages**. If `npm install` emits deprecation warnings, resolve them before committing. Common sources: transitive deps from outdated direct deps.
+- **Keep related packages version-aligned**. Ecosystem packages (e.g., OpenTelemetry `sdk-*`, `exporter-*`, `instrumentation-*`) must all use the same generation. Mixing old and new causes peer dependency conflicts.
+- **Dev tools belong in devDependencies**. Packages like `nodemon`, `jest`, `ts-jest` must never be in `dependencies`.
+- **Don't add packages that aren't used**. Before adding a dependency, verify it's actually imported somewhere. Remove unused packages when found.
+- **Root overrides are for security fixes only**. The root `package.json` `overrides` field forces transitive dependency versions to patch known vulnerabilities. Do not use it for convenience or version pinning.
+- **Workspace overrides should be empty**. Individual workspace `package.json` files should not have `overrides` — use the root-level override instead so it applies consistently across all workspaces.
+
+---
+
 ## Coding Invariants
 
 ### Fail-Fast on Missing Environment Variables
