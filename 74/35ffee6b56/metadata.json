@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7435ffee6b56",
+  "strategy": "manual-commit",
+  "branch": "gemini-audit",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "backend/api-gateway/package.json",
+    "backend/mcp-server/package.json",
+    "backend/order-processor/package.json",
+    "backend/shared/package.json",
+    "docs/project_notes/guidelines.md",
+    "npm-audit-fix-all.sh",
+    "package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/74/35ffee6b56/0/metadata.json",
+      "transcript": "/74/35ffee6b56/0/full.jsonl",
+      "context": "/74/35ffee6b56/0/context.md",
+      "content_hash": "/74/35ffee6b56/0/content_hash.txt",
+      "prompt": "/74/35ffee6b56/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1398,
+    "cache_creation_tokens": 220261,
+    "cache_read_tokens": 6125551,
+    "output_tokens": 15714,
+    "api_call_count": 61
+  }
+}
