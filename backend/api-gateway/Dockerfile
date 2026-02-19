@@ -15,17 +15,20 @@ COPY backend/shared/package.json ./backend/shared/
 COPY frontend/package.json ./frontend/
 COPY e2e-tests/package.json ./e2e-tests/
 
-# Install build tools for native bcrypt compilation, install deps, then clean up
+# Install all deps (including dev for swagger generation and CI tests)
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
   npm ci -w backend/api-gateway -w backend/shared && \
   apk del .build-deps
 
-# Run security audit
-RUN npm audit -w backend/api-gateway --audit-level=high
-
 # Copy application code
 COPY backend/api-gateway/ ./backend/api-gateway/
 COPY backend/shared/ ./backend/shared/
+
+# Pre-generate swagger spec (uses swagger-jsdoc devDependency, then spec is static JSON)
+RUN cd /app/backend/api-gateway && node scripts/generate-swagger.js
+
+# Security audit on production deps only (dev deps like jest/swagger-jsdoc excluded)
+RUN npm audit -w backend/api-gateway --omit=dev --audit-level=high
 
 # Store build metadata (v1 in /app for CI, v2 in shared for app logging)
 RUN echo "{\"gitSha\":\"${GIT_SHORT_SHA}\",\"buildDate\":\"${BUILD_DATE}\",\"component\":\"api-gateway\"}" > /app/build-metadata.json && \

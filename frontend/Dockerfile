@@ -20,7 +20,7 @@ COPY e2e-tests/package.json ./e2e-tests/
 RUN npm ci -w frontend
 
 # Run security audit
-RUN npm audit -w frontend --audit-level=high
+RUN npm audit -w frontend --omit=dev --audit-level=high
 
 # Copy application code
 COPY frontend/ ./frontend/

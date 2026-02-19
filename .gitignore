@@ -74,6 +74,9 @@ terraform.rc
 *.backup
 *.bak
 
+### Generated build artifacts ###
+backend/api-gateway/config/swagger-spec.json
+
 ### Node.js ###
 node_modules/
 npm-debug.log*
