@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "be1c9ece3fae",
+  "session_id": "bf2b08cb-72de-4e07-ba35-a442a7cb1de7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T21:02:46.226531Z",
+  "branch": "gemini-audit",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".gitignore",
+    "backend/api-gateway/Dockerfile",
+    "backend/api-gateway/config/swagger-options.js",
+    "backend/api-gateway/config/swagger.js",
+    "backend/api-gateway/package.json",
+    "backend/api-gateway/scripts/generate-swagger.js",
+    "backend/order-processor/Dockerfile",
+    "frontend/Dockerfile",
+    "package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c3ea4840fb7a",
+  "transcript_identifier_at_start": "87ca852d-f728-4ff4-83fb-b91bbff32d67",
+  "token_usage": {
+    "input_tokens": 10772,
+    "cache_creation_tokens": 485928,
+    "cache_read_tokens": 12328086,
+    "output_tokens": 37583,
+    "api_call_count": 125
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T21:02:44.865541Z",
+    "agent_lines": 0,
+    "human_added": 129,
+    "human_modified": 515,
+    "human_removed": 0,
+    "total_committed": 409,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/bf2b08cb-72de-4e07-ba35-a442a7cb1de7.jsonl"
+}

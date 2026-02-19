@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "be1c9ece3fae",
+  "strategy": "manual-commit",
+  "branch": "gemini-audit",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".gitignore",
+    "backend/api-gateway/Dockerfile",
+    "backend/api-gateway/config/swagger-options.js",
+    "backend/api-gateway/config/swagger.js",
+    "backend/api-gateway/package.json",
+    "backend/api-gateway/scripts/generate-swagger.js",
+    "backend/order-processor/Dockerfile",
+    "frontend/Dockerfile",
+    "package.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/be/1c9ece3fae/0/metadata.json",
+      "transcript": "/be/1c9ece3fae/0/full.jsonl",
+      "context": "/be/1c9ece3fae/0/context.md",
+      "content_hash": "/be/1c9ece3fae/0/content_hash.txt",
+      "prompt": "/be/1c9ece3fae/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 10772,
+    "cache_creation_tokens": 485928,
+    "cache_read_tokens": 12328086,
+    "output_tokens": 37583,
+    "api_call_count": 125
+  }
+}
