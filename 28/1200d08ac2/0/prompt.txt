@@ -1,0 +1,30 @@
+=> [mcp-server 3/8] COPY backend/mcp-server/package*.json ./                                                                                                                                                                                               0.1s
+ => ERROR [mcp-server 4/8] RUN npm ci                                                                                                                                                                                                                       1.9s
+------
+ > [mcp-server 4/8] RUN npm ci:
+1.769 npm error code EUSAGE
+1.769 npm error
+1.769 npm error The `npm ci` command can only install with an existing package-lock.json or
+1.769 npm error npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or
+1.769 npm error later to generate a package-lock.json file, then try again.
+
+---
+
+We previously moved all of the package-lock.json files to the root level. Please change the docker build to reference that.
+
+---
+
+> echobase-e2e-tests@1.0.0 test
+> playwright test
+sh: 1: playwright: not found
+
+---
+
+this is inside the CI container. And it's always worked before, so this must be a recent refactoring change.
+
+---
+
+I get a bunch of these. Can we not install only what we need? Removing unused browser at /ms-playwright/chromium-1194
+Removing unused browser at /ms-playwright/chromium_headless_shell-1194
+Removing unused browser at /ms-playwright/firefox-1495
+Removing unused browser at /ms-playwright/webkit-2215

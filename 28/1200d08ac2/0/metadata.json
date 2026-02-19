@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "281200d08ac2",
+  "session_id": "bf2b08cb-72de-4e07-ba35-a442a7cb1de7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T00:38:22.544626Z",
+  "branch": "gemini-audit",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".gitlab-ci.yml",
+    "e2e-tests/package.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7e194b495ce7",
+  "token_usage": {
+    "input_tokens": 9332,
+    "cache_creation_tokens": 107629,
+    "cache_read_tokens": 1468619,
+    "output_tokens": 13761,
+    "api_call_count": 31
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T00:38:20.974486Z",
+    "agent_lines": 6,
+    "human_added": 31,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 37,
+    "agent_percentage": 16.216216216216218
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/bf2b08cb-72de-4e07-ba35-a442a7cb1de7.jsonl"
+}
