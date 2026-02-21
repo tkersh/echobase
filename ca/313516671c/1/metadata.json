@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ca313516671c",
+  "session_id": "73807d6a-21e8-4d12-9b78-d2030bc66b40",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T04:39:47.982065Z",
+  "branch": "nginx_secure",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".gitlab-ci.yml",
+    "durable/docker-compose.yml",
+    "durable/setup.sh",
+    "otel/Dockerfile.jaeger"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "630d907d6102",
+  "checkpoint_transcript_start": 193,
+  "transcript_lines_at_start": 193,
+  "token_usage": {
+    "input_tokens": 53,
+    "cache_creation_tokens": 57686,
+    "cache_read_tokens": 2735777,
+    "output_tokens": 7733,
+    "api_call_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T04:39:47.487461Z",
+    "agent_lines": 16,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 16,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/73807d6a-21e8-4d12-9b78-d2030bc66b40.jsonl"
+}
