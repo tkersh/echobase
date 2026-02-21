@@ -307,6 +307,17 @@ durable:setup-ci:
       source .env
       source .env.secrets
       set +a
+
+      # HTPASSWD_CONTENTS must be set as a GitLab CI/CD variable (Settings > CI/CD > Variables)
+      # Generate with: htpasswd -nb admin <password>
+      if [ -z "$HTPASSWD_CONTENTS" ]; then
+        echo "ERROR: HTPASSWD_CONTENTS GitLab CI/CD variable is not set."
+        echo "Set it in Settings > CI/CD > Variables (masked, not protected)."
+        echo "Generate with: htpasswd -nb admin <password>"
+        exit 1
+      fi
+      export HTPASSWD_CONTENTS
+
       echo "Configuring environment for CI..."
       sed -i 's|DB_HOST=.*|DB_HOST=echobase-ci-durable-mariadb|g' .env
       echo "DB_HOST=$(grep DB_HOST .env)"

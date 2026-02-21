@@ -84,8 +84,8 @@ print_infrastructure_details() {
         echo "  LocalStack Port: 4566"
         echo "  Load Balancer: https://localhost (ports 443, 8080, 8081)"
         echo "  OTEL Collector: echobase-devlocal-durable-otel-collector (gRPC: 4317, HTTP: 4318)"
-        echo "  Jaeger UI: http://localhost:16686"
-        echo "  Prometheus: http://localhost:9090"
+        echo "  Jaeger UI: https://localhost/jaeger/ (basic auth)"
+        echo "  Prometheus: https://localhost/prometheus/ (basic auth)"
     else
         echo "  Database Container: echobase-ci-durable-mariadb"
         echo "  LocalStack Container: echobase-ci-durable-localstack"
@@ -95,8 +95,8 @@ print_infrastructure_details() {
         echo "  LocalStack Port: 4567"
         echo "  Load Balancer: https://localhost:1443 (ports 180, 1443, 8180, 8181)"
         echo "  OTEL Collector: echobase-ci-durable-otel-collector (gRPC: 4417, HTTP: 4418)"
-        echo "  Jaeger UI: http://localhost:16786"
-        echo "  Prometheus: http://localhost:9190"
+        echo "  Jaeger UI: https://localhost:1443/jaeger/ (basic auth)"
+        echo "  Prometheus: https://localhost:1443/prometheus/ (basic auth)"
     fi
     echo ""
     echo "Credentials: Stored in AWS Secrets Manager (source of truth)"

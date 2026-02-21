@@ -194,7 +194,6 @@ services:
       - BADGER_DIRECTORY_KEY=/badger/key
     volumes:
       - jaeger-badger-data:/badger
-      - ../otel/jaeger-config.yaml:/etc/jaeger/config.yaml:ro
     networks:
       - durable-network
     labels:
