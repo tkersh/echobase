@@ -3,7 +3,7 @@
   "checkpoint_id": "9ae82055605a",
   "strategy": "manual-commit",
   "branch": "nginx_secure",
-  "checkpoints_count": 13,
+  "checkpoints_count": 14,
   "files_touched": [
     ".gitlab-ci.yml",
     "README.md",
@@ -39,13 +39,20 @@
       "context": "/9a/e82055605a/2/context.md",
       "content_hash": "/9a/e82055605a/2/content_hash.txt",
       "prompt": "/9a/e82055605a/2/prompt.txt"
+    },
+    {
+      "metadata": "/9a/e82055605a/3/metadata.json",
+      "transcript": "/9a/e82055605a/3/full.jsonl",
+      "context": "/9a/e82055605a/3/context.md",
+      "content_hash": "/9a/e82055605a/3/content_hash.txt",
+      "prompt": "/9a/e82055605a/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 13113,
-    "cache_creation_tokens": 696483,
-    "cache_read_tokens": 20060184,
-    "output_tokens": 59317,
-    "api_call_count": 250
+    "input_tokens": 13134,
+    "cache_creation_tokens": 749285,
+    "cache_read_tokens": 20520826,
+    "output_tokens": 62789,
+    "api_call_count": 263
   }
 }
