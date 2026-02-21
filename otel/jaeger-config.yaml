@@ -1,0 +1,55 @@
+# Jaeger v2 all-in-one configuration
+# Based on the default all-in-one.yaml with base_path added for reverse proxy support.
+# Badger storage is configured via environment variables in docker-compose.yml.
+
+service:
+  extensions: [jaeger_storage, jaeger_query, healthcheckv2]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger_storage_exporter]
+  telemetry:
+    resource:
+      service.name: jaeger
+    logs:
+      level: info
+
+extensions:
+  jaeger_query:
+    storage:
+      traces: some_storage
+    base_path: /jaeger
+    http:
+      endpoint: 0.0.0.0:16686
+    grpc:
+      endpoint: 0.0.0.0:16685
+
+  jaeger_storage:
+    backends:
+      some_storage:
+        badger:
+          directories:
+            keys: ${env:BADGER_DIRECTORY_KEY}
+            values: ${env:BADGER_DIRECTORY_VALUE}
+          ephemeral: false
+
+  healthcheckv2:
+    use_v2: true
+    http:
+      endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+
+exporters:
+  jaeger_storage_exporter:
+    trace_storage: some_storage

@@ -126,6 +126,8 @@ services:
       # SSL setup (shared 40-ssl-setup.sh script)
       - SSL_SECRET_ID=echobase/nginx-lb/ssl
       - SSL_DIR=/etc/ssl
+      # HTTP basic auth for observability UIs (Prometheus, Jaeger)
+      - HTPASSWD_CONTENTS=${HTPASSWD_CONTENTS:-}
     volumes:
       - nginx-config:/etc/nginx/conf.d  # Persist nginx config across restarts
     networks:
@@ -181,25 +183,26 @@ services:
     restart: unless-stopped
 
   jaeger:
-    image: jaegertracing/jaeger:latest
+    build:
+      context: ../otel
+      dockerfile: Dockerfile.jaeger
+    image: echobase-jaeger:latest
     container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-jaeger
+    command: ["--config", "/etc/jaeger/config.yaml"]
     environment:
-      - SPAN_STORAGE_TYPE=badger
-      - BADGER_EPHEMERAL=false
       - BADGER_DIRECTORY_VALUE=/badger/data
       - BADGER_DIRECTORY_KEY=/badger/key
     volumes:
       - jaeger-badger-data:/badger
+      - ../otel/jaeger-config.yaml:/etc/jaeger/config.yaml:ro
     networks:
       - durable-network
-    ports:
-      - "${DURABLE_JAEGER_UI_PORT:-16686}:16686"
     labels:
       - "echobase.role=durable"
       - "echobase.env=${DURABLE_ENV:-devlocal}"
       - "echobase.service=jaeger"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:16686"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/status"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -216,12 +219,11 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--web.enable-remote-write-receiver"
       - "--storage.tsdb.path=/prometheus"
+      - "--web.external-url=/prometheus/"
     volumes:
       - prometheus-data:/prometheus
     networks:
       - durable-network
-    ports:
-      - "${DURABLE_PROMETHEUS_PORT:-9090}:9090"
     depends_on:
       otel-collector:
         condition: service_healthy
@@ -230,7 +232,7 @@ services:
       - "echobase.env=${DURABLE_ENV:-devlocal}"
       - "echobase.service=prometheus"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/prometheus/-/healthy"]
       interval: 10s
       timeout: 5s
       retries: 5

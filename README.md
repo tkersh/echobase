@@ -298,6 +298,8 @@ The project uses a modular Docker Compose setup with **separated durable and eph
 | **API Gateway** | **HTTPS** | **3001** | **3101** | Application (ephemeral) |
 | **MariaDB (Durable)** | TCP | **3306** | **3307** | **Durable (persists)** |
 | LocalStack | HTTP | 4566 | 4666 | Application (ephemeral) |
+| Prometheus UI | HTTPS | /prometheus/ | /prometheus/ | **Durable** — proxied via nginx (basic auth) |
+| Jaeger UI | HTTPS | /jaeger/ | /jaeger/ | **Durable** — proxied via nginx (basic auth) |
 
 **Security Note:** Frontend and API Gateway use **HTTPS exclusively** with self-signed certificates for encryption in transit. HTTP ports redirect to HTTPS.
 

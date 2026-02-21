@@ -134,6 +134,7 @@ if [ "$LS_STATUS" != "running" ]; then
     echo "MYSQL_USER=placeholder" >> "$TEMP_ENV_FILE"
     echo "MYSQL_PASSWORD=placeholder" >> "$TEMP_ENV_FILE"
     echo "MCP_API_KEY=placeholder" >> "$TEMP_ENV_FILE"
+    echo "HTPASSWD_CONTENTS=placeholder" >> "$TEMP_ENV_FILE"
 
     # Start only LocalStack
     docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d localstack
@@ -420,6 +421,9 @@ echo "AWS_REGION=${AWS_REGION:-us-east-1}" >> "$TEMP_ENV_FILE"
 echo "" >> "$TEMP_ENV_FILE"
 echo "# MCP Server" >> "$TEMP_ENV_FILE"
 echo "MCP_API_KEY=$MCP_API_KEY" >> "$TEMP_ENV_FILE"
+echo "" >> "$TEMP_ENV_FILE"
+echo "# HTTP basic auth for observability UIs (Prometheus, Jaeger)" >> "$TEMP_ENV_FILE"
+echo "HTPASSWD_CONTENTS='$HTPASSWD_CONTENTS'" >> "$TEMP_ENV_FILE"
 
 # Step 4: Check database and nginx status
 # Note: LocalStack is already running and Secrets Manager already has credentials

@@ -19,12 +19,16 @@ RUN mkdir -p /etc/ssl
 COPY frontend/docker-entrypoint.d/40-ssl-setup.sh /docker-entrypoint.d/40-ssl-setup.sh
 RUN chmod +x /docker-entrypoint.d/40-ssl-setup.sh
 
+# Copy htpasswd setup entrypoint script (basic auth for observability UIs)
+COPY durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh /docker-entrypoint.d/50-htpasswd-setup.sh
+RUN chmod +x /docker-entrypoint.d/50-htpasswd-setup.sh
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
     CMD nginx -t || exit 1
 
 # Expose ports
-EXPOSE 80 443 8080 8081
+EXPOSE 80 443 8080 8081 9090
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]

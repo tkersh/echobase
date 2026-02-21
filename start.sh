@@ -54,6 +54,24 @@ source .env
 source .env.secrets
 set +a
 
+# Require HTPASSWD_CONTENTS from the environment (not stored in .env.secrets
+# because apr1 password hashes contain $ characters that break shell sourcing)
+if [ -z "$HTPASSWD_CONTENTS" ]; then
+    echo -e "\033[0;31mError: HTPASSWD_CONTENTS environment variable is not set.\033[0m"
+    echo ""
+    echo "This variable provides HTTP basic auth credentials for the Prometheus"
+    echo "and Jaeger UIs (proxied at /prometheus/ and /jaeger/)."
+    echo ""
+    echo "Generate it with:"
+    echo "  htpasswd -nb admin <password>"
+    echo "or:"
+    echo "  echo \"admin:\$(openssl passwd -apr1 <password>)\""
+    echo ""
+    echo "Then export it in your shell profile (~/.zshrc or ~/.bashrc):"
+    echo "  export HTPASSWD_CONTENTS='admin:\$apr1\$...'"
+    exit 1
+fi
+
 # ── Parse flags ──────────────────────────────────────────────────
 REBUILD_FLAG=""
 if [ "$1" == "--rebuild" ] || [ "$1" == "-r" ]; then

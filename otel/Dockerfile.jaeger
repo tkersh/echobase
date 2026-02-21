@@ -1,0 +1,5 @@
+FROM jaegertracing/jaeger:latest
+
+USER root
+RUN mkdir -p /badger/data /badger/key && chown -R 10001:10001 /badger
+USER 10001
