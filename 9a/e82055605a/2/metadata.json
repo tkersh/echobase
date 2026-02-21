@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9ae82055605a",
+  "session_id": "bf2b08cb-72de-4e07-ba35-a442a7cb1de7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T04:13:58.027222Z",
+  "branch": "nginx_secure",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitlab-ci.yml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c3ea4840fb7a",
+  "transcript_identifier_at_start": "87ca852d-f728-4ff4-83fb-b91bbff32d67",
+  "token_usage": {
+    "input_tokens": 10772,
+    "cache_creation_tokens": 485928,
+    "cache_read_tokens": 12328086,
+    "output_tokens": 37583,
+    "api_call_count": 125
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T04:13:57.111259Z",
+    "agent_lines": 2,
+    "human_added": 191,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 193,
+    "agent_percentage": 1.0362694300518136
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/bf2b08cb-72de-4e07-ba35-a442a7cb1de7.jsonl"
+}
