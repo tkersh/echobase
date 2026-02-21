@@ -1,0 +1,130 @@
+Implement the following plan:
+
+# Plan: Secure Prometheus & Jaeger UIs with nginx basic auth
+
+## Context
+
+Prometheus (9090/9190) and Jaeger (16686/16786) UIs are exposed on host ports with no authentication. We'll proxy them through the existing durable nginx with HTTP basic auth, using a GitLab CI secret `HTPASSWD_CONTENTS` to inject the `.htpasswd` file.
+
+## Changes
+
+### 1. Remove host port mappings from Jaeger and Prometheus
+**File**: `durable/docker-compose.yml`
+
+Remove the `ports:` sections from both the `jaeger` and `prometheus` services. They remain accessible internally on the durable network (collector already uses `jaeger:4317` and `prometheus:9090`), but no longer directly from the host.
+
+Also remove `DURABLE_JAEGER_UI_PORT` and `DURABLE_PROMETHEUS_PORT` from the label blocks since the ports are no longer published.
+
+### 2. Add htpasswd entrypoint script to nginx
+**New file**: `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh`
+
+A small entrypoint script that:
+- Checks if `HTPASSWD_CONTENTS` env var is set
+- If set: writes contents to `/etc/nginx/.htpasswd` with mode 640
+- If not set: logs a warning that observability UIs will be unprotected, writes an empty file (nginx `auth_basic` will deny all requests when htpasswd is empty — this is a fail-closed default)
+
+### 3. Update nginx Dockerfile to copy the new entrypoint script
+**File**: `durable/nginx/Dockerfile`
+
+- `COPY durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh /docker-entrypoint.d/50-htpasswd-setup.sh`
+- `RUN chmod +x /docker-entrypoint.d/50-htpasswd-setup.sh`
+- Add port 9090 to `EXPOSE`
+
+### 4. Add proxy locations to nginx config
+**File**: `nginx-blue-green.conf`
+
+Add to the main server block (443/80), after the `/health` location:
+
+```nginx
+# Observability UIs — basic auth protected
+location /prometheus/ {
+    auth_basic "Observability";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass http://prometheus:9090/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /jaeger/ {
+    auth_basic "Observability";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+    proxy_pass http://jaeger:16686/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Note: `proxy_pass` uses HTTP (not HTTPS) since Prometheus and Jaeger serve plain HTTP internally.
+
+### 5. Pass `HTPASSWD_CONTENTS` to nginx container
+**File**: `durable/docker-compose.yml`
+
+Add to the nginx service `environment:` block:
+```yaml
+- HTPASSWD_CONTENTS=${HTPASSWD_CONTENTS:-}
+```
+
+### 6. Generate dev-local htpasswd in credential script
+**File**: `scripts/generate-credentials.sh`
+
+Add generation of a default `HTPASSWD_CONTENTS` value for dev-local use:
+- Generate a random password
+- Use `openssl passwd -apr1` to create the bcrypt hash (available in the script environment)
+- Write `HTPASSWD_CONTENTS=admin:<hash>` to `.env.secrets`
+- Display the plaintext username/password in the credential summary
+
+### 7. Inject the secret in GitLab CI
+**File**: `.gitlab-ci.yml`
+
+In the `durable:setup-ci` job, add `HTPASSWD_CONTENTS: $HTPASSWD_CONTENTS` to the variables block so it flows from the GitLab CI/CD secret into the durable docker-compose environment.
+
+### 8. Remove obsolete port vars from durable env files
+**Files**: `durable/.env.devlocal`, `durable/.env.ci`
+
+Remove `DURABLE_JAEGER_UI_PORT` and `DURABLE_PROMETHEUS_PORT` since those ports are no longer published.
+
+### 9. Update README port table
+**File**: `README.md`
+
+Update the Prometheus and Jaeger rows to show they're now proxied through nginx at `/prometheus/` and `/jaeger/` paths rather than on dedicated ports.
+
+## Files Modified
+- `durable/docker-compose.yml` — remove ports, add env var
+- `durable/nginx/Dockerfile` — copy new entrypoint script
+- `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh` — **new** entrypoint
+- `nginx-blue-green.conf` — add proxy locations with auth
+- `scripts/generate-credentials.sh` — generate dev-local htpasswd
+- `.gitlab-ci.yml` — pass secret to durable setup
+- `durable/.env.devlocal` — remove jaeger/prometheus port vars
+- `durable/.env.ci` — remove jaeger/prometheus port vars
+- `README.md` — update port table
+
+## Verification
+1. Run `./start.sh` and confirm Prometheus/Jaeger ports are no longer directly accessible
+2. Navigate to `https://localhost:443/prometheus/` — should prompt for credentials
+3. Navigate to `https://localhost:443/jaeger/` — should prompt for credentials
+4. Verify OTEL collector still delivers traces to Jaeger and metrics to Prometheus (internal routing unchanged)
+5. Confirm `.env.secrets` contains generated `HTPASSWD_CONTENTS` with displayed credentials
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/tadk/.claude/projects/-Users-tadk-work-echobase/ddfc1018-a2aa-455d-abaa-60c0d69ea1b5.jsonl
+
+---
+
+Looks like .env.secrets was not regenerated
+
+---
+
+Instead of generating, let's require it as an environment variable and kill the script with an error if it's not set
+
+---
+
+echo $HTPASSWD_CONTENTS shows the correct value from .zshrc, but generate-credentials.sh shows Error: HTPASSWD_CONTENTS environment variable is not set.
+
+---
+
+[Request interrupted by user for tool use]
