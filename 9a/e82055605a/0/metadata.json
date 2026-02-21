@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9ae82055605a",
+  "session_id": "5386ae57-0d45-4a03-9ce4-fe2335c82e56",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-21T04:13:53.782108Z",
+  "branch": "nginx_secure",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "durable/docker-compose.yml",
+    "durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh",
+    "durable/setup.sh",
+    "nginx-blue-green.conf",
+    "otel/Dockerfile.jaeger",
+    "otel/jaeger-config.yaml",
+    "start.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5b2eb568c83c",
+  "transcript_identifier_at_start": "927f44b8-e4c5-44e4-a24c-563df3e60f7a",
+  "token_usage": {
+    "input_tokens": 2288,
+    "cache_creation_tokens": 152869,
+    "cache_read_tokens": 4996321,
+    "output_tokens": 14001,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-21T04:13:53.290936Z",
+    "agent_lines": 28,
+    "human_added": 0,
+    "human_modified": 104,
+    "human_removed": 0,
+    "total_committed": 132,
+    "agent_percentage": 21.21212121212121
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/5386ae57-0d45-4a03-9ce4-fe2335c82e56.jsonl"
+}

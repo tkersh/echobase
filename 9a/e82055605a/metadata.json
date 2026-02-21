@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9ae82055605a",
+  "strategy": "manual-commit",
+  "branch": "nginx_secure",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "durable/docker-compose.yml",
+    "durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh",
+    "durable/setup.sh",
+    "nginx-blue-green.conf",
+    "otel/Dockerfile.jaeger",
+    "otel/jaeger-config.yaml",
+    "start.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/e82055605a/0/metadata.json",
+      "transcript": "/9a/e82055605a/0/full.jsonl",
+      "context": "/9a/e82055605a/0/context.md",
+      "content_hash": "/9a/e82055605a/0/content_hash.txt",
+      "prompt": "/9a/e82055605a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2288,
+    "cache_creation_tokens": 152869,
+    "cache_read_tokens": 4996321,
+    "output_tokens": 14001,
+    "api_call_count": 80
+  }
+}
