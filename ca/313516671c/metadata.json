@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ca313516671c",
+  "strategy": "manual-commit",
+  "branch": "nginx_secure",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".gitlab-ci.yml",
+    "durable/docker-compose.yml",
+    "durable/setup.sh",
+    "otel/Dockerfile.jaeger"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ca/313516671c/0/metadata.json",
+      "transcript": "/ca/313516671c/0/full.jsonl",
+      "context": "/ca/313516671c/0/context.md",
+      "content_hash": "/ca/313516671c/0/content_hash.txt",
+      "prompt": "/ca/313516671c/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2307,
+    "cache_creation_tokens": 160246,
+    "cache_read_tokens": 6272430,
+    "output_tokens": 15165,
+    "api_call_count": 94
+  }
+}
