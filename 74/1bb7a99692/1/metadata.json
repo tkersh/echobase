@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "741bb7a99692",
+  "session_id": "5386ae57-0d45-4a03-9ce4-fe2335c82e56",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T17:37:39.648585Z",
+  "branch": "grafana_loki",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "durable/docker-compose.yml",
+    "durable/setup.sh",
+    "nginx-blue-green.conf",
+    "start.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "661eaf95bb22",
+  "transcript_identifier_at_start": "927f44b8-e4c5-44e4-a24c-563df3e60f7a",
+  "token_usage": {
+    "input_tokens": 2338,
+    "cache_creation_tokens": 179227,
+    "cache_read_tokens": 8717476,
+    "output_tokens": 21387,
+    "api_call_count": 117
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T17:37:38.371688Z",
+    "agent_lines": 93,
+    "human_added": 287,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 380,
+    "agent_percentage": 24.47368421052632
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/5386ae57-0d45-4a03-9ce4-fe2335c82e56.jsonl"
+}
