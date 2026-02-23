@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "94740783a9ab",
+  "strategy": "manual-commit",
+  "branch": "grafana_loki",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/project_notes/bugs.md",
+    "scripts/smoke-tests.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/94/740783a9ab/0/metadata.json",
+      "transcript": "/94/740783a9ab/0/full.jsonl",
+      "context": "/94/740783a9ab/0/context.md",
+      "content_hash": "/94/740783a9ab/0/content_hash.txt",
+      "prompt": "/94/740783a9ab/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4938,
+    "cache_creation_tokens": 462321,
+    "cache_read_tokens": 9411259,
+    "output_tokens": 25988,
+    "api_call_count": 100
+  }
+}
