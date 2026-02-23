@@ -114,6 +114,8 @@ get_production_urls() {
 
         FRONTEND_URL="https://${host}:${frontend_https_port}"
         API_URL="https://${host}:${frontend_https_port}/api"
+        # Canonical origin matches what a browser sees — always localhost-based
+        CANONICAL_ORIGIN="https://localhost:${frontend_https_port}"
 
         echo "Mode: devlocal (direct ports)"
     else
@@ -125,9 +127,11 @@ get_production_urls() {
         if [ "$https_port" = "443" ]; then
             FRONTEND_URL="https://${host}"
             API_URL="https://${host}/api"
+            CANONICAL_ORIGIN="https://localhost"
         else
             FRONTEND_URL="https://${host}:${https_port}"
             API_URL="https://${host}:${https_port}/api"
+            CANONICAL_ORIGIN="https://localhost:${https_port}"
         fi
 
         echo "Mode: blue-green (nginx proxy)"
@@ -135,6 +139,7 @@ get_production_urls() {
 
     export FRONTEND_URL
     export API_URL
+    export CANONICAL_ORIGIN
 
     echo "Endpoints:"
     echo "  Frontend: $FRONTEND_URL"
@@ -171,17 +176,28 @@ do_curl() {
         for arg in "$@"; do
             # Replace external URL with internal localhost (for request URLs)
             arg=$(echo "$arg" | sed "s|https://[^/]*/|http://localhost/|g")
-            # Replace Origin header to use localhost (CSRF validates against CORS_ORIGIN)
-            # https://localhost:1443 is in the allowed origins for both blue/green
+            # Rewrite Origin to the canonical localhost-based origin so CSRF validation passes.
+            # CORS_ORIGIN only allows localhost origins; the internal routing host is not in it.
             if echo "$arg" | grep -q "^Origin:"; then
-                arg="Origin: https://localhost:1443"
+                arg="Origin: ${CANONICAL_ORIGIN:-https://localhost}"
             fi
             # Single-quote the argument, escaping any embedded single quotes
             escaped_args="$escaped_args '$(echo "$arg" | sed "s/'/'\\\\''/g")'"
         done
         docker exec "$NGINX_CONTAINER" sh -c "apk add --no-cache curl >/dev/null 2>&1 || true; curl $escaped_args"
     else
-        curl "$@"
+        # Direct mode — still normalize Origin so it matches CORS_ORIGIN.
+        # FRONTEND_URL may use a gateway IP for routing (reachable from CI containers),
+        # but the API only accepts localhost-based origins. CANONICAL_ORIGIN is always
+        # https://localhost:${port}, matching what a browser would send.
+        local fixed_args=()
+        for arg in "$@"; do
+            if echo "$arg" | grep -q "^Origin:"; then
+                arg="Origin: ${CANONICAL_ORIGIN:-https://localhost}"
+            fi
+            fixed_args+=("$arg")
+        done
+        curl "${fixed_args[@]}"
     fi
 }
 

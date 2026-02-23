@@ -125,6 +125,13 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 - **Prevention**: When using non-root container images with named volumes, ensure the Dockerfile creates the mount point directories with the correct UID. Don't use init containers or runtime `chown` — handle at build time (standard Docker practice).
 - **Files**: `otel/Dockerfile.jaeger`
 
+### 2026-02-23 - Smoke Test Auth Returns 403 in promote:to-production (Gateway IP Origin)
+- **Issue**: `promote:to-production` smoke tests fail with HTTP 403 on user registration (Test 3), cascading to Test 4 (no auth cookie). `test:target-e2e` passes because it bypasses the smoke test path.
+- **Root Cause**: `get_production_urls()` detects the CI job runs inside a container and resolves a Docker gateway IP (`172.17.0.1`). `FRONTEND_URL` becomes `https://172.17.0.1:1443`. `check_network_mode()` successfully reaches that IP (nginx has `0.0.0.0:1443` bound), so `USE_INTERNAL_NETWORK=false`. In direct mode, `do_curl` passed arguments unchanged — including `Origin: https://172.17.0.1:1443`. CSRF middleware rejected it because `172.17.0.1` is not in `CORS_ORIGIN` (which only allows `https://localhost:1443,...`). Origin normalization only existed in the internal-mode path.
+- **Solution**: Introduced `CANONICAL_ORIGIN` (always `https://localhost:${port}`) exported alongside `FRONTEND_URL`. Applied Origin normalization in **both** `do_curl` paths (internal and direct). Also replaced the hardcoded `https://localhost:1443` in internal mode with `${CANONICAL_ORIGIN}`. `FRONTEND_URL` still uses `${host}` for routing; `CANONICAL_ORIGIN` always uses `localhost` to match CORS_ORIGIN.
+- **Prevention**: When adding a new CI networking code path: the URL used for routing (gateway IP) and the Origin header (what a browser would send) serve different purposes. Always normalize Origin to the canonical `localhost`-based URL. Don't rely on `USE_INTERNAL_NETWORK` to be the only place that fixes Origin — direct mode can also reach non-localhost addresses.
+- **File**: `scripts/smoke-tests.sh`
+
 <!-- Example entry format:
 
 ### 2026-01-23 - Container Failing to Start
