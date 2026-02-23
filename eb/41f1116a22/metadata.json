@@ -3,16 +3,19 @@
   "checkpoint_id": "eb41f1116a22",
   "strategy": "manual-commit",
   "branch": "grafana_loki",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
+    "backend/api-gateway/junit.xml",
     "docs/ARCHITECTURE.md",
     "docs/BLUE-GREEN-DEPLOYMENT.md",
     "docs/SECURITY.md",
     "docs/architecture.mmd",
     "docs/project_notes/ADR-002-two-layer-infrastructure.md",
     "docs/project_notes/key_facts.md",
+    "durable/services.sh",
     "durable/setup.sh",
     "durable/teardown.sh",
+    "run-all-tests.sh",
     "scripts/smoke-tests.sh",
     "scripts/teardown-all.sh"
   ],
@@ -23,13 +26,20 @@
       "context": "/eb/41f1116a22/0/context.md",
       "content_hash": "/eb/41f1116a22/0/content_hash.txt",
       "prompt": "/eb/41f1116a22/0/prompt.txt"
+    },
+    {
+      "metadata": "/eb/41f1116a22/1/metadata.json",
+      "transcript": "/eb/41f1116a22/1/full.jsonl",
+      "context": "/eb/41f1116a22/1/context.md",
+      "content_hash": "/eb/41f1116a22/1/content_hash.txt",
+      "prompt": "/eb/41f1116a22/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 542,
-    "cache_creation_tokens": 396163,
-    "cache_read_tokens": 6580464,
-    "output_tokens": 19880,
-    "api_call_count": 58
+    "input_tokens": 2880,
+    "cache_creation_tokens": 575390,
+    "cache_read_tokens": 15297940,
+    "output_tokens": 41267,
+    "api_call_count": 175
   }
 }
