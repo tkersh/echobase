@@ -312,7 +312,11 @@ durable:setup-ci:
       # Generate with: htpasswd -nb admin <password>
       if [ -z "$HTPASSWD_CONTENTS" ]; then
         echo "ERROR: HTPASSWD_CONTENTS GitLab CI/CD variable is not set."
-        echo "Set it in Settings > CI/CD > Variables (masked, not protected)."
+        echo ""
+        echo "Set it in Settings > CI/CD > Variables with these settings:"
+        echo "  - Protected: OFF (otherwise only available on protected branches)"
+        echo "  - Expand variable reference: OFF (the apr1 hash contains \$ signs)"
+        echo ""
         echo "Generate with: htpasswd -nb admin <password>"
         exit 1
       fi

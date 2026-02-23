@@ -180,6 +180,29 @@ Each decision should include:
 
 ---
 
+### ADR-012: Observability UI Basic Auth via nginx (2026-02-20)
+
+**Status:** Accepted
+
+**Summary:** Protect Prometheus and Jaeger UIs behind nginx HTTP basic auth rather than exposing them on direct ports. Credentials are managed via the `HTPASSWD_CONTENTS` environment variable (not stored in `.env.secrets` due to `$` expansion issues with apr1 hashes).
+
+**Key Points:**
+- Prometheus and Jaeger accessed at `/prometheus/` and `/jaeger/` through the durable nginx reverse proxy
+- Direct ports (9090, 16686) no longer exposed on the host
+- `HTPASSWD_CONTENTS` read from shell environment (devlocal) or GitLab CI/CD variable (CI) — never stored in files that get `source`d
+- Prometheus configured with `--web.external-url=/prometheus/` for correct redirects behind reverse proxy
+- Jaeger v2 requires a YAML config file with `base_path: /jaeger` (v1 env vars like `QUERY_BASE_PATH` are ignored)
+- Jaeger v2 runs as UID 10001; volume directories created with correct ownership at build time in `otel/Dockerfile.jaeger`
+
+**Related Files:**
+- `nginx-blue-green.conf` — auth_basic location blocks
+- `otel/jaeger-config.yaml` — Jaeger v2 config with base_path
+- `otel/Dockerfile.jaeger` — volume ownership + config baked in
+- `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh` — writes `.htpasswd` from env var
+- `durable/docker-compose.yml` — Prometheus external-url, Jaeger config mount
+
+---
+
 ## Adding New Decisions
 
 When making architectural decisions:

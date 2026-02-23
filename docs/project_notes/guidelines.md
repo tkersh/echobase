@@ -12,7 +12,7 @@ Lessons learned from past bugs and architectural patterns - check these before m
 
 1. **Durable Layer** (Persistent across deployments)
    - Location: `durable/docker-compose.yml`
-   - Components: MariaDB, LocalStack (Secrets Manager, KMS), **nginx Load Balancer**
+   - Components: MariaDB, LocalStack (Secrets Manager, KMS), **nginx Load Balancer**, OTEL Collector, Prometheus, Jaeger
    - Managed independently with `./durable/setup.sh [devlocal|ci]`
    - **NEVER torn down during blue/green deployments**
    - Environments:
@@ -103,6 +103,7 @@ Frontend (React) → API Gateway (Express) → SQS Queue → Order Processor →
 - **How it works**: nginx config and SSL certs are baked into the Docker image at build time
 - **No volume mounts**: Avoids GitLab CI's `/builds/` directory mount restrictions
 - **Ports**: 443 (HTTPS), 80 (HTTP), 8080 (blue direct), 8081 (green direct)
+- **Observability UIs**: Prometheus (`/prometheus/`) and Jaeger (`/jaeger/`) are reverse-proxied through nginx with HTTP basic auth (see ADR-012)
 
 **Updating nginx config**:
 - Scripts use `docker exec` to update config inside the container
@@ -119,6 +120,32 @@ if ! docker inspect "$NGINX_CONTAINER" >/dev/null 2>&1; then
 fi
 docker exec "$NGINX_CONTAINER" nginx -s reload
 ```
+
+### Observability UIs (Prometheus, Jaeger)
+
+**CRITICAL**: Prometheus and Jaeger are accessed through the nginx reverse proxy, NOT on direct ports:
+- Dev-local: `https://localhost/prometheus/` and `https://localhost/jaeger/`
+- CI: `https://localhost:1443/prometheus/` and `https://localhost:1443/jaeger/`
+
+**Authentication**: HTTP basic auth via `.htpasswd` file written by `50-htpasswd-setup.sh` at container start.
+
+**HTPASSWD_CONTENTS handling** (see ADR-012):
+- apr1 password hashes contain `$` characters that break bash `source` expansion
+- **NEVER** store `HTPASSWD_CONTENTS` in `.env.secrets` or any file that gets `source`d
+- Dev-local: Export in shell profile with single quotes: `export HTPASSWD_CONTENTS='admin:$apr1$...'`
+- CI: Set as GitLab CI/CD variable with **Protected: OFF** and **Expand variable reference: OFF** (or escape `$` as `$$`)
+- `start.sh` validates the variable is set and fails fast with generation instructions
+
+**Reverse proxy configuration**:
+- Prometheus requires `--web.external-url=/prometheus/` to generate correct redirects
+- Jaeger v2 ignores legacy env vars (`QUERY_BASE_PATH`); requires a YAML config with `base_path: /jaeger` (baked into `otel/Dockerfile.jaeger`)
+- nginx `proxy_pass` must NOT have a trailing `/` (to preserve the path prefix)
+
+**Jaeger v2 non-root container** (UID 10001):
+- Volume directories (`/badger/data`, `/badger/key`) must be owned by UID 10001
+- Ownership is set at build time in `otel/Dockerfile.jaeger` (standard practice)
+- Do NOT use init containers or runtime `chown` — handle in Dockerfile
+- If switching Jaeger storage backends, update `otel/jaeger-config.yaml` (baked into image)
 
 ### GitLab Runner Requirement
 

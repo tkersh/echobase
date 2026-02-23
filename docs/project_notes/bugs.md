@@ -97,6 +97,34 @@ See also: `guidelines.md` for general lessons learned from past bugs.
 - **Prevention**: When migrating parsing approaches (grep→jq, etc.), verify field names against the source of truth (Terraform schema). Don't assume variable names in shell match JSON key names — check `dbname` vs `database`, `db_name` vs `dbname`, etc.
 - **Files**: `durable/setup.sh` line 161, `.gitlab-ci.yml` lines 292, 431, 467-469
 
+### 2026-02-20 - nginx 500 on Prometheus/Jaeger Login (htpasswd Permission Denied)
+- **Issue**: After entering basic auth credentials for `/prometheus/` or `/jaeger/`, nginx returns 500 Internal Server Error
+- **Root Cause**: `50-htpasswd-setup.sh` wrote `.htpasswd` with `chmod 640` owned by `root:root`. The nginx worker process runs as the `nginx` user and cannot read the file. Log: `open() "/etc/nginx/.htpasswd" failed (13: Permission denied)`
+- **Solution**: Changed to `chmod 644` — htpasswd files contain password hashes (not plaintext), so world-readable is the standard practice (same as Apache default)
+- **Prevention**: Always check which user the consuming process runs as. nginx master runs as root but workers run as `nginx`. Don't use `chown root:nginx` as it requires the entrypoint to run as root.
+- **Files**: `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh`
+
+### 2026-02-20 - HTPASSWD_CONTENTS Mangled by Shell Variable Expansion
+- **Issue**: `HTPASSWD_CONTENTS` stored in `.env.secrets` was silently mangled when `source`d by bash. Prometheus/Jaeger login always failed.
+- **Root Cause**: apr1 password hashes contain `$` characters (`admin:$apr1$fXazJfCX$s7XIxkEFw1xgH...`). When bash `source`s the file, `$apr1`, `$fXazJfCX` etc. are expanded as undefined variables → empty strings. The resulting `.htpasswd` contains a garbled hash that never matches.
+- **Solution**: Removed `HTPASSWD_CONTENTS` from `.env.secrets` entirely. Now read from the shell environment (devlocal: exported in shell profile with single quotes; CI: GitLab CI/CD variable with "Expand variable reference" OFF).
+- **Prevention**: Never store values containing `$` in files that get `source`d by bash. If unavoidable, single-quote the value. Same issue exists in GitLab CI/CD variables — disable "Expand variable reference" or escape `$` as `$$`.
+- **Files**: `.env.secrets`, `scripts/generate-credentials.sh`, `durable/setup.sh`, `start.sh`
+
+### 2026-02-20 - Jaeger v2 Ignores QUERY_BASE_PATH Environment Variable
+- **Issue**: Jaeger served assets at `/static/...` instead of `/jaeger/static/...`, causing 502 errors for CSS/JS when accessed via nginx reverse proxy at `/jaeger/`
+- **Root Cause**: `jaegertracing/jaeger:latest` is Jaeger v2, which uses YAML config files. The v1 `QUERY_BASE_PATH` env var is silently ignored. The HTML `<base href="/">` was never rewritten to `/jaeger/`.
+- **Solution**: Created `otel/jaeger-config.yaml` with `base_path: /jaeger` in the `jaeger_query` extension. Baked into Docker image via `otel/Dockerfile.jaeger` (no bind mount — avoids CI `/builds/` mount restrictions).
+- **Prevention**: When using `latest` tags for third-party images, check for major version changes. Jaeger v1→v2 changed the entire configuration model. Pin versions or verify config mechanisms after image updates.
+- **Files**: `otel/jaeger-config.yaml`, `otel/Dockerfile.jaeger`, `durable/docker-compose.yml`
+
+### 2026-02-20 - Jaeger v2 Permission Denied on Badger Volume
+- **Issue**: Jaeger v2 container crashes with `mkdir /badger/key: permission denied`
+- **Root Cause**: Jaeger v2 image runs as UID 10001 (non-root). Named Docker volumes are created with root ownership. The non-root process cannot create subdirectories.
+- **Solution**: Created `otel/Dockerfile.jaeger` that creates `/badger/data` and `/badger/key` with correct ownership (10001:10001) at build time. Docker copies this ownership to fresh named volumes automatically.
+- **Prevention**: When using non-root container images with named volumes, ensure the Dockerfile creates the mount point directories with the correct UID. Don't use init containers or runtime `chown` — handle at build time (standard Docker practice).
+- **Files**: `otel/Dockerfile.jaeger`
+
 <!-- Example entry format:
 
 ### 2026-01-23 - Container Failing to Start

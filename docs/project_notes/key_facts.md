@@ -87,7 +87,7 @@ fi
 ## Infrastructure Architecture
 
 **Two-Layer Model:**
-- **Durable Layer**: MariaDB, Secrets Manager (LocalStack), nginx - persistent infrastructure
+- **Durable Layer**: MariaDB, Secrets Manager (LocalStack), nginx, OTEL Collector, Prometheus, Jaeger - persistent infrastructure
 - **Ephemeral Layer**: API Gateway, Frontend, Order Processor, SQS (LocalStack) - blue/green deployable
 
 **Container Naming:**
@@ -109,8 +109,8 @@ fi
 | MariaDB | 3306 |
 | OTEL Collector (gRPC) | 4317 |
 | OTEL Collector (HTTP) | 4318 |
-| Jaeger UI | 16686 |
-| Prometheus | 9090 |
+| Jaeger UI | via nginx: https://localhost/jaeger/ (basic auth) |
+| Prometheus | via nginx: https://localhost/prometheus/ (basic auth) |
 
 ### CI Blue Environment
 | Service | Port |
@@ -135,8 +135,8 @@ fi
 |---------|------|
 | OTEL Collector (gRPC) | 4417 |
 | OTEL Collector (HTTP) | 4418 |
-| Jaeger UI | 16786 |
-| Prometheus | 9190 |
+| Jaeger UI | via nginx: https://localhost:1443/jaeger/ (basic auth) |
+| Prometheus | via nginx: https://localhost:1443/prometheus/ (basic auth) |
 
 **Note**: Blue and Green share the **same durable database** in CI (port 3307).
 
@@ -148,6 +148,7 @@ All secrets stored in durable LocalStack at runtime:
 
 - `echobase/database/credentials` - MariaDB username/password
 - `echobase/database/encryption-key` - MariaDB AES-256 encryption key (see ADR-001)
+- `HTPASSWD_CONTENTS` (env var, not in Secrets Manager) - nginx basic auth for observability UIs (see ADR-012)
 
 ---
 
@@ -178,6 +179,10 @@ scripts/
 | `docker-compose.blue.yml` | CI blue environment |
 | `docker-compose.green.yml` | CI green environment |
 | `durable/docker-compose.yml` | Persistent infrastructure |
+| `nginx-blue-green.conf` | nginx routing, auth, reverse proxy config |
+| `otel/jaeger-config.yaml` | Jaeger v2 config (baked into Docker image) |
+| `otel/Dockerfile.jaeger` | Jaeger image with volume ownership + config |
+| `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh` | Writes .htpasswd from env var at startup |
 | `.gitlab-ci.yml` | CI pipeline definition |
 
 ---
