@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "94740783a9ab",
+  "session_id": "b1585789-535a-4f22-8706-de774b8835b3",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T23:36:10.614148Z",
+  "branch": "grafana_loki",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/project_notes/bugs.md",
+    "scripts/smoke-tests.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "93d26bf1a25b",
+  "transcript_identifier_at_start": "d3c02c2e-4877-4b54-8b09-6c5ae935d276",
+  "token_usage": {
+    "input_tokens": 6703,
+    "cache_creation_tokens": 108329,
+    "cache_read_tokens": 936658,
+    "output_tokens": 13879,
+    "api_call_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T23:36:10.082566Z",
+    "agent_lines": 27,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 27,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/b1585789-535a-4f22-8706-de774b8835b3.jsonl"
+}
