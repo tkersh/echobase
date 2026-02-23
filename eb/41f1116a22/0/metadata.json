@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "eb41f1116a22",
+  "session_id": "1b7d793e-7329-4fbe-b982-cfbe180e701a",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T22:32:07.13639Z",
+  "branch": "grafana_loki",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "docs/ARCHITECTURE.md",
+    "docs/BLUE-GREEN-DEPLOYMENT.md",
+    "docs/SECURITY.md",
+    "docs/architecture.mmd",
+    "docs/project_notes/ADR-002-two-layer-infrastructure.md",
+    "docs/project_notes/key_facts.md",
+    "durable/setup.sh",
+    "durable/teardown.sh",
+    "scripts/smoke-tests.sh",
+    "scripts/teardown-all.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "40c90b994256",
+  "transcript_identifier_at_start": "9cb040ec-c41c-41b8-af4d-8e3245419ffa",
+  "checkpoint_transcript_start": 232,
+  "transcript_lines_at_start": 232,
+  "token_usage": {
+    "input_tokens": 542,
+    "cache_creation_tokens": 396163,
+    "cache_read_tokens": 6580464,
+    "output_tokens": 19880,
+    "api_call_count": 58
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T22:32:05.575668Z",
+    "agent_lines": 62,
+    "human_added": 0,
+    "human_modified": 197,
+    "human_removed": 0,
+    "total_committed": 259,
+    "agent_percentage": 23.93822393822394
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/1b7d793e-7329-4fbe-b982-cfbe180e701a.jsonl"
+}

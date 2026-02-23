@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "eb41f1116a22",
+  "strategy": "manual-commit",
+  "branch": "grafana_loki",
+  "checkpoints_count": 6,
+  "files_touched": [
+    "docs/ARCHITECTURE.md",
+    "docs/BLUE-GREEN-DEPLOYMENT.md",
+    "docs/SECURITY.md",
+    "docs/architecture.mmd",
+    "docs/project_notes/ADR-002-two-layer-infrastructure.md",
+    "docs/project_notes/key_facts.md",
+    "durable/setup.sh",
+    "durable/teardown.sh",
+    "scripts/smoke-tests.sh",
+    "scripts/teardown-all.sh"
+  ],
+  "sessions": [
+    {
+      "metadata": "/eb/41f1116a22/0/metadata.json",
+      "transcript": "/eb/41f1116a22/0/full.jsonl",
+      "context": "/eb/41f1116a22/0/context.md",
+      "content_hash": "/eb/41f1116a22/0/content_hash.txt",
+      "prompt": "/eb/41f1116a22/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 542,
+    "cache_creation_tokens": 396163,
+    "cache_read_tokens": 6580464,
+    "output_tokens": 19880,
+    "api_call_count": 58
+  }
+}
