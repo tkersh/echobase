@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "150817750ed5",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    ".gitlab-ci.yml",
+    "docs/project_notes/bugs.md",
+    "docs/project_notes/decisions.md",
+    "docs/project_notes/guidelines.md",
+    "docs/project_notes/key_facts.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/15/0817750ed5/0/metadata.json",
+      "transcript": "/15/0817750ed5/0/full.jsonl",
+      "context": "/15/0817750ed5/0/context.md",
+      "content_hash": "/15/0817750ed5/0/content_hash.txt",
+      "prompt": "/15/0817750ed5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2338,
+    "cache_creation_tokens": 179227,
+    "cache_read_tokens": 8717476,
+    "output_tokens": 21387,
+    "api_call_count": 117
+  }
+}
