@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "741bb7a99692",
+  "session_id": "73807d6a-21e8-4d12-9b78-d2030bc66b40",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T17:37:41.781802Z",
+  "branch": "grafana_loki",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "start.sh",
+    "docs/project_notes/plan-grafana-loki.md",
+    "otel/Dockerfile.grafana",
+    "durable/setup.sh",
+    "durable/teardown.sh",
+    "otel/loki-config.yaml",
+    ".claude/settings.local.json",
+    "docs/project_notes/key_facts.md",
+    "durable/docker-compose.yml",
+    "nginx-blue-green.conf.template",
+    "otel/Dockerfile.loki",
+    "otel/collector-config.yaml",
+    "docs/project_notes/decisions.md",
+    "docs/project_notes/guidelines.md",
+    "nginx-blue-green.conf",
+    "otel/grafana/provisioning/datasources/datasources.yaml"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "630d907d6102",
+  "checkpoint_transcript_start": 193,
+  "transcript_lines_at_start": 193,
+  "token_usage": {
+    "input_tokens": 53,
+    "cache_creation_tokens": 57686,
+    "cache_read_tokens": 2735777,
+    "output_tokens": 7733,
+    "api_call_count": 45
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T17:37:41.228765Z",
+    "agent_lines": 380,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 380,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-tadk-work-echobase/73807d6a-21e8-4d12-9b78-d2030bc66b40.jsonl"
+}
