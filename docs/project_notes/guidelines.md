@@ -12,7 +12,7 @@ Lessons learned from past bugs and architectural patterns - check these before m
 
 1. **Durable Layer** (Persistent across deployments)
    - Location: `durable/docker-compose.yml`
-   - Components: MariaDB, LocalStack (Secrets Manager, KMS), **nginx Load Balancer**, OTEL Collector, Prometheus, Jaeger
+   - Components: MariaDB, LocalStack (Secrets Manager, KMS), **nginx Load Balancer**, OTEL Collector, Prometheus, Jaeger, Loki, Grafana
    - Managed independently with `./durable/setup.sh [devlocal|ci]`
    - **NEVER torn down during blue/green deployments**
    - Environments:
@@ -103,7 +103,7 @@ Frontend (React) → API Gateway (Express) → SQS Queue → Order Processor →
 - **How it works**: nginx config and SSL certs are baked into the Docker image at build time
 - **No volume mounts**: Avoids GitLab CI's `/builds/` directory mount restrictions
 - **Ports**: 443 (HTTPS), 80 (HTTP), 8080 (blue direct), 8081 (green direct)
-- **Observability UIs**: Prometheus (`/prometheus/`) and Jaeger (`/jaeger/`) are reverse-proxied through nginx with HTTP basic auth (see ADR-012)
+- **Observability UIs**: Prometheus (`/prometheus/`), Jaeger (`/jaeger/`), Grafana (`/grafana/`), and Loki (`/loki/`) are reverse-proxied through nginx with HTTP basic auth (see ADR-012, ADR-013)
 
 **Updating nginx config**:
 - Scripts use `docker exec` to update config inside the container
@@ -121,11 +121,11 @@ fi
 docker exec "$NGINX_CONTAINER" nginx -s reload
 ```
 
-### Observability UIs (Prometheus, Jaeger)
+### Observability UIs (Prometheus, Jaeger, Grafana, Loki)
 
-**CRITICAL**: Prometheus and Jaeger are accessed through the nginx reverse proxy, NOT on direct ports:
-- Dev-local: `https://localhost/prometheus/` and `https://localhost/jaeger/`
-- CI: `https://localhost:1443/prometheus/` and `https://localhost:1443/jaeger/`
+**CRITICAL**: All observability UIs are accessed through the nginx reverse proxy, NOT on direct ports:
+- Dev-local: `https://localhost/prometheus/`, `https://localhost/jaeger/`, `https://localhost/grafana/`, `https://localhost/loki/`
+- CI: `https://localhost:1443/prometheus/`, `https://localhost:1443/jaeger/`, `https://localhost:1443/grafana/`, `https://localhost:1443/loki/`
 
 **Authentication**: HTTP basic auth via `.htpasswd` file written by `50-htpasswd-setup.sh` at container start.
 
@@ -139,7 +139,10 @@ docker exec "$NGINX_CONTAINER" nginx -s reload
 **Reverse proxy configuration**:
 - Prometheus requires `--web.external-url=/prometheus/` to generate correct redirects
 - Jaeger v2 ignores legacy env vars (`QUERY_BASE_PATH`); requires a YAML config with `base_path: /jaeger` (baked into `otel/Dockerfile.jaeger`)
-- nginx `proxy_pass` must NOT have a trailing `/` (to preserve the path prefix)
+- Grafana uses `GF_SERVER_SERVE_FROM_SUB_PATH=true` with `GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/` for subpath routing
+- Loki has no native subpath support; nginx strips the `/loki/` prefix via trailing `/` on `proxy_pass http://loki:3100/`
+- For services with native subpath support (Prometheus, Jaeger, Grafana): nginx `proxy_pass` must NOT have a trailing `/` (to preserve the path prefix)
+- For services without native subpath support (Loki): nginx `proxy_pass` MUST have a trailing `/` (to strip the prefix)
 
 **Jaeger v2 non-root container** (UID 10001):
 - Volume directories (`/badger/data`, `/badger/key`) must be owned by UID 10001

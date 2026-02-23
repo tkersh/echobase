@@ -184,7 +184,7 @@ Each decision should include:
 
 **Status:** Accepted
 
-**Summary:** Protect Prometheus and Jaeger UIs behind nginx HTTP basic auth rather than exposing them on direct ports. Credentials are managed via the `HTPASSWD_CONTENTS` environment variable (not stored in `.env.secrets` due to `$` expansion issues with apr1 hashes).
+**Summary:** Protect observability UIs (Prometheus, Jaeger, Grafana, Loki) behind nginx HTTP basic auth rather than exposing them on direct ports. Credentials are managed via the `HTPASSWD_CONTENTS` environment variable (not stored in `.env.secrets` due to `$` expansion issues with apr1 hashes).
 
 **Key Points:**
 - Prometheus and Jaeger accessed at `/prometheus/` and `/jaeger/` through the durable nginx reverse proxy
@@ -200,6 +200,30 @@ Each decision should include:
 - `otel/Dockerfile.jaeger` — volume ownership + config baked in
 - `durable/nginx/docker-entrypoint.d/50-htpasswd-setup.sh` — writes `.htpasswd` from env var
 - `durable/docker-compose.yml` — Prometheus external-url, Jaeger config mount
+
+---
+
+### ADR-013: Grafana and Loki for Log Aggregation and Unified Dashboards (2026-02-23)
+
+**Status:** Accepted
+
+**Summary:** Add Loki for persistent log aggregation and Grafana for unified visualization of logs, metrics, and traces. The OTEL Collector sends logs to Loki via native OTLP (Loki 3.x), and Grafana provides a single pane of glass across Prometheus (metrics), Loki (logs), and Jaeger (traces).
+
+**Key Points:**
+- Loki receives logs via OTLP at `/otlp` (native Loki 3.x support, not the deprecated `loki` exporter)
+- Grafana configured with anonymous admin access (auth handled by nginx basic auth)
+- Both services follow the existing pattern: no direct ports, accessed through nginx at `/grafana/` and `/loki/`
+- Grafana uses `GF_SERVER_SERVE_FROM_SUB_PATH=true` for subpath routing
+- Grafana provisioned with Prometheus, Loki, and Jaeger datasources (with trace-to-log correlation)
+- Config files baked into Docker images (matches Prometheus/Jaeger pattern)
+
+**Related Files:**
+- `otel/loki-config.yaml` — Loki configuration (TSDB schema v13, filesystem storage)
+- `otel/Dockerfile.loki` — Loki image with baked-in config
+- `otel/Dockerfile.grafana` — Grafana image with provisioned datasources
+- `otel/grafana/provisioning/datasources/datasources.yaml` — Datasource definitions
+- `otel/collector-config.yaml` — OTEL Collector with `otlphttp/loki` exporter
+- `nginx-blue-green.conf` — `/grafana/` and `/loki/` location blocks
 
 ---
 

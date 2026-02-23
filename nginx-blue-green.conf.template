@@ -64,6 +64,52 @@ server {
         proxy_pass https://$backend_{{ACTIVE_ENV}}/health;
         proxy_ssl_verify off;
     }
+
+    # Observability UIs — basic auth protected
+    # Prometheus and Jaeger are configured with their subpath as their base URL
+    # (--web.external-url=/prometheus/ and base_path: /jaeger respectively),
+    # so nginx forwards the prefix as-is (no trailing / on proxy_pass to avoid stripping).
+    # Grafana uses GF_SERVER_SERVE_FROM_SUB_PATH=true to handle /grafana/ natively.
+    # Loki's /loki/ proxy strips the prefix via trailing / on proxy_pass.
+    location /prometheus/ {
+        auth_basic "Observability";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://prometheus:9090;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /jaeger/ {
+        auth_basic "Observability";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://jaeger:16686;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /grafana/ {
+        auth_basic "Observability";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://grafana:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /loki/ {
+        auth_basic "Observability";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        proxy_pass http://loki:3100/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 
 # Blue environment direct access (for testing)

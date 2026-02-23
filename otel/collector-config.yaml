@@ -1,6 +1,6 @@
 # OpenTelemetry Collector Configuration
 # Receives telemetry from backend/frontend services via OTLP,
-# exports traces to Jaeger, metrics to Prometheus, and logs to stdout.
+# exports traces to Jaeger, metrics to Prometheus, and logs to Loki.
 
 receivers:
   otlp:
@@ -32,6 +32,10 @@ exporters:
     tls:
       insecure: true
 
+  # Logs → Loki (via native OTLP endpoint)
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+
   # Logs → stdout (debug)
   debug:
     verbosity: basic
@@ -54,4 +58,4 @@ service:
     logs:
       receivers: [otlp]
       processors: [batch]
-      exporters: [debug]
+      exporters: [otlphttp/loki, debug]

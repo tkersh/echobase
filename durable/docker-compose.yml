@@ -126,7 +126,7 @@ services:
       # SSL setup (shared 40-ssl-setup.sh script)
       - SSL_SECRET_ID=echobase/nginx-lb/ssl
       - SSL_DIR=/etc/ssl
-      # HTTP basic auth for observability UIs (Prometheus, Jaeger)
+      # HTTP basic auth for observability UIs (Prometheus, Jaeger, Grafana, Loki)
       - HTPASSWD_CONTENTS=${HTPASSWD_CONTENTS:-}
     volumes:
       - nginx-config:/etc/nginx/conf.d  # Persist nginx config across restarts
@@ -238,6 +238,61 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  loki:
+    build:
+      context: ../otel
+      dockerfile: Dockerfile.loki
+    image: echobase-loki:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-loki
+    volumes:
+      - loki-data:/loki
+    networks:
+      - durable-network
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=loki"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  grafana:
+    build:
+      context: ../otel
+      dockerfile: Dockerfile.grafana
+    image: echobase-grafana:latest
+    container_name: ${DURABLE_CONTAINER_PREFIX:-echobase-durable}-grafana
+    environment:
+      - GF_SERVER_ROOT_URL=%(protocol)s://%(domain)s/grafana/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - durable-network
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    labels:
+      - "echobase.role=durable"
+      - "echobase.env=${DURABLE_ENV:-devlocal}"
+      - "echobase.service=grafana"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/grafana/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   localstack-data:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-localstack-data
@@ -249,6 +304,10 @@ volumes:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-jaeger-badger-data
   prometheus-data:
     name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-prometheus-data
+  loki-data:
+    name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-loki-data
+  grafana-data:
+    name: ${DURABLE_VOLUME_PREFIX:-echobase-durable}-grafana-data
 
 networks:
   durable-network:

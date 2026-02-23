@@ -86,6 +86,8 @@ print_infrastructure_details() {
         echo "  OTEL Collector: echobase-devlocal-durable-otel-collector (gRPC: 4317, HTTP: 4318)"
         echo "  Jaeger UI: https://localhost/jaeger/ (basic auth)"
         echo "  Prometheus: https://localhost/prometheus/ (basic auth)"
+        echo "  Grafana: https://localhost/grafana/ (basic auth)"
+        echo "  Loki: https://localhost/loki/ (basic auth)"
     else
         echo "  Database Container: echobase-ci-durable-mariadb"
         echo "  LocalStack Container: echobase-ci-durable-localstack"
@@ -97,6 +99,8 @@ print_infrastructure_details() {
         echo "  OTEL Collector: echobase-ci-durable-otel-collector (gRPC: 4417, HTTP: 4418)"
         echo "  Jaeger UI: https://localhost:1443/jaeger/ (basic auth)"
         echo "  Prometheus: https://localhost:1443/prometheus/ (basic auth)"
+        echo "  Grafana: https://localhost:1443/grafana/ (basic auth)"
+        echo "  Loki: https://localhost:1443/loki/ (basic auth)"
     fi
     echo ""
     echo "Credentials: Stored in AWS Secrets Manager (source of truth)"
@@ -422,7 +426,7 @@ echo "" >> "$TEMP_ENV_FILE"
 echo "# MCP Server" >> "$TEMP_ENV_FILE"
 echo "MCP_API_KEY=$MCP_API_KEY" >> "$TEMP_ENV_FILE"
 echo "" >> "$TEMP_ENV_FILE"
-echo "# HTTP basic auth for observability UIs (Prometheus, Jaeger)" >> "$TEMP_ENV_FILE"
+echo "# HTTP basic auth for observability UIs (Prometheus, Jaeger, Grafana, Loki)" >> "$TEMP_ENV_FILE"
 echo "HTPASSWD_CONTENTS='$HTPASSWD_CONTENTS'" >> "$TEMP_ENV_FILE"
 
 # Step 4: Check database and nginx status
@@ -506,16 +510,20 @@ else
     MCP_STATUS=$(docker inspect -f '{{.State.Status}}' "$MCP_CONTAINER" 2>/dev/null || echo "not-found")
     echo "  MCP Server: $MCP_CONTAINER ($MCP_STATUS)"
 
-    # Ensure OTEL stack is running (otel-collector, jaeger, prometheus).
+    # Ensure OTEL stack is running (otel-collector, jaeger, prometheus, loki, grafana).
     # docker compose up -d is idempotent — only recreates if config changed.
     echo "  Ensuring OTEL stack is running..."
-    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d otel-collector jaeger prometheus
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d otel-collector jaeger prometheus loki grafana
     OTEL_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-otel-collector" 2>/dev/null || echo "not-found")
     JAEGER_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-jaeger" 2>/dev/null || echo "not-found")
     PROM_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-prometheus" 2>/dev/null || echo "not-found")
+    LOKI_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-loki" 2>/dev/null || echo "not-found")
+    GRAFANA_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-grafana" 2>/dev/null || echo "not-found")
     echo "  OTEL Collector: ${CONTAINER_PREFIX}-otel-collector ($OTEL_STATUS)"
     echo "  Jaeger: ${CONTAINER_PREFIX}-jaeger ($JAEGER_STATUS)"
     echo "  Prometheus: ${CONTAINER_PREFIX}-prometheus ($PROM_STATUS)"
+    echo "  Loki: ${CONTAINER_PREFIX}-loki ($LOKI_STATUS)"
+    echo "  Grafana: ${CONTAINER_PREFIX}-grafana ($GRAFANA_STATUS)"
 
     echo ""
     rm "$TEMP_ENV_FILE"

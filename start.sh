@@ -59,8 +59,8 @@ set +a
 if [ -z "$HTPASSWD_CONTENTS" ]; then
     echo -e "\033[0;31mError: HTPASSWD_CONTENTS environment variable is not set.\033[0m"
     echo ""
-    echo "This variable provides HTTP basic auth credentials for the Prometheus"
-    echo "and Jaeger UIs (proxied at /prometheus/ and /jaeger/)."
+    echo "This variable provides HTTP basic auth credentials for the observability"
+    echo "UIs (Prometheus, Jaeger, Grafana, and Loki) proxied through nginx."
     echo ""
     echo "Generate it with:"
     echo "  htpasswd -nb admin <password>"

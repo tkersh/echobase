@@ -87,7 +87,7 @@ fi
 ## Infrastructure Architecture
 
 **Two-Layer Model:**
-- **Durable Layer**: MariaDB, Secrets Manager (LocalStack), nginx, OTEL Collector, Prometheus, Jaeger - persistent infrastructure
+- **Durable Layer**: MariaDB, Secrets Manager (LocalStack), nginx, OTEL Collector, Prometheus, Jaeger, Loki, Grafana - persistent infrastructure
 - **Ephemeral Layer**: API Gateway, Frontend, Order Processor, SQS (LocalStack) - blue/green deployable
 
 **Container Naming:**
@@ -111,6 +111,8 @@ fi
 | OTEL Collector (HTTP) | 4318 |
 | Jaeger UI | via nginx: https://localhost/jaeger/ (basic auth) |
 | Prometheus | via nginx: https://localhost/prometheus/ (basic auth) |
+| Grafana | via nginx: https://localhost/grafana/ (basic auth) |
+| Loki | via nginx: https://localhost/loki/ (basic auth) |
 
 ### CI Blue Environment
 | Service | Port |
@@ -137,6 +139,8 @@ fi
 | OTEL Collector (HTTP) | 4418 |
 | Jaeger UI | via nginx: https://localhost:1443/jaeger/ (basic auth) |
 | Prometheus | via nginx: https://localhost:1443/prometheus/ (basic auth) |
+| Grafana | via nginx: https://localhost:1443/grafana/ (basic auth) |
+| Loki | via nginx: https://localhost:1443/loki/ (basic auth) |
 
 **Note**: Blue and Green share the **same durable database** in CI (port 3307).
 
