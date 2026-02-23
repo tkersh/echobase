@@ -1,0 +1,292 @@
+=> [mcp-server 3/8] COPY backend/mcp-server/package*.json ./                                                                                                                                                                                               0.1s
+ => ERROR [mcp-server 4/8] RUN npm ci                                                                                                                                                                                                                       1.9s
+------
+ > [mcp-server 4/8] RUN npm ci:
+1.769 npm error code EUSAGE
+1.769 npm error
+1.769 npm error The `npm ci` command can only install with an existing package-lock.json or
+1.769 npm error npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or
+1.769 npm error later to generate a package-lock.json file, then try again.
+
+---
+
+We previously moved all of the package-lock.json files to the root level. Please change the docker build to reference that.
+
+---
+
+> echobase-e2e-tests@1.0.0 test
+> playwright test
+sh: 1: playwright: not found
+
+---
+
+this is inside the CI container. And it's always worked before, so this must be a recent refactoring change.
+
+---
+
+I get a bunch of these. Can we not install only what we need? Removing unused browser at /ms-playwright/chromium-1194
+Removing unused browser at /ms-playwright/chromium_headless_shell-1194
+Removing unused browser at /ms-playwright/firefox-1495
+Removing unused browser at /ms-playwright/webkit-2215
+
+---
+
+build:dependencies in CI has this error: $ npm ci --prefer-offline --no-audit
+npm error code EUSAGE
+npm error
+npm error The `npm ci` command can only install with an existing package-lock.json or
+npm error npm-shrinkwrap.json with lockfileVersion >= 1. Run an install with npm@5 or
+npm error later to generate a package-lock.json file, then try again.
+
+---
+
+tadk@Fenix echobase % git status
+On branch gemini-audit
+Your branch is up to date with 'origin/gemini-audit'.
+
+nothing to commit, working tree clean
+
+---
+
+tadk@Fenix echobase % npm install
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: api-gateway@1.0.0
+npm error Found: @opentelemetry/core@1.25.1
+npm error backend/api-gateway/node_modules/@opentelemetry/core
+npm error   @opentelemetry/core@"1.25.1" from @opentelemetry/sdk-logs@0.52.1
+npm error   backend/api-gateway/node_modules/@opentelemetry/sdk-logs
+npm error     @opentelemetry/sdk-logs@"^0.52.0" from api-gateway@1.0.0
+npm error     backend/api-gateway
+npm error       api-gateway@1.0.0
+npm error       node_modules/api-gateway
+npm error         workspace backend/api-gateway from the root project
+npm error   @opentelemetry/core@"1.25.1" from @opentelemetry/resources@1.25.1
+npm error   backend/api-gateway/node_modules/@opentelemetry/sdk-logs/node_modules/@opentelemetry/resources
+npm error     @opentelemetry/resources@"1.25.1" from @opentelemetry/sdk-logs@0.52.1
+npm error     backend/api-gateway/node_modules/@opentelemetry/sdk-logs
+npm error       @opentelemetry/sdk-logs@"^0.52.0" from api-gateway@1.0.0
+npm error       backend/api-gateway
+npm error         api-gateway@1.0.0
+npm error         node_modules/api-gateway
+npm error
+npm error Could not resolve dependency:
+npm error @opentelemetry/auto-instrumentations-node@"^0.69.0" from api-gateway@1.0.0
+npm error backend/api-gateway
+npm error   api-gateway@1.0.0
+npm error   node_modules/api-gateway
+npm error     workspace backend/api-gateway from the root project
+npm error
+npm error Conflicting peer dependency: @opentelemetry/core@2.5.1
+npm error node_modules/@opentelemetry/core
+npm error   peer @opentelemetry/core@"^2.0.0" from @opentelemetry/auto-instrumentations-node@0.69.0
+npm error   node_modules/@opentelemetry/auto-instrumentations-node
+npm error     @opentelemetry/auto-instrumentations-node@"^0.69.0" from api-gateway@1.0.0
+npm error     backend/api-gateway
+npm error       api-gateway@1.0.0
+npm error       node_modules/api-gateway
+npm error         workspace backend/api-gateway from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+
+---
+
+While resolving: api-gateway@1.0.0
+Found: @opentelemetry/core@1.25.1
+backend/api-gateway/node_modules/@opentelemetry/core
+  @opentelemetry/core@"1.25.1" from @opentelemetry/sdk-logs@0.52.1
+  backend/api-gateway/node_modules/@opentelemetry/sdk-logs
+  @opentelemetry/core@"1.25.1" from @opentelemetry/resources@1.25.1
+  backend/api-gateway/node_modules/@opentelemetry/sdk-logs/node_modules/@opentelemetry/resources
+    @opentelemetry/resources@"1.25.1" from @opentelemetry/sdk-logs@0.52.1
+    backend/api-gateway/node_modules/@opentelemetry/sdk-logs
+
+Could not resolve dependency:
+@opentelemetry/auto-instrumentations-node@"^0.69.0" from api-gateway@1.0.0
+backend/api-gateway
+  api-gateway@1.0.0
+  node_modules/api-gateway
+    workspace backend/api-gateway from the root project
+
+Conflicting peer dependency: @opentelemetry/core@2.5.1
+node_modules/@opentelemetry/core
+  peer @opentelemetry/core@"^2.0.0" from @opentelemetry/auto-instrumentations-node@0.69.0
+  node_modules/@opentelemetry/auto-instrumentations-node
+    @opentelemetry/auto-instrumentations-node@"^0.69.0" from api-gateway@1.0.0
+    backend/api-gateway
+      api-gateway@1.0.0
+      node_modules/api-gateway
+        workspace backend/api-gateway from the root project
+
+---
+
+152 error code ERESOLVE
+153 error ERESOLVE unable to resolve dependency tree
+154 error
+155 error While resolving: api-gateway@1.0.0
+155 error Found: jest@25.5.4
+155 error node_modules/jest
+155 error   dev jest@"^25.0.0" from api-gateway@1.0.0
+155 error   backend/api-gateway
+155 error     api-gateway@1.0.0
+155 error     node_modules/api-gateway
+155 error       workspace backend/api-gateway from the root project
+155 error
+155 error Could not resolve dependency:
+155 error peer jest@"^27.0.0" from ts-jest@27.0.3
+155 error node_modules/ts-jest
+155 error   ts-jest@"27.0.3" from api-gateway@1.0.0
+155 error   backend/api-gateway
+155 error     api-gateway@1.0.0
+155 error     node_modules/api-gateway
+155 error       workspace backend/api-gateway from the root project
+155 error
+
+---
+
+looks like the same error. Please fix. tadk@Fenix echobase % npm install
+npm error code ERESOLVE
+npm error ERESOLVE unable to resolve dependency tree
+npm error
+npm error While resolving: mcp-server@1.0.0
+npm error Found: jest@25.5.4
+npm error node_modules/jest
+npm error   dev jest@"^25.0.0" from mcp-server@1.0.0
+npm error   backend/mcp-server
+npm error     mcp-server@1.0.0
+npm error     node_modules/mcp-server
+npm error       workspace backend/mcp-server from the root project
+npm error
+npm error Could not resolve dependency:
+npm error peer jest@"^27.0.0" from ts-jest@27.1.5
+npm error node_modules/ts-jest
+npm error   dev ts-jest@"^27.0.3" from mcp-server@1.0.0
+npm error   backend/mcp-server
+npm error     mcp-server@1.0.0
+npm error     node_modules/mcp-server
+npm error       workspace backend/mcp-server from the root project
+npm error
+
+---
+
+All the npm package versions used to be fine, now since the refactor on this branch there are a lot of deprecated package warnings. Please fix. tadk@Fenix echobase % npm install
+npm warn deprecated natives@1.1.6: This module relies on Node.js's internals and will break at some point. Do not use it, and update to graceful-fs@4.x.
+npm warn deprecated osenv@0.1.5: This package is no longer supported.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated swagger-methods@1.0.8: This package is no longer being maintained.
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated har-validator@5.1.5: this library is no longer supported
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated uuid@2.0.3: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+npm warn deprecated has-own@1.0.1: This project is not maintained. Use Object.hasOwn() instead.
+npm warn deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+npm warn deprecated request@2.88.2: request has been deprecated, see https://github.com/request/request/issues/3142
+npm warn deprecated fsevents@1.2.13: Upgrade to fsevents v2 to mitigate potential security issues
+npm warn deprecated form-data@2.5.4: This version has an incorrect dependency; please use v2.5.5
+npm warn deprecated json-schema-ref-parser@1.4.1: Please switch to @apidevtools/json-schema-ref-parser
+npm warn deprecated core-js@2.6.12: core-js@<3.23.3 is no longer maintained and not recommended for usage due to the number of issues. Because of the V8 engine whims, feature detection in old core-js versions could cause a slowdown up to 100x even if nothing is polyfilled. Some versions have web compatibility issues. Please, upgrade your dependencies to the actual version of core-js.
+
+---
+
+Let's fix/update all packages
+
+---
+
+Write to guidelines.md that we should always use best practice packages.
+
+---
+
+Same issue yet again. Please fix: npm error code ETARGET
+npm error notarget No matching version found for @opentelemetry/instrumentation-aws-sdk@^0.211.0.
+npm error notarget In most cases you or one of your dependencies are requesting
+npm error notarget a package version that doesn't exist.
+
+---
+
+sudo chown -R $(id -u):$(id -g) ~/.npm)
+
+zsh: parse error near `)'
+
+---
+
+tadk@Fenix echobase % npm install
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated lodash.get@4.4.2: This package is deprecated. Use the optional chaining (?.) operator instead.
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated glob@7.1.6: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+---
+
+Security scan reports 16 vulnerabilities (6 low, 9 moderate, 1 high), which will break the CI install which depends on security scan. running npm audit fix results in npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: ts-jest@29.1.2
+npm error Found: jest@25.0.0
+npm error backend/api-gateway/node_modules/jest
+npm error   dev jest@"^25.0.0" from api-gateway@1.0.0
+npm error   backend/api-gateway
+npm error     api-gateway@1.0.0
+npm error     node_modules/api-gateway
+npm error       workspace backend/api-gateway from the root project
+npm error
+npm error Could not resolve dependency:
+npm error peer jest@"^29.0.0" from ts-jest@29.1.2
+npm error backend/api-gateway/node_modules/ts-jest
+npm error   ts-jest@"29.1.2" from api-gateway@1.0.0
+npm error   backend/api-gateway
+npm error     api-gateway@1.0.0
+npm error     node_modules/api-gateway
+npm error       workspace backend/api-gateway from the root project
+npm error
+npm error Conflicting peer dependency: jest@29.7.0
+npm error node_modules/jest
+npm error   peer jest@"^29.0.0" from ts-jest@29.1.2
+npm error   backend/api-gateway/node_modules/ts-jest
+npm error     ts-jest@"29.1.2" from api-gateway@1.0.0
+npm error     backend/api-gateway
+npm error       api-gateway@1.0.0
+npm error       node_modules/api-gateway
+npm error         workspace backend/api-gateway from the root project
+npm error
+npm error Fix the upstream dependency conflict, or retry
+npm error this command with --force or --legacy-peer-deps
+npm error to accept an incorrect (and potentially broken) dependency resolution.
+np
+
+---
+
+Perhaps npm-audit-fix-all.sh was putting them back?
+
+---
+
+16 vulnerabilities (6 low, 9 moderate, 1 high)
+
+---
+
+in run-all-tests.sh I get Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+Let's fix that
+
+---
+
+test:target-api-gateway is failing with many errors Failed to collect coverage from /app/backend/api-gateway/routes/orders.js
+ERROR: /app/backend/api-gateway/server.js: minimatch is not a function
+Error: Cannot find module 'semver/functions/gte'
+
+---
+
+26 vulnerabilities (4 moderate, 22 high)
+
+---
+
+This won't pass our prod audit: "22 high severity vulnerabilities" (and it's after npm audit fix). Please figure out a way to resolve this issue.
+
+---
+
+22 high severity vulnerabilities
+
+---
+
+npm install && npm audit --omit=dev
