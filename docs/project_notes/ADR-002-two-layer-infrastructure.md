@@ -32,7 +32,12 @@ Location: `durable/docker-compose.yml`
 Components that persist across all deployments:
 - **MariaDB**: Shared database for blue and green
 - **LocalStack (Secrets Manager, KMS)**: Credential storage
-- **nginx**: Load balancer and traffic router
+- **nginx**: Load balancer, traffic router, and observability UI auth proxy
+- **OTEL Collector**: Receives traces, metrics, and logs from app services
+- **Prometheus**: Metrics storage
+- **Jaeger**: Distributed tracing
+- **Loki**: Log aggregation
+- **Grafana**: Unified observability dashboard
 
 Container prefix: `echobase-{devlocal|ci}-durable-`
 
@@ -63,14 +68,18 @@ docker compose -p echobase-blue down
 ### Layer Interaction
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    DURABLE LAYER                        │
-│  ┌─────────┐   ┌─────────────┐   ┌─────────────────┐   │
-│  │ MariaDB │   │  LocalStack │   │      nginx      │   │
-│  │  :3306  │   │   (Secrets) │   │  (Load Balancer)│   │
-│  └────┬────┘   └──────┬──────┘   └────────┬────────┘   │
-│       │               │                    │            │
-└───────┼───────────────┼────────────────────┼────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                         DURABLE LAYER                            │
+│  ┌─────────┐  ┌───────────┐  ┌───────────────┐                 │
+│  │ MariaDB │  │ LocalStack│  │     nginx     │                 │
+│  │  :3306  │  │ (Secrets) │  │ (LB + Auth)   │                 │
+│  └────┬────┘  └─────┬─────┘  └───────┬───────┘                 │
+│       │             │                 │                          │
+│  ┌────┴─────────────┴─────────────────┴───────────────────────┐ │
+│  │                 Observability Stack                         │ │
+│  │  OTEL Collector → Prometheus, Jaeger, Loki ← Grafana       │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└───────┬───────────────┬────────────────────┬────────────────────┘
         │               │                    │
         │   ┌───────────┴───────────┐        │
         │   │                       │        │

@@ -81,21 +81,31 @@ Internet/External Network
         ├─[HTTPS/TLS]────────────────────────────
         │
         v
-    Frontend (React/Nginx)  ──────> API Gateway (Express)
-        │                               │
-        │                               ├─[JWT Auth]
-        │                               │
-        │                               v
-        │                          SQS Queue (Localstack)
-        │                               │
-        │                               v
-        │                        Order Processor
-        │                               │
-        │                    [Secrets Manager]
-        │                               │
-        │                               v
-        └───────────────────────>   MariaDB
-                              (AES-256 encrypted)
+    nginx Load Balancer ─────────────────────────────────────
+        │                                                    │
+        ├──→ Frontend (React/Nginx) ──→ API Gateway (Express)│
+        │                                    │               │
+        │                                    ├─[JWT Auth]    │
+        │                                    v               │
+        │                               SQS Queue           │
+        │                                    │               │
+        │                                    v               │
+        │                             Order Processor        │
+        │                                    │               │
+        │                          [Secrets Manager]         │
+        │                                    │               │
+        │                                    v               │
+        │                                MariaDB             │
+        │                           (AES-256 encrypted)      │
+        │                                                    │
+        ├──→ Observability UIs ─[Basic Auth]─────────────────┘
+        │    /grafana/, /prometheus/, /jaeger/, /loki/
+        │
+        └──→ OTEL Collector ←── App Services (traces, metrics, logs)
+                  │
+                  ├──→ Prometheus (metrics)
+                  ├──→ Jaeger (traces)
+                  └──→ Loki (logs)
 ```
 
 ### Key Security Layers

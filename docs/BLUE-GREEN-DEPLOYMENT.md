@@ -18,27 +18,27 @@ This project implements a **true blue-green deployment strategy** with **separat
 ### Two-Layer Infrastructure Model
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    DURABLE LAYER                            │
-│                  (Persists Across Deployments)              │
-│                                                             │
-│  ┌──────────────────────┐     ┌──────────────────────┐    │
-│  │  Dev-Local Database  │     │    CI Database       │    │
-│  │                      │     │                      │    │
-│  │  Container:          │     │  Container:          │    │
-│  │  echobase-devlocal-  │     │  echobase-ci-durable-│    │
-│  │  durable-mariadb     │     │  mariadb             │    │
-│  │                      │     │                      │    │
-│  │  Network:            │     │  Network:            │    │
-│  │  echobase-devlocal-  │     │  echobase-ci-durable-│    │
-│  │  durable-network     │     │  network             │    │
-│  │                      │     │                      │    │
-│  │  Port: 3306          │     │  Port: 3307          │    │
-│  └──────────────────────┘     └──────────────────────┘    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        DURABLE LAYER                                 │
+│                    (Persists Across Deployments)                      │
+│                                                                      │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────┐  │
+│  │ Dev-Local Database  │  │   CI Database      │  │    nginx     │  │
+│  │ echobase-devlocal-  │  │ echobase-ci-       │  │ Load Balancer│  │
+│  │ durable-mariadb     │  │ durable-mariadb    │  │ + Auth Proxy │  │
+│  │ Port: 3306          │  │ Port: 3307         │  │ :443 / :1443 │  │
+│  └────────────────────┘  └────────────────────┘  └──────────────┘  │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                  Observability Stack                          │  │
+│  │  OTEL Collector ──→ Prometheus (/prometheus/)                │  │
+│  │       │          ──→ Jaeger (/jaeger/)                       │  │
+│  │       │          ──→ Loki (/loki/)                            │  │
+│  │       │                                                      │  │
+│  │       │              Grafana (/grafana/) — queries all three  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
                         ▲                     ▲
-                        │                     │
                         │                     │
         ┌───────────────┴─────────┐  ┌────────┴──────────┐
         │   EPHEMERAL LAYER       │  │  EPHEMERAL LAYER  │

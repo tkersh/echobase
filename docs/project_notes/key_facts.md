@@ -112,7 +112,7 @@ fi
 | Jaeger UI | via nginx: https://localhost/jaeger/ (basic auth) |
 | Prometheus | via nginx: https://localhost/prometheus/ (basic auth) |
 | Grafana | via nginx: https://localhost/grafana/ (basic auth) |
-| Loki | via nginx: https://localhost/loki/ (basic auth) |
+| Loki | via nginx: https://localhost/loki/ready (basic auth, API only — no UI) |
 
 ### CI Blue Environment
 | Service | Port |
@@ -140,7 +140,7 @@ fi
 | Jaeger UI | via nginx: https://localhost:1443/jaeger/ (basic auth) |
 | Prometheus | via nginx: https://localhost:1443/prometheus/ (basic auth) |
 | Grafana | via nginx: https://localhost:1443/grafana/ (basic auth) |
-| Loki | via nginx: https://localhost:1443/loki/ (basic auth) |
+| Loki | via nginx: https://localhost:1443/loki/ready (basic auth, API only — no UI) |
 
 **Note**: Blue and Green share the **same durable database** in CI (port 3307).
 

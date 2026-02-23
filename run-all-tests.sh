@@ -11,7 +11,6 @@ echo "========================================="
 
 # Colors
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
@@ -32,9 +31,19 @@ if [ ! -f ".env" ]; then
     exit 1
 fi
 
+# Run smoke tests first — fail fast if infrastructure is unhealthy
+echo ""
+echo "Step 1: Running smoke tests..."
+bash "./scripts/smoke-tests.sh" || {
+    print_error "Smoke tests failed — aborting remaining tests"
+    exit 1
+}
+print_success "All smoke tests passed!"
+echo ""
+
 # Setup environment
 echo ""
-echo "Step 1: Setting up test environment..."
+echo "Step 2: Setting up test environment..."
 bash "./e2e-tests/scripts/setup-tests.sh" || {
     print_error "Setup failed"
     exit 1
@@ -42,7 +51,7 @@ bash "./e2e-tests/scripts/setup-tests.sh" || {
 
 # Run E2E tests
 echo ""
-echo "Step 2: Running E2E tests..."
+echo "Step 3: Running E2E tests..."
 cd e2e-tests || exit
 
 # Run tests and capture exit code
@@ -87,7 +96,7 @@ fi
 cd ..
 
 # Run security tests
-echo "Step 3: Running security tests..."
+echo "Step 4: Running security tests..."
 set +e
 bash "./test-security.sh"
 SECURITY_EXIT_CODE=$?
@@ -101,15 +110,16 @@ fi
 echo ""
 
 # Cleanup
-echo "Step 4: Cleaning up test data..."
+echo "Step 5: Cleaning up test data..."
 bash "./e2e-tests/scripts/cleanup-tests.sh" || {
     print_error "Cleanup failed"
 }
 
-# Exit with failure if either test suite failed
+# Exit with failure if any test suite failed
 if [ $E2E_EXIT_CODE -ne 0 ] || [ $SECURITY_EXIT_CODE -ne 0 ]; then
     echo ""
     print_error "Test suite failed!"
+    echo "  Smoke Tests: ✓ PASSED"
     echo "  E2E Tests: $([ $E2E_EXIT_CODE -eq 0 ] && echo '✓ PASSED' || echo '✗ FAILED')"
     echo "  Security Tests: $([ $SECURITY_EXIT_CODE -eq 0 ] && echo '✓ PASSED' || echo '✗ FAILED')"
     echo ""
@@ -117,6 +127,7 @@ if [ $E2E_EXIT_CODE -ne 0 ] || [ $SECURITY_EXIT_CODE -ne 0 ]; then
 else
     echo ""
     print_success "All test suites passed!"
+    echo "  Smoke Tests: ✓ PASSED"
     echo "  E2E Tests: ✓ PASSED"
     echo "  Security Tests: ✓ PASSED"
     echo ""

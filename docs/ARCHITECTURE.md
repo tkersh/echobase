@@ -21,6 +21,12 @@ Echobase implements a **two-layer architecture** that separates durable infrastr
 **Components:**
 - Dev-Local Database: `echobase-devlocal-durable-mariadb` (port 3306)
 - CI Database: `echobase-ci-durable-mariadb` (port 3307)
+- nginx Load Balancer: Blue-green traffic routing + observability UI proxy
+- OTEL Collector: Receives traces, metrics, and logs via OTLP
+- Prometheus: Metrics storage (via `/prometheus/`)
+- Jaeger: Distributed tracing (via `/jaeger/`)
+- Loki: Log aggregation (via `/loki/`)
+- Grafana: Unified observability dashboard (via `/grafana/`)
 
 **Characteristics:**
 - **Persistent**: Databases survive application deployments and rollbacks
@@ -75,20 +81,25 @@ docker compose down           # Stop application services
 ### Network Isolation
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    DURABLE LAYER                            │
-│                  (Persists Across Deployments)              │
-│                                                             │
-│  ┌──────────────────────┐     ┌──────────────────────┐    │
-│  │  Dev-Local Database  │     │    CI Database       │    │
-│  │  echobase-devlocal-  │     │  echobase-ci-durable-│    │
-│  │  durable-mariadb     │     │  mariadb             │    │
-│  │                      │     │                      │    │
-│  │  Network:            │     │  Network:            │    │
-│  │  echobase-devlocal-  │     │  echobase-ci-durable-│    │
-│  │  durable-network     │     │  network             │    │
-│  └──────────────────────┘     └──────────────────────┘    │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        DURABLE LAYER                                 │
+│                    (Persists Across Deployments)                      │
+│                                                                      │
+│  ┌────────────────────┐  ┌────────────────────┐  ┌──────────────┐  │
+│  │ Dev-Local Database  │  │   CI Database      │  │    nginx     │  │
+│  │ echobase-devlocal-  │  │ echobase-ci-       │  │ Load Balancer│  │
+│  │ durable-mariadb     │  │ durable-mariadb    │  │ + Auth Proxy │  │
+│  └────────────────────┘  └────────────────────┘  └──────────────┘  │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                  Observability Stack                          │  │
+│  │  OTEL Collector ──→ Prometheus (metrics)                     │  │
+│  │       │          ──→ Jaeger (traces)                         │  │
+│  │       │          ──→ Loki (logs)                              │  │
+│  │       │                  ↑          ↑         ↑              │  │
+│  │       │                  └──── Grafana ────────┘              │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
                 ▲                             ▲
                 │                             │
         ┌───────┴─────────┐         ┌────────┴──────────┐
@@ -114,6 +125,12 @@ Application services connect to **both** their app network and the appropriate d
 | Service | Dev-Local | CI Green | Infrastructure Layer |
 |---------|-----------|----------|---------------------|
 | **MariaDB** | **3306** | **3307** | **Durable** |
+| **nginx LB** | **443, 8080, 8081** | **1443, 8180, 8181** | **Durable** |
+| **OTEL Collector** | **gRPC 4317, HTTP 4318** | **gRPC 4417, HTTP 4418** | **Durable** |
+| **Prometheus** | **/prometheus/** | **/prometheus/** | **Durable** |
+| **Jaeger** | **/jaeger/** | **/jaeger/** | **Durable** |
+| **Loki** | **/loki/** | **/loki/** | **Durable** |
+| **Grafana** | **/grafana/** | **/grafana/** | **Durable** |
 | Frontend HTTPS | 3443 | 3543 | Ephemeral |
 | Frontend HTTP | 3000 | 3100 | Ephemeral |
 | API Gateway HTTPS | 3001 | 3101 | Ephemeral |
@@ -126,18 +143,21 @@ Application services connect to **both** their app network and the appropriate d
 **File:** `durable/docker-compose.yml`
 
 ```yaml
-# Parameterized database infrastructure
+# Parameterized durable infrastructure
 # Uses environment-specific .env files:
 # - durable/.env.devlocal
 # - durable/.env.ci
 
 services:
-  mariadb:
-    # Database service with configurable:
-    # - Container name
-    # - Network name
-    # - Volume name
-    # - Port
+  mariadb:        # Database (configurable ports, volumes)
+  localstack:     # Secrets Manager, KMS
+  nginx:          # Load balancer, reverse proxy, basic auth
+  mcp-server:     # MCP server
+  otel-collector: # OpenTelemetry Collector (receives OTLP)
+  jaeger:         # Distributed tracing
+  prometheus:     # Metrics storage
+  loki:           # Log aggregation
+  grafana:        # Unified observability dashboard
 ```
 
 ### Ephemeral Application Infrastructure
@@ -322,6 +342,25 @@ Application connects to existing `echobase-devlocal-durable-mariadb`.
 
 ## Monitoring & Operations
 
+### Observability UIs (via nginx, basic auth)
+
+| Tool | Dev-Local URL | CI URL | Purpose |
+|------|--------------|--------|---------|
+| Grafana | `https://localhost/grafana/` | `https://localhost:1443/grafana/` | Unified dashboard (logs, metrics, traces) |
+| Prometheus | `https://localhost/prometheus/` | `https://localhost:1443/prometheus/` | Metrics queries |
+| Jaeger | `https://localhost/jaeger/` | `https://localhost:1443/jaeger/` | Trace search |
+| Loki | `https://localhost/loki/ready` | `https://localhost:1443/loki/ready` | Log aggregation (API only, use Grafana to explore) |
+
+### Telemetry Pipeline
+
+```
+App Services ──(OTLP)──→ OTEL Collector ──→ Prometheus (metrics)
+                                         ──→ Jaeger (traces)
+                                         ──→ Loki (logs)
+                                                ↑
+                              Grafana ──────────┘ (queries all three)
+```
+
 ### Health Checks
 
 ```bash
@@ -337,7 +376,10 @@ docker logs echobase-devlocal-durable-mariadb
 ### Logs
 
 ```bash
-# Application logs
+# Application logs (via Grafana Explore → Loki)
+# Query: {service_name=~".+"}
+
+# Or direct container logs
 docker compose logs -f api-gateway
 docker compose logs -f order-processor
 
@@ -400,5 +442,7 @@ For production deployment, consider:
 - **Dashed lines** (-.→): Infrastructure management or belongs-to relationships
 - **Blue boxes**: Ephemeral application services
 - **Dark blue cylinders**: Durable database infrastructure
-- **Orange boxes**: AWS services (SQS)
+- **Orange boxes**: AWS services (SQS), observability (OTEL Collector, Loki, Grafana)
+- **Red/cyan boxes**: Prometheus, Jaeger
+- **Green box**: nginx load balancer
 - **Purple boxes**: Infrastructure management (Terraform, Docker)

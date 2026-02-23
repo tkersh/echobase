@@ -7,6 +7,9 @@
 
 set -e
 
+# shellcheck source=./services.sh
+source "$(dirname "$0")/services.sh"
+
 DURABLE_ENV=${1:-devlocal}
 
 if [ "$DURABLE_ENV" != "devlocal" ] && [ "$DURABLE_ENV" != "ci" ]; then
@@ -87,7 +90,7 @@ print_infrastructure_details() {
         echo "  Jaeger UI: https://localhost/jaeger/ (basic auth)"
         echo "  Prometheus: https://localhost/prometheus/ (basic auth)"
         echo "  Grafana: https://localhost/grafana/ (basic auth)"
-        echo "  Loki: https://localhost/loki/ (basic auth)"
+        echo "  Loki: https://localhost/loki/ready (basic auth, API only)"
     else
         echo "  Database Container: echobase-ci-durable-mariadb"
         echo "  LocalStack Container: echobase-ci-durable-localstack"
@@ -100,7 +103,7 @@ print_infrastructure_details() {
         echo "  Jaeger UI: https://localhost:1443/jaeger/ (basic auth)"
         echo "  Prometheus: https://localhost:1443/prometheus/ (basic auth)"
         echo "  Grafana: https://localhost:1443/grafana/ (basic auth)"
-        echo "  Loki: https://localhost:1443/loki/ (basic auth)"
+        echo "  Loki: https://localhost:1443/loki/ready (basic auth, API only)"
     fi
     echo ""
     echo "Credentials: Stored in AWS Secrets Manager (source of truth)"
@@ -513,7 +516,7 @@ else
     # Ensure OTEL stack is running (otel-collector, jaeger, prometheus, loki, grafana).
     # docker compose up -d is idempotent — only recreates if config changed.
     echo "  Ensuring OTEL stack is running..."
-    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d otel-collector jaeger prometheus loki grafana
+    docker compose -f durable/docker-compose.yml --env-file "$TEMP_ENV_FILE" -p "$PROJECT_NAME" up -d $OTEL_SERVICES
     OTEL_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-otel-collector" 2>/dev/null || echo "not-found")
     JAEGER_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-jaeger" 2>/dev/null || echo "not-found")
     PROM_STATUS=$(docker inspect -f '{{.State.Status}}' "${CONTAINER_PREFIX}-prometheus" 2>/dev/null || echo "not-found")

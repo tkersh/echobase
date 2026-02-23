@@ -27,9 +27,21 @@ graph TB
     end
 
     subgraph "Durable Infrastructure Layer - Persists Across Deployments"
+        subgraph "Load Balancer"
+            Nginx[nginx<br/>Reverse Proxy<br/>Blue-Green Traffic Routing<br/>Basic Auth for Observability UIs]
+        end
+
         subgraph "Data Layer"
             MariaDBDev[(Dev-Local Database<br/>echobase-durable-mariadb<br/>Port 3306<br/>orders_db<br/>Encryption at Rest)]
             MariaDBCI[(CI Database<br/>echobase-ci-durable-mariadb<br/>Port 3307<br/>orders_db<br/>Encryption at Rest)]
+        end
+
+        subgraph "Observability Stack"
+            OTELCollector[OTEL Collector<br/>Receives OTLP telemetry<br/>gRPC :4317 / HTTP :4318]
+            Prometheus[Prometheus<br/>Metrics Storage<br/>/prometheus/]
+            Jaeger[Jaeger<br/>Distributed Tracing<br/>/jaeger/]
+            Loki[Loki<br/>Log Aggregation<br/>/loki/]
+            Grafana[Grafana<br/>Unified Dashboard<br/>/grafana/]
         end
 
         subgraph "Database Schema"
@@ -75,6 +87,8 @@ graph TB
 
     DurableSetup -.->|Creates & Manages| MariaDBDev
     DurableSetup -.->|Creates & Manages| MariaDBCI
+    DurableSetup -.->|Creates & Manages| OTELCollector
+    DurableSetup -.->|Creates & Manages| Nginx
 
     AppDocker -.->|Runs Ephemeral| React
     AppDocker -.->|Runs Ephemeral| API
@@ -85,6 +99,17 @@ graph TB
     Auth -.->|Connects via<br/>durable-ci-network| MariaDBCI
     Processor -.->|Connects via<br/>durable-network| MariaDBDev
     Processor -.->|Connects via<br/>durable-ci-network| MariaDBCI
+
+    React -.->|Traces (OTLP)| OTELCollector
+    API -.->|Traces, Metrics,<br/>Logs (OTLP)| OTELCollector
+    Processor -.->|Traces, Metrics,<br/>Logs (OTLP)| OTELCollector
+    OTELCollector -->|Traces| Jaeger
+    OTELCollector -->|Metrics| Prometheus
+    OTELCollector -->|Logs| Loki
+    Grafana -.->|Queries| Prometheus
+    Grafana -.->|Queries| Loki
+    Grafana -.->|Queries| Jaeger
+    Nginx -.->|Proxies /grafana/,<br/>/prometheus/, /jaeger/,<br/>/loki/| Grafana
 
     style User fill:#e1f5ff
     style React fill:#61dafb
@@ -103,3 +128,9 @@ graph TB
     style Terraform fill:#7b42bc
     style DurableSetup fill:#7b42bc
     style AppDocker fill:#2496ed
+    style Nginx fill:#009639
+    style OTELCollector fill:#f5a623
+    style Prometheus fill:#e6522c
+    style Jaeger fill:#60d0e4
+    style Loki fill:#f2994a
+    style Grafana fill:#f46800

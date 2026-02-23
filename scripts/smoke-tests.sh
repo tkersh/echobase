@@ -9,6 +9,7 @@
 #   2. Frontend Load - Homepage returns 200
 #   3. Auth Flow - Register + Login works
 #   4. Order Submission - POST /api/v1/orders returns 201
+#   5. OTEL Infrastructure - Collector, Prometheus, Jaeger, Loki, Grafana health
 #
 # Exit codes:
 #   0 - All tests passed
@@ -56,9 +57,9 @@ log_test() {
     fi
 }
 
-# Find production URLs from nginx container labels
+# Find production URLs — detects devlocal (direct ports) vs CI (nginx blue-green proxy)
 get_production_urls() {
-    # Find nginx container by labels
+    # Find nginx container by labels (needed for OTEL tests in all modes)
     local nginx_container
     nginx_container=$(docker ps --filter "status=running" \
         --filter "label=echobase.role=durable" \
@@ -70,12 +71,9 @@ get_production_urls() {
         return 1
     fi
 
-    # Get port configuration from labels
-    local https_port
-    https_port=$(docker inspect --format '{{index .Config.Labels "echobase.nginx.https_port"}}' "$nginx_container" 2>/dev/null || echo "443")
-    [ -z "$https_port" ] && https_port="443"
+    export NGINX_CONTAINER="$nginx_container"
 
-    # Determine the host to use for accessing nginx
+    # Determine the host to use
     # In CI (running in container), localhost may not work - try alternatives
     local host="localhost"
 
@@ -97,20 +95,48 @@ get_production_urls() {
         fi
     fi
 
-    # Build URLs
-    if [ "$https_port" = "443" ]; then
-        FRONTEND_URL="https://${host}"
-        API_URL="https://${host}/api"
+    # Detect devlocal mode: frontend container running with echobase.env=devlocal
+    local devlocal_frontend
+    devlocal_frontend=$(docker ps --filter "status=running" \
+        --filter "label=echobase.env=devlocal" \
+        --filter "label=echobase.service=frontend" \
+        --format "{{.Names}}" 2>/dev/null | head -1)
+
+    if [ -n "$devlocal_frontend" ]; then
+        # Devlocal mode — app services expose direct ports, not behind nginx blue-green proxy.
+        # Frontend nginx proxies /health and /api/ to the API gateway.
+        local frontend_https_port
+        frontend_https_port=$(docker port "$devlocal_frontend" 443 2>/dev/null | head -1 | sed 's/.*://')
+        if [ -z "$frontend_https_port" ]; then
+            echo "WARNING: Could not determine frontend HTTPS port, defaulting to 3443"
+            frontend_https_port="3443"
+        fi
+
+        FRONTEND_URL="https://${host}:${frontend_https_port}"
+        API_URL="https://${host}:${frontend_https_port}/api"
+
+        echo "Mode: devlocal (direct ports)"
     else
-        FRONTEND_URL="https://${host}:${https_port}"
-        API_URL="https://${host}:${https_port}/api"
+        # CI / blue-green mode — app accessed through durable nginx proxy
+        local https_port
+        https_port=$(docker inspect --format '{{index .Config.Labels "echobase.nginx.https_port"}}' "$nginx_container" 2>/dev/null || echo "443")
+        [ -z "$https_port" ] && https_port="443"
+
+        if [ "$https_port" = "443" ]; then
+            FRONTEND_URL="https://${host}"
+            API_URL="https://${host}/api"
+        else
+            FRONTEND_URL="https://${host}:${https_port}"
+            API_URL="https://${host}:${https_port}/api"
+        fi
+
+        echo "Mode: blue-green (nginx proxy)"
     fi
 
     export FRONTEND_URL
     export API_URL
-    export NGINX_CONTAINER="$nginx_container"
 
-    echo "Production endpoints:"
+    echo "Endpoints:"
     echo "  Frontend: $FRONTEND_URL"
     echo "  API: $API_URL"
 }
@@ -125,8 +151,8 @@ check_network_mode() {
     export NETWORK_MODE_CHECKED=true
     export USE_INTERNAL_NETWORK=false
 
-    # Quick test: can we reach nginx via localhost?
-    if curl -sk --connect-timeout 2 "https://localhost:${NGINX_HTTPS_PORT:-1443}/" >/dev/null 2>&1; then
+    # Quick test: can we reach the frontend URL via localhost?
+    if curl -sk --connect-timeout 2 "${FRONTEND_URL}/" >/dev/null 2>&1; then
         echo "Network mode: direct (localhost reachable)"
         export USE_INTERNAL_NETWORK=false
     else
@@ -203,7 +229,7 @@ test_frontend_load() {
 
     response=$(do_curl -sk -w "\n%{http_code}" "${FRONTEND_URL}/" --max-time "$MAX_RESPONSE_TIME" 2>&1) || true
     http_code=$(echo "$response" | tail -n1)
-    body=$(echo "$response" | head -n -1)
+    body=$(echo "$response" | sed '$d')
 
     if [ "$http_code" = "200" ]; then
         # Check for expected content (React app marker)
@@ -310,6 +336,35 @@ test_order_submission() {
     fi
 }
 
+# Test 5: OTEL Infrastructure Health
+# Tests internal health endpoints from within the docker network (via nginx container).
+# This bypasses nginx basic auth and verifies that each service is running and reachable.
+test_otel_infrastructure() {
+    echo ""
+    echo -e "${BLUE}Test 5: OTEL Infrastructure${NC}"
+
+    if [ -z "${NGINX_CONTAINER:-}" ]; then
+        log_test "FAIL" "OTEL infrastructure" "No nginx container available"
+        return 1
+    fi
+
+    # Helper: run wget inside the nginx container to test an internal endpoint.
+    # Uses wget because alpine-based nginx image has it; curl may not be installed.
+    otel_check() {
+        local name="$1"
+        local url="$2"
+        docker exec "$NGINX_CONTAINER" wget -qO- --timeout=5 "$url" >/dev/null 2>&1 && \
+            log_test "PASS" "$name" || \
+            log_test "FAIL" "$name" "Could not reach $url"
+    }
+
+    otel_check "OTEL Collector health"  "http://otel-collector:13133/status"
+    otel_check "Prometheus healthy"     "http://prometheus:9090/prometheus/-/healthy"
+    otel_check "Jaeger status"          "http://jaeger:13133/status"
+    otel_check "Loki ready"             "http://loki:3100/ready"
+    otel_check "Grafana health"         "http://grafana:3000/grafana/api/health"
+}
+
 # Debug connectivity
 debug_connectivity() {
     echo ""
@@ -386,11 +441,12 @@ main() {
     # Run connectivity debug before tests
     debug_connectivity
 
-    # Run tests
-    test_api_health
-    test_frontend_load
-    test_auth_flow
-    test_order_submission
+    # Run tests (|| true prevents set -e from aborting on individual test failures)
+    test_api_health || true
+    test_frontend_load || true
+    test_auth_flow || true
+    test_order_submission || true
+    test_otel_infrastructure || true
 
     # Summary
     echo ""
