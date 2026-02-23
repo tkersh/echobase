@@ -1,0 +1,76 @@
+Implement the following plan:
+
+# Plan: Centralize Durable Service/Volume Lists
+
+## Context
+
+The durable infrastructure service names and volume names are duplicated across 3 scripts. When a new service is added (as just happened with Loki/Grafana), every list must be updated independently — and `scripts/teardown-all.sh` was missed. This creates a maintenance hazard.
+
+## Approach
+
+Create a single `durable/services.sh` file that defines the canonical lists as shell variables. Each consuming script sources it and uses the variables instead of hardcoded lists.
+
+### New file: `durable/services.sh`
+
+```bash
+# Canonical lists of durable infrastructure components.
+# Source this file from scripts that iterate over durable services or volumes.
+# When adding a new durable service, update ONLY this file.
+
+DURABLE_SERVICES="mariadb localstack nginx mcp-server otel-collector jaeger prometheus loki grafana"
+DURABLE_VOLUMES="mariadb-data localstack-data nginx-config jaeger-badger-data prometheus-data loki-data grafana-data"
+OTEL_SERVICES="otel-collector jaeger prometheus loki grafana"
+```
+
+### Modified files
+
+**`durable/teardown.sh`** (line 59, 83, 103)
+- Add `source "$(dirname "$0")/services.sh"` near the top
+- Replace hardcoded container loop: `for container in $DURABLE_SERVICES; do`
+- Replace both hardcoded volume loops: `for volume in $DURABLE_VOLUMES; do`
+
+**`scripts/teardown-all.sh`** (lines 125, 142)
+- Add `source "$PROJECT_ROOT/durable/services.sh"` near the top (PROJECT_ROOT is already set)
+- Replace hardcoded service loop in `teardown_durable()`: `for service in $DURABLE_SERVICES; do`
+- Replace hardcoded volume loop: `for volume in $DURABLE_VOLUMES; do`
+
+**`durable/setup.sh`** (line 516)
+- Add `source "$(dirname "$0")/services.sh"` near the top
+- Replace `docker compose ... up -d otel-collector jaeger prometheus loki grafana` with `docker compose ... up -d $OTEL_SERVICES`
+
+## Not changed
+
+- The per-service status checks and `echo` lines in `setup.sh` (lines 517-526) remain hardcoded — they contain service-specific variable names and display strings that don't benefit from a loop
+- The `print_infrastructure_details` function remains hardcoded — it has per-service URLs and descriptions
+- `durable/docker-compose.yml` — the source of truth for service definitions, not a consumer of the list
+
+## Verification
+
+1. Run `./durable/teardown.sh devlocal --volumes` — should list all 9 services and 7 volumes
+2. Run `./scripts/teardown-all.sh --volumes --include-ci` — should remove loki/grafana containers and volumes
+3. Run `./durable/setup.sh devlocal` with OTEL stack stopped — should start all 5 OTEL services
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/tadk/.REDACTED.jsonl
+
+---
+
+OTEL_SERVICES are always going to be DURABLE_SERVICES, so let's $ include it into the DURABLE_SERVICES list
+
+---
+
+hook smoke-tests into run-all-tests
+
+---
+
+Smoke should be first, fail fast if it doesn't pass
+
+---
+
+~/work/echobase/durable/services.sh
+Warning:(6, 1) DURABLE_SERVICES appears unused. Verify use (or export if used externally).
+Warning:(7, 1) DURABLE_VOLUMES appears unused. Verify use (or export if used externally).
+~/work/echobase/run-all-tests.sh
+Warning:(14, 1) YELLOW appears unused. Verify use (or export if used externally).
+~/work/echobase/scripts/smoke-tests.sh
+Warning:(357, 9) result appears unused. Verify use (or export if used externally).
